@@ -13,6 +13,7 @@ import { Narrators } from './collections/Narrators'
 import { Meditations } from './collections/Meditations'
 import { Tags } from './collections/Tags'
 import { Music } from './collections/Music'
+import { Frames } from './collections/Frames'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -31,7 +32,7 @@ export default buildConfig({
       ],
     },
   },
-  collections: [Users, Media, Narrators, Meditations, Tags, Music],
+  collections: [Users, Media, Narrators, Meditations, Tags, Music, Frames],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
