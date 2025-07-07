@@ -50,6 +50,7 @@ If necessary, you should also run `pnpm run generate:types`
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
 - **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
 - **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
+- **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration with collections, database, and plugins
