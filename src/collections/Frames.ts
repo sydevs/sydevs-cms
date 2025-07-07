@@ -43,7 +43,7 @@ export const Frames: CollectionConfig = {
       async ({ doc, operation }) => {
         // Auto-populate metadata based on file type
         if (operation === 'create' && doc.mimeType) {
-          const updates: any = {}
+          const updates: Record<string, unknown> = {}
           
           if (doc.mimeType.startsWith('image/')) {
             // For images, extract dimensions

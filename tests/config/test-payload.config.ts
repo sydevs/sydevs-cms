@@ -6,13 +6,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
-import { Users } from '../../src/collections/Users'
-import { Media } from '../../src/collections/Media'
-import { Narrators } from '../../src/collections/Narrators'
-import { Meditations } from '../../src/collections/Meditations'
-import { Tags } from '../../src/collections/Tags'
-import { Music } from '../../src/collections/Music'
-import { Frames } from '../../src/collections/Frames'
+import { collections, Users } from '../../src/collections'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -26,7 +20,7 @@ export const createTestConfig = (mongoUri: string) => buildConfig({
     // Disable admin UI for tests
     disable: true,
   },
-  collections: [Users, Media, Narrators, Meditations, Tags, Music, Frames],
+  collections,
   editor: lexicalEditor(),
   secret: 'test-secret-key',
   typescript: {
