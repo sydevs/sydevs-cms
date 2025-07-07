@@ -5,26 +5,13 @@ export const Music: CollectionConfig = {
   upload: {
     staticDir: 'music',
     mimeTypes: ['audio/*'],
+    imageSizes: [], // Disable image processing for audio files
+    disableLocalStorage: false,
   },
   admin: {
     useAsTitle: 'title',
   },
   hooks: {
-    beforeValidate: [
-      ({ data, req }) => {
-        // Validate file size (50MB = 52,428,800 bytes)
-        if (req.file && req.file.size > 52428800) {
-          throw new Error('File size must be less than 50MB')
-        }
-
-        // Validate audio mimeType
-        if (req.file && !req.file.mimetype.startsWith('audio/')) {
-          throw new Error('Only audio files are allowed')
-        }
-
-        return data
-      },
-    ],
     beforeChange: [
       ({ data, operation, originalDoc, req }) => {
         // Generate slug from title
@@ -36,6 +23,9 @@ export const Music: CollectionConfig = {
         } else if (operation === 'update' && originalDoc) {
           data.slug = originalDoc.slug
         }
+
+        // TODO: Add file size and duration validation
+        // For now, relying on Payload's built-in mimeType validation
 
         // TODO: Extract and validate audio duration
         // For now, this would require audio metadata extraction
