@@ -13,10 +13,6 @@ export const isProductionEnvironment = (): boolean => {
     process.env.NODE_ENV === 'production' ||
     // Payload Cloud deployment
     process.env.PAYLOAD_CLOUD === 'true' ||
-    // Custom flag for cloud storage
-    process.env.USE_CLOUD_STORAGE === 'true' ||
-    // S3/MinIO environment variables present (indicates cloud storage setup)
-    (process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID) ||
     // Railway/other cloud platforms
     process.env.RAILWAY_ENVIRONMENT === 'production'
   )
