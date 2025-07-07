@@ -4,7 +4,7 @@ import { MongoClient } from 'mongodb'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -219,6 +219,69 @@ export const testDataFactory = {
         size: fileBuffer.length,
       },
     }) as Music
+  },
+
+  /**
+   * Create frame with image file
+   */
+  async createFrameImage(payload: Payload, overrides = {}): Promise<Frame> {
+    const fileBuffer = readSampleFile('sample.jpg')
+    return await payload.create({
+      collection: 'frames',
+      data: {
+        name: 'Test Frame Image',
+        imageSet: 'male' as const,
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: 'image/jpeg',
+        name: 'sample.jpg',
+        size: fileBuffer.length,
+      },
+    }) as Frame
+  },
+
+  /**
+   * Create frame with video file
+   */
+  async createFrameVideo(payload: Payload, overrides = {}): Promise<Frame> {
+    const fileBuffer = readSampleFile('video.mp4')
+    return await payload.create({
+      collection: 'frames',
+      data: {
+        name: 'Test Frame Video',
+        imageSet: 'female' as const,
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: 'video/mp4',
+        name: 'video.mp4',
+        size: fileBuffer.length,
+      },
+    }) as Frame
+  },
+
+  /**
+   * Create frame with custom file format
+   */
+  async createFrameWithFormat(payload: Payload, format: { mimetype: string; name: string; filename: string }, overrides = {}): Promise<Frame> {
+    const fileBuffer = readSampleFile(format.filename)
+    return await payload.create({
+      collection: 'frames',
+      data: {
+        name: 'Test Frame',
+        imageSet: 'male' as const,
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: format.mimetype,
+        name: format.name,
+        size: fileBuffer.length,
+      },
+    }) as Frame
   },
 
 }

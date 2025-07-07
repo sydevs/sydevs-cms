@@ -12,6 +12,7 @@ import { Narrators } from '../../src/collections/Narrators'
 import { Meditations } from '../../src/collections/Meditations'
 import { Tags } from '../../src/collections/Tags'
 import { Music } from '../../src/collections/Music'
+import { Frames } from '../../src/collections/Frames'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -25,7 +26,7 @@ export const createTestConfig = (mongoUri: string) => buildConfig({
     // Disable admin UI for tests
     disable: true,
   },
-  collections: [Users, Media, Narrators, Meditations, Tags, Music],
+  collections: [Users, Media, Narrators, Meditations, Tags, Music, Frames],
   editor: lexicalEditor(),
   secret: 'test-secret-key',
   typescript: {
@@ -34,8 +35,8 @@ export const createTestConfig = (mongoUri: string) => buildConfig({
   db: mongooseAdapter({
     url: mongoUri,
   }),
-  // Disable sharp processing in tests to avoid image validation issues
-  sharp: false,
+  // Enable sharp for frames collection testing
+  sharp,
   plugins: [],
   // Disable file uploads for tests
   upload: {
