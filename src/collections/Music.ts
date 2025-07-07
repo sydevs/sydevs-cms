@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { getStorageConfig } from '@/lib/storage'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -6,9 +7,7 @@ export const Music: CollectionConfig = {
     staticDir: 'media/music',
     mimeTypes: ['audio/*'],
     imageSizes: [], // Disable image processing for audio files
-    // disableLocalStorage: false - Enable local file storage for development
-    // Set to true in production when using cloud storage adapters (S3, etc.)
-    disableLocalStorage: false,
+    ...getStorageConfig(), // Apply production-aware storage configuration
   },
   admin: {
     useAsTitle: 'title',
