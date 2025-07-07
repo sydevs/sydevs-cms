@@ -3,9 +3,11 @@ import type { CollectionConfig } from 'payload'
 export const Music: CollectionConfig = {
   slug: 'music',
   upload: {
-    staticDir: 'music',
+    staticDir: 'media/music',
     mimeTypes: ['audio/*'],
     imageSizes: [], // Disable image processing for audio files
+    // disableLocalStorage: false - Enable local file storage for development
+    // Set to true in production when using cloud storage adapters (S3, etc.)
     disableLocalStorage: false,
   },
   admin: {
