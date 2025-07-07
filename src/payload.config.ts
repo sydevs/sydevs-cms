@@ -12,7 +12,9 @@ import { collections, Users } from './collections'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-const payloadConfig = (overrides?: Config) => {
+const isTestEnvironment = process.env.NODE_ENV === 'test'
+
+const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     admin: {
       user: Users.slug,
@@ -26,6 +28,8 @@ const payloadConfig = (overrides?: Config) => {
           },
         ],
       },
+      // Disable admin UI in test environment
+      disable: isTestEnvironment,
     },
     collections,
     editor: lexicalEditor(),
@@ -41,6 +45,7 @@ const payloadConfig = (overrides?: Config) => {
       payloadCloudPlugin(),
       // storage-adapter-placeholder
     ],
+    // Allow overrides (especially important for test database URIs)
     ...overrides,
   })
 }

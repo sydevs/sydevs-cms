@@ -1,5 +1,6 @@
 import { getPayload, Payload } from 'payload'
-import { createTestConfig } from '../config/test-payload.config'
+import payloadConfig from '../../src/payload.config'
+import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { MongoClient } from 'mongodb'
 import fs from 'fs'
 import path from 'path'
@@ -29,7 +30,11 @@ export async function createTestEnvironment(): Promise<{
 
   console.log(`🧪 Creating test environment with database: ${testDbName}`)
 
-  const config = createTestConfig(mongoUri)
+  const config = payloadConfig({
+    db: mongooseAdapter({
+      url: mongoUri,
+    }),
+  })
   const payload = await getPayload({ config })
 
   const cleanup = async () => {

@@ -14,10 +14,6 @@ export const Frames: CollectionConfig = {
       'video/mp4',
       'video/webm',
     ],
-    // File size limits
-    limits: {
-      fileSize: 100 * 1024 * 1024, // 100MB max (handles both image and video limits)
-    },
     ...getStorageConfig(),
   },
   admin: {
