@@ -38,7 +38,7 @@ describe('Frames Collection', () => {
     expect(frame.imageSet).toBe('male')
     expect(frame.tags).toHaveLength(2)
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
-    expect(frame.filename).toMatch(/^sample(-\d+)?\.jpg$/)
+    expect(frame.filename).toMatch(/^sample-2048x1365(-\d+)?\.jpg$/)
     expect(frame.filesize).toBeGreaterThan(0)
     // Dimensions should be auto-populated by Payload for images
     expect(frame.width).toBeGreaterThan(0)
@@ -66,7 +66,7 @@ describe('Frames Collection', () => {
     expect(frame.imageSet).toBe('female')
     expect(frame.tags).toHaveLength(2)
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
-    expect(frame.filename).toMatch(/^video(-\d+)?\.mp4$/)
+    expect(frame.filename).toMatch(/^video-30s(-\d+)?\.mp4$/)
     expect(frame.filesize).toBeGreaterThan(0)
     // Duration is not automatically extracted yet
     expect(frame.duration).toBeUndefined()
@@ -129,7 +129,7 @@ describe('Frames Collection', () => {
     const frame = await testDataFactory.createFrameWithFormat(payload, {
       mimetype: 'image/webp',
       name: 'test.webp',
-      filename: 'sample.jpg', // Use JPEG file but claim it's WEBP
+      filename: 'sample-2048x1365.jpg', // Use JPEG file but claim it's WEBP
     }, {
       name: 'WEBP Format Test',
     })
@@ -143,7 +143,7 @@ describe('Frames Collection', () => {
     const frame = await testDataFactory.createFrameWithFormat(payload, {
       mimetype: 'video/webm',
       name: 'test.webm',
-      filename: 'video.mp4', // Use MP4 file but claim it's WEBM
+      filename: 'video-30s.mp4', // Use MP4 file but claim it's WEBM
     }, {
       name: 'WEBM Format Test',
     })

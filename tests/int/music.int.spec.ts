@@ -38,7 +38,7 @@ describe('Music Collection', () => {
     expect(music.credit).toBe('Nature Recordings Inc.')
     expect(music.tags).toHaveLength(2)
     expect(music.mimeType).toBe('audio/mp3')
-    expect(music.filename).toMatch(/^audio(-\d+)?\.mp3$/)
+    expect(music.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
     expect(music.filesize).toBeGreaterThan(0)
 
     // Check tags relationship
@@ -254,10 +254,10 @@ describe('Music Collection', () => {
 
   it('supports different audio formats', async () => {
     const formats = [
-      { mimetype: 'audio/mp3', name: 'audio.mp3' },
-      { mimetype: 'audio/wav', name: 'audio.wav' },
-      { mimetype: 'audio/ogg', name: 'audio.ogg' },
-      { mimetype: 'audio/aac', name: 'audio.aac' },
+      { mimetype: 'audio/mp3', name: 'audio-42s.mp3' },
+      { mimetype: 'audio/wav', name: 'audio-42s.wav' },
+      { mimetype: 'audio/ogg', name: 'audio-42s.ogg' },
+      { mimetype: 'audio/aac', name: 'audio-42s.aac' },
     ]
 
     for (let i = 0; i < formats.length; i++) {

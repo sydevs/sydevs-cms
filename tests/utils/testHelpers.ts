@@ -90,7 +90,7 @@ export const testDataFactory = {
    * Create image media using sample file
    */
   async createMediaImage(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('sample.jpg')
+    const fileBuffer = readSampleFile('sample-2048x1365.jpg')
     return await payload.create({
       collection: 'media',
       data: {
@@ -100,7 +100,7 @@ export const testDataFactory = {
       file: {
         data: fileBuffer,
         mimetype: 'image/jpeg',
-        name: 'sample.jpg',
+        name: 'sample-2048x1365.jpg',
         size: fileBuffer.length,
       },
     }) as Media
@@ -110,7 +110,7 @@ export const testDataFactory = {
    * Create audio media using sample file
    */
   async createMediaAudio(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('audio.mp3')
+    const fileBuffer = readSampleFile('audio-42s.mp3')
     return await payload.create({
       collection: 'media',
       data: {
@@ -120,7 +120,7 @@ export const testDataFactory = {
       file: {
         data: fileBuffer,
         mimetype: 'audio/mp3',
-        name: 'audio.mp3',
+        name: 'audio-42s.mp3',
         size: fileBuffer.length,
       },
     }) as Media
@@ -130,7 +130,7 @@ export const testDataFactory = {
    * Create video media using sample file
    */
   async createMediaVideo(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('video.mp4')
+    const fileBuffer = readSampleFile('video-30s.mp4')
     return await payload.create({
       collection: 'media',
       data: {
@@ -140,7 +140,7 @@ export const testDataFactory = {
       file: {
         data: fileBuffer,
         mimetype: 'video/mp4',
-        name: 'video.mp4',
+        name: 'video-30s.mp4',
         size: fileBuffer.length,
       },
     }) as Media
@@ -183,7 +183,7 @@ export const testDataFactory = {
    * Create music track using sample audio file
    */
   async createMusic(payload: Payload, overrides = {}): Promise<Music> {
-    const fileBuffer = readSampleFile('audio.mp3')
+    const fileBuffer = readSampleFile('audio-42s.mp3')
     return await payload.create({
       collection: 'music',
       data: {
@@ -194,7 +194,7 @@ export const testDataFactory = {
       file: {
         data: fileBuffer,
         mimetype: 'audio/mp3',
-        name: 'audio.mp3',
+        name: 'audio-42s.mp3',
         size: fileBuffer.length,
       },
     }) as Music
@@ -204,7 +204,7 @@ export const testDataFactory = {
    * Create music track with custom audio format
    */
   async createMusicWithFormat(payload: Payload, format: { mimetype: string; name: string }, overrides = {}): Promise<Music> {
-    const fileBuffer = readSampleFile('audio.mp3')
+    const fileBuffer = readSampleFile('audio-42s.mp3')
     return await payload.create({
       collection: 'music',
       data: {
@@ -225,7 +225,7 @@ export const testDataFactory = {
    * Create frame with image file
    */
   async createFrameImage(payload: Payload, overrides = {}): Promise<Frame> {
-    const fileBuffer = readSampleFile('sample.jpg')
+    const fileBuffer = readSampleFile('sample-2048x1365.jpg')
     return await payload.create({
       collection: 'frames',
       data: {
@@ -236,7 +236,7 @@ export const testDataFactory = {
       file: {
         data: fileBuffer,
         mimetype: 'image/jpeg',
-        name: 'sample.jpg',
+        name: 'sample-2048x1365.jpg',
         size: fileBuffer.length,
       },
     }) as Frame
@@ -246,7 +246,7 @@ export const testDataFactory = {
    * Create frame with video file
    */
   async createFrameVideo(payload: Payload, overrides = {}): Promise<Frame> {
-    const fileBuffer = readSampleFile('video.mp4')
+    const fileBuffer = readSampleFile('video-30s.mp4')
     return await payload.create({
       collection: 'frames',
       data: {
@@ -257,7 +257,7 @@ export const testDataFactory = {
       file: {
         data: fileBuffer,
         mimetype: 'video/mp4',
-        name: 'video.mp4',
+        name: 'video-30s.mp4',
         size: fileBuffer.length,
       },
     }) as Frame
