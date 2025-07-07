@@ -38,10 +38,12 @@ Required environment variables (copy from `.env.example`):
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
 ### Collections
-- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users
-- **Media** (`src/collections/Media.ts`) - File uploads with required alt text
-
-All
+- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password
+- **Media** (`src/collections/Media.ts`) - File uploads with required alt text for accessibility
+- **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
+- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
+- **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
+- **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
 
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration
