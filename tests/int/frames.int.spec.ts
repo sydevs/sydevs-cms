@@ -26,7 +26,7 @@ describe('Frames Collection', () => {
   })
 
   it('creates a frame with image and auto-generated slug', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Mountain Pose',
       imageSet: 'male',
       tags: [testTag1.id, testTag2.id],
@@ -38,7 +38,7 @@ describe('Frames Collection', () => {
     expect(frame.imageSet).toBe('male')
     expect(frame.tags).toHaveLength(2)
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
-    expect(frame.filename).toMatch(/^sample-2048x1365(-\d+)?\.jpg$/)
+    expect(frame.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
     expect(frame.filesize).toBeGreaterThan(0)
     // Dimensions should be auto-populated by Payload for images
     expect(frame.width).toBeGreaterThan(0)
@@ -54,11 +54,11 @@ describe('Frames Collection', () => {
   })
 
   it('creates a frame with video and auto-generated slug', async () => {
-    const frame = await testDataFactory.createFrameVideo(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Warrior Pose Flow',
       imageSet: 'female',
       tags: [testTag2.id, testTag3.id],
-    })
+    }, 'video-30s.mp4')
 
     expect(frame).toBeDefined()
     expect(frame.name).toBe('Warrior Pose Flow')
@@ -82,7 +82,7 @@ describe('Frames Collection', () => {
   })
 
   it('ignores custom slug on create', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Sun Salutation',
       slug: 'custom-sun-slug', // This should be ignored
     })
@@ -91,7 +91,7 @@ describe('Frames Collection', () => {
   })
 
   it('handles special characters in slug generation', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Namasté: Inner Peace & Harmony',
     })
 
@@ -100,7 +100,7 @@ describe('Frames Collection', () => {
 
   it('requires name field', async () => {
     await expect(
-      testDataFactory.createFrameImage(payload, {
+      testDataFactory.createFrame(payload, {
         imageSet: 'male',
         name: undefined, // Remove name to test validation
       } as any)
@@ -109,7 +109,7 @@ describe('Frames Collection', () => {
 
   it('requires imageSet field', async () => {
     await expect(
-      testDataFactory.createFrameImage(payload, {
+      testDataFactory.createFrame(payload, {
         name: 'Test Frame',
         imageSet: undefined, // Remove imageSet to test validation
       } as any)
@@ -118,39 +118,32 @@ describe('Frames Collection', () => {
 
   it('validates imageSet options', async () => {
     await expect(
-      testDataFactory.createFrameImage(payload, {
+      testDataFactory.createFrame(payload, {
         name: 'Test Frame',
         imageSet: 'invalid' as any, // Invalid option
       })
     ).rejects.toThrow()
   })
 
-  it('accepts valid image formats (WEBP)', async () => {
-    const frame = await testDataFactory.createFrameWithFormat(payload, {
-      mimetype: 'image/webp',
-      name: 'test.webp',
-      filename: 'sample-2048x1365.jpg', // Use JPEG file but claim it's WEBP
-    }, {
-      name: 'WEBP Format Test',
-    })
+  it('supports different formats', async () => {
+    const formats = [
+      { mimetype: 'image/jpeg', name: 'image-1050x700.jpg' },
+      { mimetype: 'image/png', name: 'image-1050x700.png' },
+      { mimetype: 'image/webp', name: 'image-1050x700.webp' },
+      { mimetype: 'video/mp4', name: 'video-30s.mp4' },
+      { mimetype: 'video/webm', name: 'video-30s.webm' },
+    ]
 
-    expect(frame).toBeDefined()
-    expect(frame.name).toBe('WEBP Format Test')
-    expect(frame.mimeType).toBe('image/webp')
-  })
+    for (let i = 0; i < formats.length; i++) {
+      const format = formats[i]
+      const frame = await testDataFactory.createFrame(payload, {
+        title: `Test ${format.mimetype.split('/')[1].toUpperCase()}`,
+      }, format.name)
 
-  it('accepts valid video formats (WEBM)', async () => {
-    const frame = await testDataFactory.createFrameWithFormat(payload, {
-      mimetype: 'video/webm',
-      name: 'test.webm',
-      filename: 'video-30s.mp4', // Use MP4 file but claim it's WEBM
-    }, {
-      name: 'WEBM Format Test',
-    })
-
-    expect(frame).toBeDefined()
-    expect(frame.name).toBe('WEBM Format Test')
-    expect(frame.mimeType).toBe('video/webm')
+      expect(frame).toBeDefined()
+      expect(frame.mimeType).toBe(format.mimetype)
+      expect(frame.filename).toMatch(new RegExp(`^${format.name.replace('.', '(-\\d+)?\\.')}$`))
+    }
   })
 
   it.skip('validates file size limit for images (10MB)', async () => {
@@ -198,7 +191,7 @@ describe('Frames Collection', () => {
   })
 
   it('updates a frame', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Original Name',
       imageSet: 'male',
     })
@@ -225,7 +218,7 @@ describe('Frames Collection', () => {
   })
 
   it('preserves slug when updating other fields', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Unique Slug Preservation Test Name',
     })
 
@@ -241,7 +234,7 @@ describe('Frames Collection', () => {
   })
 
   it('manages tags relationships properly', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'Tagged Frame',
       tags: [testTag1.id, testTag2.id],
     })
@@ -265,7 +258,7 @@ describe('Frames Collection', () => {
   })
 
   it('deletes a frame', async () => {
-    const frame = await testDataFactory.createFrameImage(payload, {
+    const frame = await testDataFactory.createFrame(payload, {
       name: 'To Delete',
     })
 
@@ -288,17 +281,17 @@ describe('Frames Collection', () => {
   })
 
   it('finds frames with filters', async () => {
-    await testDataFactory.createFrameImage(payload, {
+    await testDataFactory.createFrame(payload, {
       name: 'Filter Test Yoga Frame',
       tags: [testTag1.id], // yoga tag
       imageSet: 'male',
     })
 
-    await testDataFactory.createFrameVideo(payload, {
+    await testDataFactory.createFrame(payload, {
       name: 'Filter Test Beginner Frame',
       tags: [testTag3.id], // beginner tag
       imageSet: 'female',
-    })
+    }, 'video-30s.mp4')
 
     // Find frames with yoga tag AND specific name to avoid conflicts with other tests
     const result = await payload.find({
@@ -324,15 +317,15 @@ describe('Frames Collection', () => {
   })
 
   it('finds frames by imageSet', async () => {
-    await testDataFactory.createFrameImage(payload, {
+    await testDataFactory.createFrame(payload, {
       name: 'Male Frame Test',
       imageSet: 'male',
     })
 
-    await testDataFactory.createFrameVideo(payload, {
+    await testDataFactory.createFrame(payload, {
       name: 'Female Frame Test',
       imageSet: 'female',
-    })
+    }, 'video-30s.mp4')
 
     const maleFrames = await payload.find({
       collection: 'frames',
@@ -357,25 +350,25 @@ describe('Frames Collection', () => {
   })
 
   it('enforces unique slug constraint', async () => {
-    await testDataFactory.createFrameImage(payload, {
+    await testDataFactory.createFrame(payload, {
       name: 'Duplicate Test',
     })
 
     await expect(
-      testDataFactory.createFrameImage(payload, {
+      testDataFactory.createFrame(payload, {
         name: 'Duplicate Test', // Same name will generate same slug
       })
     ).rejects.toThrow()
   })
 
   it('supports mixed media types in same collection', async () => {
-    const imageFrame = await testDataFactory.createFrameImage(payload, {
+    const imageFrame = await testDataFactory.createFrame(payload, {
       name: 'Mixed Test Image',
     })
 
-    const videoFrame = await testDataFactory.createFrameVideo(payload, {
+    const videoFrame = await testDataFactory.createFrame(payload, {
       name: 'Mixed Test Video',
-    })
+    }, 'video-30s.mp4')
 
     expect(imageFrame.mimeType).toBe('image/jpeg')
     expect(imageFrame.width).toBeGreaterThan(0)

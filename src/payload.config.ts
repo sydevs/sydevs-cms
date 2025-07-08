@@ -42,9 +42,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     }),
     sharp,
     plugins: [
-      payloadCloudPlugin(),
-      // storage-adapter-placeholder
     ],
+    upload: {
+      limits: {
+        fileSize: 5000000, // 5MB, written in bytes
+      },
+    },
     // Allow overrides (especially important for test database URIs)
     ...overrides,
   })

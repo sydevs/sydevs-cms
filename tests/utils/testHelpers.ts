@@ -66,14 +66,6 @@ export async function createTestEnvironment(): Promise<{
 }
 
 /**
- * Helper function to read sample files for tests
- */
-function readSampleFile(filename: string) {
-  const filePath = path.join(SAMPLE_FILES_DIR, filename)
-  return fs.readFileSync(filePath)
-}
-
-/**
  * Test data factory functions for creating test entities with payload.create()
  */
 export const testDataFactory = {
@@ -94,60 +86,42 @@ export const testDataFactory = {
   /**
    * Create image media using sample file
    */
-  async createMediaImage(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('sample-2048x1365.jpg')
+  async createMediaImage(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Media> {
     return await payload.create({
       collection: 'media',
       data: {
         alt: 'Test image file',
         ...overrides,
       },
-      file: {
-        data: fileBuffer,
-        mimetype: 'image/jpeg',
-        name: 'sample-2048x1365.jpg',
-        size: fileBuffer.length,
-      },
+      filePath: path.join(SAMPLE_FILES_DIR, sampleFile)
     }) as Media
   },
 
   /**
    * Create audio media using sample file
    */
-  async createMediaAudio(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('audio-42s.mp3')
+  async createMediaAudio(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Media> {
     return await payload.create({
       collection: 'media',
       data: {
         alt: 'Test audio file',
         ...overrides,
       },
-      file: {
-        data: fileBuffer,
-        mimetype: 'audio/mp3',
-        name: 'audio-42s.mp3',
-        size: fileBuffer.length,
-      },
+      filePath: path.join(SAMPLE_FILES_DIR, sampleFile)
     }) as Media
   },
 
   /**
    * Create video media using sample file
    */
-  async createMediaVideo(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('video-30s.mp4')
+  async createMediaVideo(payload: Payload, overrides = {}, sampleFile = 'video-30s.mp4'): Promise<Media> {
     return await payload.create({
       collection: 'media',
       data: {
         alt: 'Test video file',
         ...overrides,
       },
-      file: {
-        data: fileBuffer,
-        mimetype: 'video/mp4',
-        name: 'video-30s.mp4',
-        size: fileBuffer.length,
-      },
+      filePath: path.join(SAMPLE_FILES_DIR, sampleFile)
     }) as Media
   },
 
@@ -187,8 +161,7 @@ export const testDataFactory = {
   /**
    * Create music track using sample audio file
    */
-  async createMusic(payload: Payload, overrides = {}): Promise<Music> {
-    const fileBuffer = readSampleFile('audio-42s.mp3')
+  async createMusic(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Music> {
     return await payload.create({
       collection: 'music',
       data: {
@@ -196,41 +169,14 @@ export const testDataFactory = {
         credit: 'Test Artist',
         ...overrides,
       },
-      file: {
-        data: fileBuffer,
-        mimetype: 'audio/mp3',
-        name: 'audio-42s.mp3',
-        size: fileBuffer.length,
-      },
-    }) as Music
-  },
-
-  /**
-   * Create music track with custom audio format
-   */
-  async createMusicWithFormat(payload: Payload, format: { mimetype: string; name: string }, overrides = {}): Promise<Music> {
-    const fileBuffer = readSampleFile('audio-42s.mp3')
-    return await payload.create({
-      collection: 'music',
-      data: {
-        title: 'Test Music Track',
-        credit: 'Test Artist',
-        ...overrides,
-      },
-      file: {
-        data: fileBuffer,
-        mimetype: format.mimetype,
-        name: format.name,
-        size: fileBuffer.length,
-      },
+      filePath: path.join(SAMPLE_FILES_DIR, sampleFile)
     }) as Music
   },
 
   /**
    * Create frame with image file
    */
-  async createFrameImage(payload: Payload, overrides = {}): Promise<Frame> {
-    const fileBuffer = readSampleFile('sample-2048x1365.jpg')
+  async createFrame(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Frame> {
     return await payload.create({
       collection: 'frames',
       data: {
@@ -238,55 +184,8 @@ export const testDataFactory = {
         imageSet: 'male' as const,
         ...overrides,
       },
-      file: {
-        data: fileBuffer,
-        mimetype: 'image/jpeg',
-        name: 'sample-2048x1365.jpg',
-        size: fileBuffer.length,
-      },
+      filePath: path.join(SAMPLE_FILES_DIR, sampleFile)
     }) as Frame
   },
-
-  /**
-   * Create frame with video file
-   */
-  async createFrameVideo(payload: Payload, overrides = {}): Promise<Frame> {
-    const fileBuffer = readSampleFile('video-30s.mp4')
-    return await payload.create({
-      collection: 'frames',
-      data: {
-        name: 'Test Frame Video',
-        imageSet: 'female' as const,
-        ...overrides,
-      },
-      file: {
-        data: fileBuffer,
-        mimetype: 'video/mp4',
-        name: 'video-30s.mp4',
-        size: fileBuffer.length,
-      },
-    }) as Frame
-  },
-
-  /**
-   * Create frame with custom file format
-   */
-  async createFrameWithFormat(payload: Payload, format: { mimetype: string; name: string; filename: string }, overrides = {}): Promise<Frame> {
-    const fileBuffer = readSampleFile(format.filename)
-    return await payload.create({
-      collection: 'frames',
-      data: {
-        name: 'Test Frame',
-        imageSet: 'male' as const,
-        ...overrides,
-      },
-      file: {
-        data: fileBuffer,
-        mimetype: format.mimetype,
-        name: format.name,
-        size: fileBuffer.length,
-      },
-    }) as Frame
-  },
-
+  
 }
