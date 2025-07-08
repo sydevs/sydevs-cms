@@ -25,7 +25,7 @@ describe('Frames Collection', () => {
     await cleanup()
   })
 
-  it('creates a frame with image and auto-generated slug', async () => {
+  it('creates a frame with image', async () => {
     const frame = await testDataFactory.createFrame(payload, {
       name: 'Mountain Pose',
       imageSet: 'male',
@@ -34,7 +34,6 @@ describe('Frames Collection', () => {
 
     expect(frame).toBeDefined()
     expect(frame.name).toBe('Mountain Pose')
-    expect(frame.slug).toBe('mountain-pose')
     expect(frame.imageSet).toBe('male')
     expect(frame.tags).toHaveLength(2)
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
@@ -53,7 +52,7 @@ describe('Frames Collection', () => {
     expect(tagIds).toContain(testTag2.id)
   })
 
-  it('creates a frame with video and auto-generated slug', async () => {
+  it('creates a frame with video', async () => {
     const frame = await testDataFactory.createFrame(payload, {
       name: 'Warrior Pose Flow',
       imageSet: 'female',
@@ -62,7 +61,6 @@ describe('Frames Collection', () => {
 
     expect(frame).toBeDefined()
     expect(frame.name).toBe('Warrior Pose Flow')
-    expect(frame.slug).toBe('warrior-pose-flow')
     expect(frame.imageSet).toBe('female')
     expect(frame.tags).toHaveLength(2)
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
@@ -79,23 +77,6 @@ describe('Frames Collection', () => {
       : []
     expect(tagIds).toContain(testTag2.id)
     expect(tagIds).toContain(testTag3.id)
-  })
-
-  it('ignores custom slug on create', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
-      name: 'Sun Salutation',
-      slug: 'custom-sun-slug', // This should be ignored
-    })
-
-    expect(frame.slug).toBe('sun-salutation') // Auto-generated from name
-  })
-
-  it('handles special characters in slug generation', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
-      name: 'Namasté: Inner Peace & Harmony',
-    })
-
-    expect(frame.slug).toBe('namast-inner-peace-harmony')
   })
 
   it('requires name field', async () => {
@@ -208,29 +189,12 @@ describe('Frames Collection', () => {
 
     expect(updated.name).toBe('Updated Name')
     expect(updated.imageSet).toBe('female')
-    expect(updated.slug).toBe('original-name') // Slug should not change on update
     expect(updated.tags).toHaveLength(1)
     
     const tagIds = Array.isArray(updated.tags) 
       ? updated.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
       : []
     expect(tagIds).toContain(testTag3.id)
-  })
-
-  it('preserves slug when updating other fields', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
-      name: 'Unique Slug Preservation Test Name',
-    })
-
-    const updated = await payload.update({
-      collection: 'frames',
-      id: frame.id,
-      data: {
-        name: 'Updated Name', // Update name instead of slug since slug is admin-only
-      },
-    }) as Frame
-
-    expect(updated.slug).toBe('unique-slug-preservation-test-name') // Slug remains unchanged
   })
 
   it('manages tags relationships properly', async () => {
@@ -347,18 +311,6 @@ describe('Frames Collection', () => {
 
     expect(maleFrames.docs).toHaveLength(1)
     expect(maleFrames.docs[0].imageSet).toBe('male')
-  })
-
-  it('enforces unique slug constraint', async () => {
-    await testDataFactory.createFrame(payload, {
-      name: 'Duplicate Test',
-    })
-
-    await expect(
-      testDataFactory.createFrame(payload, {
-        name: 'Duplicate Test', // Same name will generate same slug
-      })
-    ).rejects.toThrow()
   })
 
   it('supports mixed media types in same collection', async () => {

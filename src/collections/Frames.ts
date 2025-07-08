@@ -9,6 +9,7 @@ export const Frames: CollectionConfig = {
       // Images
       'image/jpeg',
       'image/jpg', 
+      'image/png', 
       'image/webp',
       // Videos
       'video/mp4',
@@ -20,21 +21,6 @@ export const Frames: CollectionConfig = {
     useAsTitle: 'name',
   },
   hooks: {
-    beforeChange: [
-      ({ data, operation, originalDoc }) => {
-        // Generate slug from name
-        if (operation === 'create' && data.name) {
-          data.slug = data.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-        } else if (operation === 'update' && originalDoc) {
-          data.slug = originalDoc.slug
-        }
-
-        return data
-      },
-    ],
     afterChange: [
       async ({ doc, operation }) => {
         // Auto-populate metadata based on file type
@@ -69,15 +55,6 @@ export const Frames: CollectionConfig = {
       name: 'name',
       type: 'text',
       required: true,
-    },
-    {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
     },
     {
       name: 'imageSet',
