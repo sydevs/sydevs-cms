@@ -1,11 +1,11 @@
 import { getPayload, Payload } from 'payload'
-import payloadConfig from '../../src/payload.config'
+import { payloadConfig } from '../../src/payload.config'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { MongoClient } from 'mongodb'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music, Frame } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame, User } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -247,6 +247,20 @@ export const testDataFactory = {
         size: fileBuffer.length,
       }
     }) as Frame
+  },
+
+  /**
+   * Create a user
+   */
+  async createUser(payload: Payload, overrides = {}): Promise<User> {
+    return await payload.create({
+      collection: 'users',
+      data: {
+        email: 'test@example.com',
+        password: 'password123',
+        ...overrides,
+      },
+    }) as User
   },
   
 }

@@ -14,7 +14,7 @@ const dirname = path.dirname(filename)
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
 
-export const payloadConfig = (overrides?: Partial<Config>) => {
+const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     admin: {
       user: Users.slug,
@@ -40,27 +40,28 @@ export const payloadConfig = (overrides?: Partial<Config>) => {
     db: mongooseAdapter({
       url: process.env.DATABASE_URI || '',
     }),
-    // Email configuration
-    email: isDevelopment || isTestEnvironment
-      ? nodemailerAdapter({
-          defaultFromAddress: 'dev@sydevelopers.com',
-          defaultFromName: 'SY Developers (Dev)',
-          logMockCredentials: true, // Output Ethereal credentials to console
-          // No transportOptions - uses Ethereal Email in development
-        })
-      : nodemailerAdapter({
-          defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
-          defaultFromName: 'SY Developers',
-          transportOptions: {
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: false, // Use STARTTLS
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
+    // Email configuration (disabled in test environment to avoid model conflicts)
+    ...(isTestEnvironment ? {} : {
+      email: isDevelopment
+        ? nodemailerAdapter({
+            defaultFromAddress: 'dev@sydevelopers.com',
+            defaultFromName: 'SY Developers (Dev)',
+            // No transportOptions - uses Ethereal Email in development
+          })
+        : nodemailerAdapter({
+            defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
+            defaultFromName: 'SY Developers',
+            transportOptions: {
+              host: process.env.SMTP_HOST || 'smtp.gmail.com',
+              port: Number(process.env.SMTP_PORT) || 587,
+              secure: false, // Use STARTTLS
+              auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+              },
             },
-          },
-        }),
+          }),
+    }),
     // sharp,
     plugins: [
     ],
@@ -74,4 +75,5 @@ export const payloadConfig = (overrides?: Partial<Config>) => {
   })
 }
 
+export { payloadConfig }
 export default payloadConfig()

@@ -53,7 +53,9 @@ export const Users: CollectionConfig = {
       },
     },
     forgotPassword: {
-      generateEmailHTML: ({ req: _req, token, user }) => {
+      generateEmailHTML: (args) => {
+        const { req: _req, token, user } = args || {}
+        if (!token || !user) return ''
         const resetURL = `${process.env.NEXT_PUBLIC_SERVER_URL}/reset-password?token=${token}`
         return `
           <!doctype html>
@@ -95,7 +97,8 @@ export const Users: CollectionConfig = {
           </html>
         `
       },
-      generateEmailSubject: ({ req: _req, user: _user }) => {
+      generateEmailSubject: (args) => {
+        const { req: _req, user: _user } = args || {}
         return `Reset your password - SY Developers`
       },
     },
