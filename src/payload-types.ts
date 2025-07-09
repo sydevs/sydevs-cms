@@ -265,7 +265,6 @@ export interface Music {
 export interface Frame {
   id: string;
   name: string;
-  slug?: string | null;
   /**
    * Whether this frame is for male or female meditation poses
    */
@@ -485,7 +484,6 @@ export interface MusicSelect<T extends boolean = true> {
  */
 export interface FramesSelect<T extends boolean = true> {
   name?: T;
-  slug?: T;
   imageSet?: T;
   tags?: T;
   dimensions?: T;
