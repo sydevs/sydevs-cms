@@ -47,7 +47,7 @@ If necessary, you should also run `pnpm run generate:types`
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
 ### Collections
-- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication, email verification, and password reset functionality
+- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
 - **Media** (`src/collections/Media.ts`) - File uploads with required alt text for accessibility
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
@@ -89,9 +89,9 @@ SMTP_FROM=contact@sydevelopers.com
 ```
 
 #### Authentication Features
-- **Email Verification**: Styled HTML templates for user email verification
-- **Password Reset**: Styled HTML templates for password reset functionality
-- **Automatic Emails**: Sent for user registration and password reset requests
+- **Email Verification**: Uses Payload's default email verification flow
+- **Password Reset**: Uses Payload's default password reset functionality
+- **Automatic Emails**: Sent for user registration and password reset requests using default templates
 
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation
