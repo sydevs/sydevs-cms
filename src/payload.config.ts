@@ -1,5 +1,6 @@
 // storage-adapter-import-placeholder
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig, Config } from 'payload'
@@ -11,8 +12,9 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
+const isDevelopment = process.env.NODE_ENV === 'development'
 
-const payloadConfig = (overrides?: Partial<Config>) => {
+export const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     admin: {
       user: Users.slug,
@@ -38,6 +40,27 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     db: mongooseAdapter({
       url: process.env.DATABASE_URI || '',
     }),
+    // Email configuration
+    email: isDevelopment || isTestEnvironment
+      ? nodemailerAdapter({
+          defaultFromAddress: 'dev@sydevelopers.com',
+          defaultFromName: 'SY Developers (Dev)',
+          logMockCredentials: true, // Output Ethereal credentials to console
+          // No transportOptions - uses Ethereal Email in development
+        })
+      : nodemailerAdapter({
+          defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
+          defaultFromName: 'SY Developers',
+          transportOptions: {
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: Number(process.env.SMTP_PORT) || 587,
+            secure: false, // Use STARTTLS
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+          },
+        }),
     // sharp,
     plugins: [
     ],
@@ -51,4 +74,4 @@ const payloadConfig = (overrides?: Partial<Config>) => {
   })
 }
 
-export default payloadConfig
+export default payloadConfig()
