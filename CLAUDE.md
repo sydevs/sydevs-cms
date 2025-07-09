@@ -72,11 +72,16 @@ The application includes environment-specific email configuration using `@payloa
 - **Provider**: Ethereal Email (automatic test email service)
 - **Features**: Captures all outbound emails for testing
 - **Configuration**: No setup required - automatically configured when no transport options are provided
+- **Testing**: Access mock emails at https://ethereal.email using generated credentials
 
 #### Production Environment
 - **Provider**: Gmail SMTP
 - **Configuration**: Requires environment variables for Gmail authentication
 - **Email Address**: contact@sydevelopers.com
+
+#### Test Environment
+- **Provider**: Disabled (email configuration is disabled in test environment to prevent model conflicts)
+- **Testing**: Email logic is tested separately without full Payload initialization
 
 #### Environment Variables
 ```env
