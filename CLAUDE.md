@@ -146,7 +146,7 @@ import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('My Collection (Isolated)', () => {
+describe('My Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -197,7 +197,7 @@ src/
 └── payload-types.ts        # Auto-generated types
 
 tests/
-├── int/                    # Integration tests (isolated)
+├── int/                    # Integration tests
 ├── e2e/                    # End-to-end tests
 ├── config/                 # Test configurations
 ├── setup/                  # Test environment setup
