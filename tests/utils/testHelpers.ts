@@ -3,9 +3,8 @@ import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { MongoClient } from 'mongodb'
 import { buildConfig } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { collections, Users } from '../../src/collections'
-import { Media } from '../../src/collections/Media'
-import { Frames } from '../../src/collections/Frames'
+import { collections, Users, Media, Frames } from '../../src/collections'
+
 import { EmailTestAdapter } from './emailTestAdapter'
 import type { PayloadRequest, UploadConfig } from 'payload'
 import path from 'path'
@@ -18,26 +17,18 @@ const __dirname = path.dirname(__filename)
 // TODO: Maybe we should be testing image resizing instead?
 function getTestCollections() {
   // Create test-specific collections with image resizing disabled
-  const testMedia = {
-    ...Media,
-    upload: {
-      ...(Media.upload as UploadConfig),
-      imageSizes: [], // Disable image resizing in tests
-    },
-  }
-
-  const testFrames = {
-    ...Frames,
-    upload: {
-      ...(Frames.upload as UploadConfig),
-      imageSizes: [], // Disable image resizing in tests
-    },
-  }
-
   // Replace media and frames collections with test versions
   return collections.map(collection => {
-    if (collection.slug === 'media') return testMedia
-    if (collection.slug === 'frames') return testFrames
+    if (collection.slug === 'media' || collection.slug === 'frames') {
+      return {
+        ...collection,
+        upload: {
+          ...(collection.upload as UploadConfig),
+          imageSizes: [], // Disable image resizing in tests
+        },
+      }
+    }
+    
     return collection
   })
 }
@@ -60,7 +51,6 @@ export async function createTestEnvironment(): Promise<{
   const mongoUri = `${baseUri}${testDbName}?retryWrites=true&w=majority`
 
   console.log(`🧪 Creating test environment with database: ${testDbName}`)
-
 
   const config = buildConfig({
     admin: {
