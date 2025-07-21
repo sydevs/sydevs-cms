@@ -1,17 +1,46 @@
 import { getPayload, Payload } from 'payload'
-import { payloadConfig } from '../../src/payload.config'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { MongoClient } from 'mongodb'
 import { buildConfig } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { collections, Users } from '../../src/collections'
+import { Media } from '../../src/collections/Media'
+import { Frames } from '../../src/collections/Frames'
 import { EmailTestAdapter } from './emailTestAdapter'
-import type { PayloadRequest } from 'payload'
+import type { PayloadRequest, UploadConfig } from 'payload'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+// TODO: Maybe we should be testing image resizing instead?
+function getTestCollections() {
+  // Create test-specific collections with image resizing disabled
+  const testMedia = {
+    ...Media,
+    upload: {
+      ...(Media.upload as UploadConfig),
+      imageSizes: [], // Disable image resizing in tests
+    },
+  }
+
+  const testFrames = {
+    ...Frames,
+    upload: {
+      ...(Frames.upload as UploadConfig),
+      imageSizes: [], // Disable image resizing in tests
+    },
+  }
+
+  // Replace media and frames collections with test versions
+  return collections.map(collection => {
+    if (collection.slug === 'media') return testMedia
+    if (collection.slug === 'frames') return testFrames
+    return collection
+  })
+}
 
 /**
  * Creates an isolated test database and Payload instance for a test suite
@@ -38,7 +67,7 @@ export async function createTestEnvironment(): Promise<{
       user: Users.slug,
       disable: true, // Disable admin UI in tests
     },
-    collections,
+    collections: getTestCollections(),
     editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || 'test-secret-key',
     typescript: {
@@ -46,6 +75,10 @@ export async function createTestEnvironment(): Promise<{
     },
     db: mongooseAdapter({
       url: mongoUri,
+    }),
+    email: nodemailerAdapter({
+      defaultFromAddress: 'no-reply@test.com',
+      defaultFromName: 'Test Suite',
     }),
   })
   const payload = await getPayload({ config })
@@ -97,7 +130,6 @@ export async function createTestEnvironmentWithEmail(): Promise<{
 
   console.log(`🧪 Creating test environment with email support: ${testDbName}`)
 
-
   // Initialize email adapter
   const emailAdapter = new EmailTestAdapter()
   await emailAdapter.init()
@@ -117,7 +149,7 @@ export async function createTestEnvironmentWithEmail(): Promise<{
       user: Users.slug,
       disable: true, // Disable admin UI in tests
     },
-    collections,
+    collections: getTestCollections(),
     editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || 'test-secret-key',
     typescript: {

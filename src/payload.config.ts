@@ -5,6 +5,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig, Config } from 'payload'
 import { fileURLToPath } from 'url'
+import sharp from 'sharp'
 
 import { collections, Users } from './collections'
 
@@ -62,7 +63,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         }
       )
     }),
-    // sharp,
+    sharp,
     plugins: [
     ],
     upload: {
