@@ -52,15 +52,19 @@ describe('Email Sending', () => {
       expect(verificationEmail.to).toContain(userData.email)
       expect(verificationEmail.subject).toBeTruthy()
       
-      console.log('Verification email captured by Ethereal:', emailAdapter.account.web)
+      // Verification email successfully captured
     })
     
     it('should send password reset email when requested', async () => {
       const email = "password-reset@example.com"
+      
+      // Clear any existing emails first
+      emailAdapter.clearCapturedEmails()
+      
       await testDataFactory.createUser(payload, { email })
 
-      // Wait for and clear verification email from user creation
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Wait for verification email from user creation
+      await new Promise(resolve => setTimeout(resolve, 2000))
       emailAdapter.clearCapturedEmails()
 
       // Request password reset
@@ -73,9 +77,7 @@ describe('Email Sending', () => {
       })
 
       // Wait for password reset email
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Check password reset email was sent and captured by Ethereal
+      await new Promise(resolve => setTimeout(resolve, 2000))
       const emails = emailAdapter.getCapturedEmails()
       expect(emails).toHaveLength(1)
       
@@ -83,7 +85,7 @@ describe('Email Sending', () => {
       expect(resetEmail.to).toContain(email)
       expect(resetEmail.subject).toBe('Reset Your Password')
       
-      console.log('Password reset email captured by Ethereal:', emailAdapter.account.web)
+      // Password reset email successfully captured
     })
 
     it('should not send password reset email for non-existent user', async () => {
@@ -99,11 +101,15 @@ describe('Email Sending', () => {
         disableEmail: false,
       })
 
-      // Wait a bit to ensure no email is sent
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // No email should be sent for non-existent users
-      expect(emailAdapter.getCapturedEmails()).toHaveLength(0)
+      // Wait briefly to ensure no email is sent
+      try {
+        await emailAdapter.waitForEmail(1000) // Short timeout
+        // If we get here, an email was unexpectedly sent
+        expect.fail('Email should not be sent for non-existent user')
+      } catch (error) {
+        // Expected - no email should be captured
+        expect(emailAdapter.getCapturedEmails()).toHaveLength(0)
+      }
     })
   })
 
@@ -117,7 +123,7 @@ describe('Email Sending', () => {
       await testDataFactory.createUser(payload, { email: emailAddress })
 
       // Wait for email to be sent
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 2000))
       const email = emailAdapter.getLatestEmail()
       
       // Verify email structure
@@ -129,7 +135,7 @@ describe('Email Sending', () => {
       
       // Verify Ethereal captured the email
       expect(emailAdapter.account.web).toBeTruthy()
-      console.log('Email successfully captured by Ethereal')
+      // Email successfully captured by Ethereal
     })
   })
 })

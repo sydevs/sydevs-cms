@@ -12,7 +12,7 @@ export interface CapturedEmail {
 }
 
 export class EmailTestAdapter {
-  private transporter: Transporter
+  private transporter: Transporter | null = null
   private capturedEmails: CapturedEmail[] = []
   public account: {
     user: string
@@ -21,7 +21,13 @@ export class EmailTestAdapter {
   }
   
   // Create function that returns email adapter configuration
-  static create(adapter?: EmailTestAdapter): (args: any) => any {
+  static create(adapter?: EmailTestAdapter): () => {
+    defaultFromAddress: string
+    defaultFromName: string
+    name: string
+    sendEmail: (options: any) => Promise<any>
+    adapter: EmailTestAdapter
+  } {
     const instance = adapter || new EmailTestAdapter()
     return () => ({
       defaultFromAddress: 'test@ethereal.email',
@@ -33,8 +39,6 @@ export class EmailTestAdapter {
   }
 
   constructor() {
-    // Initialize with empty transporter - will be set up in init
-    this.transporter = null as any
     this.account = {
       user: '',
       pass: '',
@@ -63,14 +67,15 @@ export class EmailTestAdapter {
       },
     })
     
-    console.log('Email adapter initialized with Ethereal account:', {
-      user: this.account.user,
-      host: testAccount.smtp.host,
-    })
+    // Email adapter initialized with Ethereal test account
   }
 
   async sendEmail(options: { to?: string | Address | (string | Address)[]; from?: string | Address; subject?: string; html?: string | Buffer; text?: string | Buffer; }): Promise<any> {
     const { to, from, subject, html, text } = options
+
+    if (!this.transporter) {
+      throw new Error('Email adapter not initialized. Call init() first.')
+    }
 
     try {
       // Send email through Ethereal first
@@ -98,9 +103,8 @@ export class EmailTestAdapter {
         sentAt: new Date(),
       })
 
-      // Log preview URL
-      console.log('Preview URL:', nodemailer.getTestMessageUrl(info))
-      console.log('Email captured:', { to, subject })
+      // Store preview URL for debugging if needed
+      // Preview URL: nodemailer.getTestMessageUrl(info)
       
       return info
     } catch (error) {
@@ -132,18 +136,13 @@ export class EmailTestAdapter {
     const startTime = Date.now()
     const initialCount = this.capturedEmails.length
     
-    console.log(`Waiting for email... Initial count: ${initialCount}`)
-    
     while (Date.now() - startTime < timeout) {
       if (this.capturedEmails.length > initialCount) {
-        console.log(`Email captured! New count: ${this.capturedEmails.length}`)
         return this.capturedEmails[this.capturedEmails.length - 1]
       }
       await new Promise(resolve => setTimeout(resolve, 100))
     }
     
-    console.log(`Timeout! Final count: ${this.capturedEmails.length}`)
-    console.log('All captured emails:', this.capturedEmails)
     throw new Error(`No email captured within ${timeout}ms. Current count: ${this.capturedEmails.length}`)
   }
 }
