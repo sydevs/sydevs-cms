@@ -25,7 +25,46 @@ export const Meditations: CollectionConfig = {
       async ({ doc, req }) => {
         // Sync frame relationships with MeditationFrames collection
         if (doc.frames && Array.isArray(doc.frames)) {
-          // Delete existing frame relationships for this meditation
+          try {
+            // Delete existing frame relationships for this meditation
+            await req.payload.delete({
+              collection: 'meditationFrames',
+              where: {
+                meditation: {
+                  equals: doc.id,
+                },
+              },
+            })
+
+            // Create new frame relationships
+            for (const frameData of doc.frames) {
+              if (frameData.frame && typeof frameData.timestamp === 'number') {
+                await req.payload.create({
+                  collection: 'meditationFrames',
+                  data: {
+                    meditation: doc.id,
+                    frame: frameData.frame,
+                    timestamp: frameData.timestamp,
+                  },
+                })
+              }
+            }
+          } catch (error) {
+            req.payload.logger.error({
+              msg: 'Failed to sync meditation frame relationships',
+              err: error,
+              meditationId: doc.id,
+              framesCount: doc.frames.length,
+            })
+            // Re-throw to prevent silent failures
+            throw error
+          }
+        }
+      },
+    ],
+    afterDelete: [
+      async ({ doc, req }) => {
+        try {
           await req.payload.delete({
             collection: 'meditationFrames',
             where: {
@@ -34,33 +73,15 @@ export const Meditations: CollectionConfig = {
               },
             },
           })
-
-          // Create new frame relationships
-          for (const frameData of doc.frames) {
-            if (frameData.frame && typeof frameData.timestamp === 'number') {
-              await req.payload.create({
-                collection: 'meditationFrames',
-                data: {
-                  meditation: doc.id,
-                  frame: frameData.frame,
-                  timestamp: frameData.timestamp,
-                },
-              })
-            }
-          }
+        } catch (error) {
+          req.payload.logger.error({
+            msg: 'Failed to cleanup meditation frame relationships on deletion',
+            err: error,
+            meditationId: doc.id,
+          })
+          // Re-throw to prevent silent failures
+          throw error
         }
-      },
-    ],
-    afterDelete: [
-      async ({ doc, req }) => {
-        await req.payload.delete({
-          collection: 'meditationFrames',
-          where: {
-            meditation: {
-              equals: doc.id,
-            },
-          },
-        })
       },
     ],
   },

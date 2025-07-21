@@ -71,7 +71,13 @@ export const MeditationFrames: CollectionConfig = {
           }
 
           return true
-        } catch (_error) {
+        } catch (error) {
+          req.payload.logger.error({
+            msg: 'Error during timestamp uniqueness validation',
+            err: error,
+            timestamp: value,
+            meditationId,
+          })
           return 'Unable to validate timestamp uniqueness'
         }
       }) as Validate,
