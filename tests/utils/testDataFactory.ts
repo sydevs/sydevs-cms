@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music, Frame, User } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame, User, MeditationFrame } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -204,5 +204,20 @@ export const testDataFactory = {
         ...overrides,
       },
     }) as User
+  },
+
+  /**
+   * Create a meditation frame relationship
+   */
+  async createMeditationFrame(payload: Payload, deps: { meditation: string; frame: string }, overrides = {}): Promise<MeditationFrame> {
+    return await payload.create({
+      collection: 'meditationFrames',
+      data: {
+        meditation: deps.meditation,
+        frame: deps.frame,
+        timestamp: 10.5, // Default timestamp of 10.5 seconds
+        ...overrides,
+      },
+    }) as MeditationFrame
   },
 }

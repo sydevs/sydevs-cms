@@ -74,6 +74,7 @@ export interface Config {
     tags: Tag;
     music: Music;
     frames: Frame;
+    meditationFrames: MeditationFrame;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -92,6 +93,7 @@ export interface Config {
     tags: TagsSelect<false> | TagsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
+    meditationFrames: MeditationFramesSelect<false> | MeditationFramesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -207,6 +209,19 @@ export interface Meditation {
   musicTag?: (string | null) | Tag;
   isPublished?: boolean | null;
   publishedDate?: string | null;
+  /**
+   * Frames associated with this meditation, ordered by timestamp
+   */
+  frames?:
+    | {
+        frame: string | Frame;
+        /**
+         * Time in seconds when this frame should appear
+         */
+        timestamp: number;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -302,6 +317,21 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditationFrames".
+ */
+export interface MeditationFrame {
+  id: string;
+  meditation: string | Meditation;
+  frame: string | Frame;
+  /**
+   * Timestamp in seconds - used for ordering frames within a meditation
+   */
+  timestamp: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -334,6 +364,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'frames';
         value: string | Frame;
+      } | null)
+    | ({
+        relationTo: 'meditationFrames';
+        value: string | MeditationFrame;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -445,6 +479,13 @@ export interface MeditationsSelect<T extends boolean = true> {
   musicTag?: T;
   isPublished?: T;
   publishedDate?: T;
+  frames?:
+    | T
+    | {
+        frame?: T;
+        timestamp?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -503,6 +544,17 @@ export interface FramesSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditationFrames_select".
+ */
+export interface MeditationFramesSelect<T extends boolean = true> {
+  meditation?: T;
+  frame?: T;
+  timestamp?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
