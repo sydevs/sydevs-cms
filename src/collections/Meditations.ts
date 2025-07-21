@@ -22,44 +22,10 @@ export const Meditations: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, req, _operation }) => {
+      async ({ doc, req }) => {
         // Sync frame relationships with MeditationFrames collection
         if (doc.frames && Array.isArray(doc.frames)) {
-          try {
-            // Delete existing frame relationships for this meditation
-            await req.payload.delete({
-              collection: 'meditationFrames',
-              where: {
-                meditation: {
-                  equals: doc.id,
-                },
-              },
-            })
-
-            // Create new frame relationships
-            for (const frameData of doc.frames) {
-              if (frameData.frame && typeof frameData.timestamp === 'number') {
-                await req.payload.create({
-                  collection: 'meditationFrames',
-                  data: {
-                    meditation: doc.id,
-                    frame: frameData.frame,
-                    timestamp: frameData.timestamp,
-                  },
-                })
-              }
-            }
-          } catch (error) {
-            // Log error but don't fail the meditation save
-            console.error('Failed to sync meditation frames:', error)
-          }
-        }
-      },
-    ],
-    afterDelete: [
-      async ({ doc, req }) => {
-        // Clean up frame relationships when meditation is deleted
-        try {
+          // Delete existing frame relationships for this meditation
           await req.payload.delete({
             collection: 'meditationFrames',
             where: {
@@ -68,9 +34,33 @@ export const Meditations: CollectionConfig = {
               },
             },
           })
-        } catch (error) {
-          console.error('Failed to clean up meditation frames on delete:', error)
+
+          // Create new frame relationships
+          for (const frameData of doc.frames) {
+            if (frameData.frame && typeof frameData.timestamp === 'number') {
+              await req.payload.create({
+                collection: 'meditationFrames',
+                data: {
+                  meditation: doc.id,
+                  frame: frameData.frame,
+                  timestamp: frameData.timestamp,
+                },
+              })
+            }
+          }
         }
+      },
+    ],
+    afterDelete: [
+      async ({ doc, req }) => {
+        await req.payload.delete({
+          collection: 'meditationFrames',
+          where: {
+            meditation: {
+              equals: doc.id,
+            },
+          },
+        })
       },
     ],
   },
