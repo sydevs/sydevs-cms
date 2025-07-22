@@ -136,27 +136,30 @@ describe('MeditationFrames Collection', () => {
     })
   })
 
-  describe('Timestamp Uniqueness Validation', () => {
-    it('prevents duplicate timestamps within the same meditation', async () => {
+  describe('Timestamp Flexibility', () => {
+    it('allows duplicate timestamps within the same meditation', async () => {
       const timestamp = 15.5
 
       // Create first frame with timestamp
-      await testDataFactory.createMeditationFrame(payload, {
+      const firstFrame = await testDataFactory.createMeditationFrame(payload, {
         meditation: testMeditation.id,
         frame: testFrame1.id,
       }, {
         timestamp,
       })
 
-      // Try to create second frame with same timestamp in same meditation - should fail
-      await expect(
-        testDataFactory.createMeditationFrame(payload, {
-          meditation: testMeditation.id,
-          frame: testFrame2.id,
-        }, {
-          timestamp,
-        })
-      ).rejects.toThrow(/Timestamp.*already used.*meditation/)
+      // Create second frame with same timestamp in same meditation - should succeed
+      const secondFrame = await testDataFactory.createMeditationFrame(payload, {
+        meditation: testMeditation.id,
+        frame: testFrame2.id,
+      }, {
+        timestamp,
+      })
+
+      expect(firstFrame.timestamp).toBe(timestamp)
+      expect(secondFrame.timestamp).toBe(timestamp)
+      expect(typeof firstFrame.meditation === 'object' ? firstFrame.meditation.id : firstFrame.meditation).toBe(testMeditation.id)
+      expect(typeof secondFrame.meditation === 'object' ? secondFrame.meditation.id : secondFrame.meditation).toBe(testMeditation.id)
     })
 
     it('allows duplicate timestamps across different meditations', async () => {
