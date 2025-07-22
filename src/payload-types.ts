@@ -273,17 +273,16 @@ export interface Meditation {
   isPublished?: boolean | null;
   publishedDate?: string | null;
   /**
-   * Frames associated with this meditation, ordered by timestamp
+   * Frames associated with this meditation with audio-synchronized editing
    */
   frames?:
     | {
-        frame: string | Frame;
-        /**
-         * Time in seconds when this frame should appear
-         */
-        timestamp: number;
-        id?: string | null;
-      }[]
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
     | null;
   updatedAt: string;
   createdAt: string;
@@ -308,6 +307,35 @@ export interface Narrator {
   gender?: ('male' | 'female') | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music".
+ */
+export interface Music {
+  id: string;
+  title: string;
+  slug?: string | null;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  tags?: (string | Tag)[] | null;
+  /**
+   * Attribution or credit information
+   */
+  credit?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -337,35 +365,6 @@ export interface Frame {
    * Auto-populated duration for videos (in seconds)
    */
   duration?: number | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music".
- */
-export interface Music {
-  id: string;
-  title: string;
-  slug?: string | null;
-  /**
-   * Duration in seconds
-   */
-  duration?: number | null;
-  tags?: (string | Tag)[] | null;
-  /**
-   * Attribution or credit information
-   */
-  credit?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -576,13 +575,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   musicTag?: T;
   isPublished?: T;
   publishedDate?: T;
-  frames?:
-    | T
-    | {
-        frame?: T;
-        timestamp?: T;
-        id?: T;
-      };
+  frames?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
