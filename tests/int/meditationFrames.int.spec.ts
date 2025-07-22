@@ -12,7 +12,6 @@ describe('MeditationFrames Collection', () => {
   let testFrame2: Frame
   let testFrame3: Frame
   let testNarrator: Narrator
-  let testAudioMedia: Media
   let testImageMedia: Media
 
   beforeAll(async () => {
@@ -22,14 +21,12 @@ describe('MeditationFrames Collection', () => {
 
     // Create test dependencies
     testNarrator = await testDataFactory.createNarrator(payload, { name: 'Test Narrator' })
-    testAudioMedia = await testDataFactory.createMediaAudio(payload, { alt: 'Test audio file' })
     testImageMedia = await testDataFactory.createMediaImage(payload, { alt: 'Test image file' })
 
     // Create test meditation
-    testMeditation = await testDataFactory.createMeditation(payload, {
+    testMeditation = await testDataFactory.createMeditationWithAudio(payload, {
       narrator: testNarrator.id,
-      audioFile: testAudioMedia.id,
-      thumbnail: testImageMedia.id,
+            thumbnail: testImageMedia.id,
     }, {
       title: 'Test Meditation',
       duration: 15,
@@ -164,10 +161,9 @@ describe('MeditationFrames Collection', () => {
 
     it('allows duplicate timestamps across different meditations', async () => {
       // Create another meditation
-      const secondMeditation = await testDataFactory.createMeditation(payload, {
+      const secondMeditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-        audioFile: testAudioMedia.id,
-        thumbnail: testImageMedia.id,
+                thumbnail: testImageMedia.id,
       }, {
         title: 'Second Meditation',
         duration: 20,
@@ -259,10 +255,9 @@ describe('MeditationFrames Collection', () => {
   describe('Querying and Relationships', () => {
     it('finds frames by meditation with timestamp ordering', async () => {
       // Create a new meditation for this test to avoid conflicts
-      const meditation = await testDataFactory.createMeditation(payload, {
+      const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-        audioFile: testAudioMedia.id,
-        thumbnail: testImageMedia.id,
+                thumbnail: testImageMedia.id,
       }, {
         title: 'Ordering Test Meditation',
         duration: 30,
