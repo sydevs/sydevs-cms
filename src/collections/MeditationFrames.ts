@@ -30,8 +30,8 @@ export const MeditationFrames: CollectionConfig = {
         description: 'Timestamp in seconds - used for ordering frames within a meditation',
       },
       validate: (async (value, { req, data, siblingData }) => {
-        if (typeof value !== 'number' || value < 0) {
-          return 'Timestamp must be a number greater than or equal to 0'
+        if (typeof value !== 'number' || value < 0 || isNaN(value)) {
+          return 'Timestamp must be a valid number greater than or equal to 0'
         }
 
         // Ensure timestamp uniqueness per meditation
@@ -58,6 +58,7 @@ export const MeditationFrames: CollectionConfig = {
                 },
               ],
             },
+            limit: 1, // Optimize: We only need to know if any exist
           })
 
           // If we're updating an existing record, exclude it from the uniqueness check
@@ -77,10 +78,11 @@ export const MeditationFrames: CollectionConfig = {
             err: error,
             timestamp: value,
             meditationId,
+            operation: data?.id ? 'update' : 'create',
           })
-          return 'Unable to validate timestamp uniqueness'
+          return 'Unable to validate timestamp uniqueness. Please try again.'
         }
-      }) as Validate,
+      }) satisfies Validate,
     },
   ],
 }

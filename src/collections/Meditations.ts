@@ -54,6 +54,7 @@ export const Meditations: CollectionConfig = {
               msg: 'Failed to sync meditation frame relationships',
               err: error,
               meditationId: doc.id,
+              meditationTitle: doc.title,
               framesCount: doc.frames.length,
             })
             // Re-throw to prevent silent failures
@@ -78,6 +79,7 @@ export const Meditations: CollectionConfig = {
             msg: 'Failed to cleanup meditation frame relationships on deletion',
             err: error,
             meditationId: doc.id,
+            meditationTitle: doc.title,
           })
           // Re-throw to prevent silent failures
           throw error
