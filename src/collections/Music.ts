@@ -6,9 +6,8 @@ export const Music: CollectionConfig = {
   slug: 'music',
   upload: {
     staticDir: 'media/music',
-    mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/aac', 'audio/ogg'],
-    imageSizes: [], // Disable image processing for audio files
-    ...getStorageConfig(), // Apply production-aware storage configuration
+    mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
+    ...getStorageConfig(),
   },
   admin: {
     useAsTitle: 'title',
@@ -46,7 +45,7 @@ export const Music: CollectionConfig = {
             }
 
             // Auto-populate duration in minutes
-            data.duration = Math.round(duration / 60 * 100) / 100 // Round to 2 decimal places
+            data.duration = Math.round(duration) // Round to nearest second
           } catch (error) {
             req.payload.logger.error({
               msg: 'Music file validation failed',
@@ -81,7 +80,7 @@ export const Music: CollectionConfig = {
       name: 'duration',
       type: 'number',
       admin: {
-        description: 'Duration in minutes (auto-populated)',
+        description: 'Duration in seconds',
         position: 'sidebar',
         readOnly: true,
       },

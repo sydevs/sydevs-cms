@@ -6,8 +6,7 @@ export const Meditations: CollectionConfig = {
   slug: 'meditations',
   upload: {
     staticDir: 'media/meditations',
-    mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/aac', 'audio/ogg'],
-    imageSizes: [], // Disable image processing for audio files
+    mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
     ...getStorageConfig(),
   },
   admin: {
@@ -46,8 +45,8 @@ export const Meditations: CollectionConfig = {
               throw new Error(durationValidation)
             }
 
-            // Auto-populate duration in minutes
-            data.audioDuration = Math.round(duration / 60 * 100) / 100 // Round to 2 decimal places
+            // Auto-populate duration in seconds
+            data.duration = Math.round(duration) // Round to nearest second
           } catch (error) {
             req.payload.logger.error({
               msg: 'Audio file validation failed',
@@ -177,10 +176,10 @@ export const Meditations: CollectionConfig = {
       }) as Validate,
     },
     {
-      name: 'audioDuration',
+      name: 'duration',
       type: 'number',
       admin: {
-        description: 'Audio duration in minutes (auto-populated from uploaded file)',
+        description: 'Duration in seconds',
         position: 'sidebar',
         readOnly: true,
       },
