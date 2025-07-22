@@ -24,7 +24,7 @@ describe('MeditationFrames Collection', () => {
     testImageMedia = await testDataFactory.createMediaImage(payload, { alt: 'Test image file' })
 
     // Create test meditation
-    testMeditation = await testDataFactory.createMeditation(payload, {
+    testMeditation = await testDataFactory.createMeditationWithAudio(payload, {
       narrator: testNarrator.id,
       thumbnail: testImageMedia.id,
     }, {
