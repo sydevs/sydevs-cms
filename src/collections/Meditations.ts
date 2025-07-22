@@ -143,15 +143,6 @@ export const Meditations: CollectionConfig = {
       },
     },
     {
-      name: 'duration',
-      type: 'number',
-      min: 1,
-      admin: {
-        description: 'Duration in minutes',
-        position: 'sidebar',
-      },
-    },
-    {
       name: 'thumbnail',
       type: 'upload',
       relationTo: 'media',

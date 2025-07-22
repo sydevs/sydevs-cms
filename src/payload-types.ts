@@ -259,15 +259,11 @@ export interface Meditation {
   id: string;
   title: string;
   slug?: string | null;
-  /**
-   * Duration in minutes
-   */
-  duration?: number | null;
   thumbnail: string | Media;
   /**
-   * Audio duration in minutes (auto-populated from uploaded file)
+   * Duration in seconds
    */
-  audioDuration?: number | null;
+  duration?: number | null;
   narrator: string | Narrator;
   tags?: (string | Tag)[] | null;
   /**
@@ -300,7 +296,6 @@ export interface Meditation {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-  sizes?: {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -363,7 +358,7 @@ export interface Music {
   title: string;
   slug?: string | null;
   /**
-   * Duration in minutes (auto-populated)
+   * Duration in seconds
    */
   duration?: number | null;
   tags?: (string | Tag)[] | null;
@@ -382,7 +377,6 @@ export interface Music {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-  sizes?: {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -575,9 +569,8 @@ export interface NarratorsSelect<T extends boolean = true> {
 export interface MeditationsSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
-  duration?: T;
   thumbnail?: T;
-  audioDuration?: T;
+  duration?: T;
   narrator?: T;
   tags?: T;
   musicTag?: T;
@@ -601,7 +594,6 @@ export interface MeditationsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-  sizes?: T | {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -637,7 +629,6 @@ export interface MusicSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-  sizes?: T | {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

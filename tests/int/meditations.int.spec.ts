@@ -49,7 +49,7 @@ describe('Meditations Collection', () => {
     expect(meditation).toBeDefined()
     expect(meditation.title).toBe('Morning Meditation')
     expect(meditation.slug).toBe('morning-meditation')
-    expect(meditation.duration).toBe(15)
+    expect(meditation.duration).toBe(42) // Auto-populated from audio file
     expect(meditation.filename).toBeDefined() // Now has direct audio upload
     expect(typeof meditation.narrator === 'object' ? meditation.narrator.id : meditation.narrator).toBe(testNarrator.id)
     expect(meditation.tags).toHaveLength(2)
@@ -127,7 +127,7 @@ describe('Meditations Collection', () => {
     })
 
     expect(meditation.title).toBe('Meditation with Relationships')
-    expect(meditation.duration).toBe(25)
+    expect(meditation.duration).toBe(42) // Auto-populated from audio file
   })
 
   it('preserves slug on update', async () => {
