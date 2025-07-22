@@ -62,11 +62,102 @@ export const Meditations: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, req }) => {
+      async ({ doc, req, previousDoc }) => {
         // Sync frame relationships with MeditationFrames collection
         if (doc.frames && Array.isArray(doc.frames)) {
           try {
-            // Delete existing frame relationships for this meditation
+            // Get existing frame relationships
+            const existingRelationships = await req.payload.find({
+              collection: 'meditationFrames',
+              where: {
+                meditation: {
+                  equals: doc.id,
+                },
+              },
+              limit: 1000, // Should be sufficient for most cases
+            })
+
+            // Create maps for easier comparison
+            const existingMap = new Map(
+              existingRelationships.docs.map(rel => [
+                `${rel.frame}-${rel.timestamp}`,
+                rel.id
+              ])
+            )
+
+            const newMap = new Map(
+              doc.frames
+                .filter(f => f.frame && typeof f.timestamp === 'number')
+                .map(f => [`${f.frame}-${f.timestamp}`, f])
+            )
+
+            // Determine operations needed
+            const toDelete: string[] = []
+            const toCreate: Array<{ frame: string; timestamp: number }> = []
+
+            // Find relationships to delete
+            for (const [key, id] of existingMap) {
+              if (!newMap.has(key)) {
+                toDelete.push(id)
+              }
+            }
+
+            // Find relationships to create
+            for (const [key, frameData] of newMap) {
+              if (!existingMap.has(key)) {
+                toCreate.push({
+                  frame: frameData.frame,
+                  timestamp: frameData.timestamp,
+                })
+              }
+            }
+
+            // Perform deletions
+            if (toDelete.length > 0) {
+              await req.payload.delete({
+                collection: 'meditationFrames',
+                where: {
+                  id: {
+                    in: toDelete,
+                  },
+                },
+              })
+            }
+
+            // Perform creations
+            for (const frameData of toCreate) {
+              await req.payload.create({
+                collection: 'meditationFrames',
+                data: {
+                  meditation: doc.id,
+                  frame: frameData.frame,
+                  timestamp: frameData.timestamp,
+                },
+              })
+            }
+
+            req.payload.logger.info({
+              msg: 'Successfully synced meditation frame relationships',
+              meditationId: doc.id,
+              meditationTitle: doc.title,
+              created: toCreate.length,
+              deleted: toDelete.length,
+              total: doc.frames.length,
+            })
+          } catch (error) {
+            req.payload.logger.error({
+              msg: 'Failed to sync meditation frame relationships',
+              err: error,
+              meditationId: doc.id,
+              meditationTitle: doc.title,
+              framesCount: doc.frames?.length || 0,
+            })
+            // Re-throw to prevent silent failures
+            throw error
+          }
+        } else if (previousDoc?.frames && (!doc.frames || doc.frames.length === 0)) {
+          // Handle case where all frames were removed
+          try {
             await req.payload.delete({
               collection: 'meditationFrames',
               where: {
@@ -75,29 +166,19 @@ export const Meditations: CollectionConfig = {
                 },
               },
             })
-
-            // Create new frame relationships
-            for (const frameData of doc.frames) {
-              if (frameData.frame && typeof frameData.timestamp === 'number') {
-                await req.payload.create({
-                  collection: 'meditationFrames',
-                  data: {
-                    meditation: doc.id,
-                    frame: frameData.frame,
-                    timestamp: frameData.timestamp,
-                  },
-                })
-              }
-            }
+            
+            req.payload.logger.info({
+              msg: 'Cleared all meditation frame relationships',
+              meditationId: doc.id,
+              meditationTitle: doc.title,
+            })
           } catch (error) {
             req.payload.logger.error({
-              msg: 'Failed to sync meditation frame relationships',
+              msg: 'Failed to clear meditation frame relationships',
               err: error,
               meditationId: doc.id,
               meditationTitle: doc.title,
-              framesCount: doc.frames.length,
             })
-            // Re-throw to prevent silent failures
             throw error
           }
         }
@@ -236,6 +317,25 @@ export const Meditations: CollectionConfig = {
           },
         },
       ],
+      validate: (value) => {
+        if (!value || !Array.isArray(value)) return true
+        
+        // Check for duplicate timestamps
+        const timestamps = value.map(item => item.timestamp).filter(t => typeof t === 'number')
+        const uniqueTimestamps = new Set(timestamps)
+        if (timestamps.length !== uniqueTimestamps.size) {
+          return 'Each timestamp must be unique. Please ensure no two frames have the same timestamp.'
+        }
+        
+        // Check for duplicate frames
+        const frameIds = value.map(item => item.frame).filter(f => f)
+        const uniqueFrameIds = new Set(frameIds)
+        if (frameIds.length !== uniqueFrameIds.size) {
+          return 'Each frame can only appear once in a meditation. Please remove duplicate frames.'
+        }
+        
+        return true
+      },
       hooks: {
         beforeChange: [
           ({ value }) => {

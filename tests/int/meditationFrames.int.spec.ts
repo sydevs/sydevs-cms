@@ -101,7 +101,7 @@ describe('MeditationFrames Collection', () => {
             timestamp: -5,
           },
         })
-      ).rejects.toThrow(/invalid.*Timestamp/)
+      ).rejects.toThrow(/field is invalid.*Timestamp/)
 
       await expect(
         payload.create({
@@ -156,7 +156,7 @@ describe('MeditationFrames Collection', () => {
         }, {
           timestamp,
         })
-      ).rejects.toThrow(/invalid.*Timestamp/)
+      ).rejects.toThrow(/Timestamp.*already used.*meditation/)
     })
 
     it('allows duplicate timestamps across different meditations', async () => {
