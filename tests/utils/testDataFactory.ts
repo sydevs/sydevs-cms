@@ -51,9 +51,6 @@ export const testDataFactory = {
     }) as Media
   },
 
-  // Note: Media collection is now image-only
-  // Audio and video files are handled directly by their respective collections
-
   /**
    * Create a tag
    */

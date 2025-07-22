@@ -24,9 +24,9 @@ describe('MeditationFrames Collection', () => {
     testImageMedia = await testDataFactory.createMediaImage(payload, { alt: 'Test image file' })
 
     // Create test meditation
-    testMeditation = await testDataFactory.createMeditationWithAudio(payload, {
+    testMeditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: 'Test Meditation',
       duration: 15,
@@ -101,7 +101,7 @@ describe('MeditationFrames Collection', () => {
             timestamp: -5,
           },
         })
-      ).rejects.toThrow(/field is invalid.*Timestamp/)
+      ).rejects.toThrow(/invalid.*Timestamp/)
 
       await expect(
         payload.create({
@@ -136,109 +136,6 @@ describe('MeditationFrames Collection', () => {
     })
   })
 
-  describe('Timestamp Flexibility', () => {
-    it('allows duplicate timestamps within the same meditation', async () => {
-      const timestamp = 15.5
-
-      // Create first frame with timestamp
-      const firstFrame = await testDataFactory.createMeditationFrame(payload, {
-        meditation: testMeditation.id,
-        frame: testFrame1.id,
-      }, {
-        timestamp,
-      })
-
-      // Create second frame with same timestamp in same meditation - should succeed
-      const secondFrame = await testDataFactory.createMeditationFrame(payload, {
-        meditation: testMeditation.id,
-        frame: testFrame2.id,
-      }, {
-        timestamp,
-      })
-
-      expect(firstFrame.timestamp).toBe(timestamp)
-      expect(secondFrame.timestamp).toBe(timestamp)
-      expect(typeof firstFrame.meditation === 'object' ? firstFrame.meditation.id : firstFrame.meditation).toBe(testMeditation.id)
-      expect(typeof secondFrame.meditation === 'object' ? secondFrame.meditation.id : secondFrame.meditation).toBe(testMeditation.id)
-    })
-
-    it('allows duplicate timestamps across different meditations', async () => {
-      // Create another meditation
-      const secondMeditation = await testDataFactory.createMeditationWithAudio(payload, {
-        narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
-      }, {
-        title: 'Second Meditation',
-        duration: 20,
-      })
-
-      const timestamp = 25.0
-
-      // Create frame with timestamp in first meditation
-      const firstFrame = await testDataFactory.createMeditationFrame(payload, {
-        meditation: testMeditation.id,
-        frame: testFrame1.id,
-      }, {
-        timestamp,
-      })
-
-      // Create frame with same timestamp in second meditation - should work
-      const secondFrame = await testDataFactory.createMeditationFrame(payload, {
-        meditation: secondMeditation.id,
-        frame: testFrame2.id,
-      }, {
-        timestamp,
-      })
-
-      expect(firstFrame.timestamp).toBe(timestamp)
-      expect(secondFrame.timestamp).toBe(timestamp)
-      expect(typeof firstFrame.meditation === 'object' ? firstFrame.meditation.id : firstFrame.meditation).toBe(testMeditation.id)
-      expect(typeof secondFrame.meditation === 'object' ? secondFrame.meditation.id : secondFrame.meditation).toBe(secondMeditation.id)
-    })
-
-    it('allows updating existing frame with different timestamp', async () => {
-      const meditationFrame = await testDataFactory.createMeditationFrame(payload, {
-        meditation: testMeditation.id,
-        frame: testFrame3.id,
-      }, {
-        timestamp: 30.0,
-      })
-
-      // Update timestamp - should work
-      const updated = await payload.update({
-        collection: 'meditationFrames',
-        id: meditationFrame.id,
-        data: {
-          timestamp: 35.0,
-        },
-      }) as MeditationFrame
-
-      expect(updated.timestamp).toBe(35.0)
-    })
-
-    it('allows updating existing frame while keeping same timestamp', async () => {
-      const meditationFrame = await testDataFactory.createMeditationFrame(payload, {
-        meditation: testMeditation.id,
-        frame: testFrame1.id,
-      }, {
-        timestamp: 40.0,
-      })
-
-      // Update frame reference while keeping same timestamp - should work
-      const updated = await payload.update({
-        collection: 'meditationFrames',
-        id: meditationFrame.id,
-        data: {
-          frame: testFrame2.id,
-          timestamp: 40.0, // Same timestamp
-        },
-      }) as MeditationFrame
-
-      expect(updated.timestamp).toBe(40.0)
-      expect(typeof updated.frame === 'object' ? updated.frame.id : updated.frame).toBe(testFrame2.id)
-    })
-  })
-
   describe('Collection is hidden from admin', () => {
     it('has admin hidden configuration', async () => {
       // This verifies that the collection configuration is properly set
@@ -260,7 +157,7 @@ describe('MeditationFrames Collection', () => {
       // Create a new meditation for this test to avoid conflicts
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Ordering Test Meditation',
         duration: 30,

@@ -109,7 +109,7 @@ describe('Meditations Collection', () => {
           title: 'Invalid Duration',
           duration: 0,
           thumbnail: testImageMedia.id,
-                    narrator: testNarrator.id,
+          narrator: testNarrator.id,
         },
       })
     ).rejects.toThrow()
@@ -290,7 +290,7 @@ describe('Meditations Collection', () => {
     it('creates meditation with frame relationships', async () => {
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation with Frames',
         duration: 30,
@@ -324,7 +324,7 @@ describe('Meditations Collection', () => {
       // Create frames out of chronological order
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation with Unsorted Frames',
         duration: 30,
@@ -350,7 +350,7 @@ describe('Meditations Collection', () => {
     it('syncs meditation frames with MeditationFrames collection on create', async () => {
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation with Sync Test',
         duration: 30,
@@ -392,7 +392,7 @@ describe('Meditations Collection', () => {
       // Create meditation without frames
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation for Update Sync Test',
         duration: 30,
@@ -434,7 +434,7 @@ describe('Meditations Collection', () => {
       // Create meditation with initial frames
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation for Replace Test',
         duration: 30,
@@ -484,7 +484,7 @@ describe('Meditations Collection', () => {
     it('cleans up MeditationFrames when meditation is deleted', async () => {
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation for Delete Test',
         duration: 30,
@@ -528,7 +528,7 @@ describe('Meditations Collection', () => {
     it('handles empty frames array', async () => {
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation with No Frames',
         duration: 15,
@@ -553,7 +553,7 @@ describe('Meditations Collection', () => {
     it('handles meditation without frames field', async () => {
       const meditation = await testDataFactory.createMeditationWithAudio(payload, {
         narrator: testNarrator.id,
-                thumbnail: testImageMedia.id,
+        thumbnail: testImageMedia.id,
       }, {
         title: 'Meditation without Frames Field',
         duration: 15,

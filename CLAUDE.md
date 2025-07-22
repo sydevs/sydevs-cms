@@ -69,10 +69,10 @@ If necessary, you should also run `pnpm run generate:types`
 - **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
 - **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
-- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with **direct audio upload**, tags, metadata, frame relationships, and audio duration validation
-- **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations, music, media, and frames with bidirectional relationships
-- **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, duration validation, tags, and metadata
-- **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), automatic processing, and validation
+- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, and frame relationships with timestamps
+- **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
+- **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
+- **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 - **MeditationFrames** (`src/collections/MeditationFrames.ts`) - Join table for meditation-frame relationships with timestamps (hidden from admin UI)
 
 ### Key Configuration Files
@@ -124,59 +124,6 @@ SMTP_FROM=contact@sydevelopers.com
 - `src/sentry.server.config.ts` - Sentry server configuration
 - `src/sentry.edge.config.ts` - Sentry edge runtime configuration
 - `src/app/global-error.tsx` - Global error boundary with Sentry integration
-
-### Enhanced Media Management Architecture
-
-The system implements a comprehensive media management solution with collection-specific file handling and cloud storage integration:
-
-#### Media Collection (Images Only)
-- **File Types**: JPG, PNG, WEBP only
-- **Automatic Processing**: JPG/PNG files are automatically converted to WEBP at 95% quality
-- **Metadata**: Auto-populated dimensions, tags relationships, and credit information
-- **File Size Limit**: 10MB maximum
-- **Image Sizes**: Multiple responsive sizes generated (thumbnail, card, tablet)
-
-#### Direct Upload Collections
-Each collection handles its own file types with specific validation:
-
-**Meditations Collection**
-- **Upload Type**: Direct audio upload (no Media relationship dependency)
-- **File Types**: MP3, WAV, AAC, OGG audio files
-- **File Size Limit**: 50MB maximum
-- **Duration Validation**: 15 minutes maximum with auto-population
-- **Additional Fields**: Auto-populated `audioDuration` field in minutes
-
-**Music Collection** 
-- **Upload Type**: Direct audio upload
-- **File Types**: MP3, WAV, AAC, OGG audio files  
-- **File Size Limit**: 50MB maximum
-- **Duration Validation**: 15 minutes maximum with auto-population
-- **Additional Fields**: Auto-populated `duration` field in minutes
-
-**Frames Collection**
-- **Upload Type**: Mixed media (images and videos)
-- **Image Types**: JPG, PNG, WEBP (auto-converts JPG/PNG to WEBP)
-- **Video Types**: MP4, WEBM
-- **File Size Limits**: 10MB for images, 100MB for videos
-- **Duration Validation**: 30 seconds maximum for videos
-- **Metadata**: Auto-populated dimensions for all files, duration for videos
-
-#### MinIO Cloud Storage Integration
-- **Storage Provider**: S3-compatible MinIO storage using `@payloadcms/storage-s3`
-- **Environment Detection**: Automatically uses cloud storage in production, local storage in development
-- **Configuration**: Environment-based with fallback to local storage if MinIO not configured
-- **Collections**: Applies to all upload collections (Media, Music, Frames, Meditations)
-
-#### File Processing Libraries
-- **Audio/Video Processing**: `node-ffprobe` and `ffprobe-static` for duration and metadata extraction
-- **Image Processing**: `sharp` for WEBP conversion and resize operations
-- **Test Mocking**: Mock implementations in test environment for faster test execution
-
-#### Validation & Error Handling
-- **Strict MIME Type Validation**: Per-collection file type restrictions
-- **File Size Limits**: Collection-specific limits with clear error messages
-- **Duration Limits**: Audio/video duration validation with user-friendly feedback
-- **Comprehensive Logging**: Detailed error logging for failed processing operations
 
 ### Meditation-Frame Relationships Architecture
 
