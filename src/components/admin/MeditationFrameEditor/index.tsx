@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import { useField } from '@payloadcms/ui'
 import AudioPlayer from './AudioPlayer'
-import type { MeditationFrameEditorProps, FrameData, Narrator } from './types'
+import type { MeditationFrameEditorProps, FrameData } from './types'
+import type { Narrator } from '@/payload-types'
 
 const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   path,
