@@ -4,6 +4,9 @@ import { getStorageConfig } from '@/lib/storage'
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  admin: {
+    group: 'Utility',
+  },
   access: {
     read: () => true,
   },

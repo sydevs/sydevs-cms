@@ -10,6 +10,7 @@ export const Meditations: CollectionConfig = {
     ...getStorageConfig(),
   },
   admin: {
+    group: 'Resources',
     useAsTitle: 'title',
   },
   hooks: {
