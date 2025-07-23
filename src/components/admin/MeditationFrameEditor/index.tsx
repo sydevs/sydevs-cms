@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from 'react'
 import { useField } from '@payloadcms/ui'
 import AudioPlayer from './AudioPlayer'
+import FrameLibrary from './FrameLibrary'
+import FrameManager from './FrameManager'
 import type { MeditationFrameEditorProps, FrameData } from './types'
-import type { Narrator } from '@/payload-types'
+import type { Narrator, Frame } from '@/payload-types'
 
 const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   path,
@@ -71,26 +73,25 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
     setCurrentTime(time)
   }
 
-  const handleAddFrameAtCurrentTime = () => {
-    // For now, add a placeholder frame - this will be replaced with actual frame selection in Phase 2
-    const newFrame: FrameData = {
-      frame: 'placeholder-frame-id',
+  const handleFrameSelect = (frame: Frame) => {
+    const newFrameData: FrameData = {
+      frame: frame.id,
       timestamp: currentTime,
     }
 
     // Check for duplicate timestamp
     const existingFrameAtTime = frames.find(f => f.timestamp === currentTime)
     if (existingFrameAtTime) {
-      alert(`A frame already exists at ${currentTime} seconds. Please choose a different time.`)
+      alert(`A frame already exists at ${currentTime} seconds. Please choose a different time or remove the existing frame first.`)
       return
     }
 
     // Apply first frame rule: if this is the first frame, set timestamp to 0
     if (frames.length === 0) {
-      newFrame.timestamp = 0
+      newFrameData.timestamp = 0
     }
 
-    const newFrames = [...frames, newFrame]
+    const newFrames = [...frames, newFrameData]
     handleFramesChange(newFrames)
   }
 
@@ -146,72 +147,26 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
           />
         </div>
 
-        {/* Frame Management Controls */}
-        <div className="frame-controls-section" style={{ marginBottom: '1.5rem' }}>
-          <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>Frame Management</h4>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-            <button
-              type="button"
-              onClick={handleAddFrameAtCurrentTime}
-              disabled={readOnly}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: readOnly ? '#ccc' : '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: readOnly ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Add Frame at {currentTime}s
-              {frames.length === 0 && ' (will be set to 0s as first frame)'}
-            </button>
-          </div>
+        {/* Current Frames Manager */}
+        <div className="frames-manager-section" style={{ marginBottom: '1.5rem' }}>
+          <FrameManager
+            frames={frames}
+            onFramesChange={handleFramesChange}
+            readOnly={readOnly}
+          />
         </div>
 
-        {/* Current Frames List */}
-        <div className="frames-list-section">
-          <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>Current Frames ({frames.length})</h4>
-          {frames.length === 0 ? (
-            <div className="no-frames" style={{ padding: '1rem', backgroundColor: '#fff', border: '1px dashed #ccc', borderRadius: '4px', textAlign: 'center', color: '#666' }}>
-              No frames added yet. Use the audio player to navigate to a timestamp and click &quot;Add Frame&quot;.
-            </div>
-          ) : (
-            <div className="frames-list" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
-              {frames.map((frame, index) => (
-                <div key={`${frame.frame}-${frame.timestamp}`} className="frame-item" style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  padding: '0.75rem 1rem', 
-                  borderBottom: index < frames.length - 1 ? '1px solid #e0e0e0' : 'none' 
-                }}>
-                  <span className="frame-info" style={{ fontFamily: 'monospace' }}>
-                    Frame {index + 1}: {frame.timestamp}s
-                    {frame.frame === 'placeholder-frame-id' && ' (placeholder)'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newFrames = frames.filter((_, i) => i !== index)
-                      handleFramesChange(newFrames)
-                    }}
-                    className="delete-frame-btn"
-                    disabled={readOnly}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      backgroundColor: readOnly ? '#ccc' : '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: readOnly ? 'not-allowed' : 'pointer',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
+        {/* Frame Library */}
+        <div className="frame-library-section" style={{ marginBottom: '1.5rem' }}>
+          <FrameLibrary
+            narrator={narrator}
+            onFrameSelect={handleFrameSelect}
+            disabled={readOnly}
+          />
+          {narrator && (
+            <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+              <strong>How to add frames:</strong> Click on any frame above to add it at the current audio time ({currentTime}s).
+              {frames.length === 0 && ' Your first frame will automatically be set to 0 seconds.'}
             </div>
           )}
         </div>
