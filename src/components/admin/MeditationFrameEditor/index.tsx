@@ -5,6 +5,7 @@ import { useField } from '@payloadcms/ui'
 import AudioPlayer from './AudioPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
+import FramePreview from './FramePreview'
 import type { MeditationFrameEditorProps, FrameData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
 
@@ -79,16 +80,17 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
       timestamp: currentTime,
     }
 
-    // Check for duplicate timestamp
-    const existingFrameAtTime = frames.find(f => f.timestamp === currentTime)
-    if (existingFrameAtTime) {
-      alert(`A frame already exists at ${currentTime} seconds. Please choose a different time or remove the existing frame first.`)
-      return
-    }
-
     // Apply first frame rule: if this is the first frame, set timestamp to 0
     if (frames.length === 0) {
       newFrameData.timestamp = 0
+    }
+
+    // Check for duplicate timestamp
+    const existingFrameAtTime = frames.find(f => f.timestamp === newFrameData.timestamp)
+    if (existingFrameAtTime) {
+      const timeToShow = newFrameData.timestamp === 0 ? '0 (first frame rule)' : newFrameData.timestamp
+      alert(`A frame already exists at ${timeToShow} seconds. Please choose a different time or remove the existing frame first.`)
+      return
     }
 
     const newFrames = [...frames, newFrameData]
@@ -136,15 +138,28 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
       {description && <div className="field-description">{description}</div>}
       
       <div className="meditation-frame-editor" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1rem', backgroundColor: '#fafafa' }}>
-        {/* Audio Player Component */}
-        <div className="audio-player-section" style={{ marginBottom: '1.5rem' }}>
-          <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>Audio Player</h4>
-          <AudioPlayer
-            audioUrl={audioUrl}
-            frames={frames}
-            onTimeChange={handleTimeChange}
-            onSeek={(time) => setCurrentTime(time)}
-          />
+        {/* Top Section: Audio Player and Live Preview */}
+        <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          {/* Audio Player Component */}
+          <div className="audio-player-section" style={{ flex: 1, minWidth: 0 }}>
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>Audio Player</h4>
+            <AudioPlayer
+              audioUrl={audioUrl}
+              frames={frames}
+              onTimeChange={handleTimeChange}
+              onSeek={(time) => setCurrentTime(time)}
+            />
+          </div>
+
+          {/* Live Preview */}
+          <div className="frame-preview-section" style={{ flexShrink: 0 }}>
+            <FramePreview
+              frames={frames}
+              currentTime={currentTime}
+              width={250}
+              height={188}
+            />
+          </div>
         </div>
 
         {/* Current Frames Manager */}

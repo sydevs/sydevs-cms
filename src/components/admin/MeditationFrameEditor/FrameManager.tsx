@@ -79,6 +79,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
   const validateTimestamp = (timestamp: number, currentIndex: number): string | null => {
     if (timestamp < 0) return 'Timestamp must be 0 or greater'
     if (!Number.isInteger(timestamp)) return 'Timestamp must be a whole number'
+    if (timestamp > 3600) return 'Timestamp cannot exceed 1 hour (3600s)'
     
     // Check for duplicates (excluding current frame)
     const otherFrames = frames.filter((_, index) => index !== currentIndex)
@@ -87,6 +88,10 @@ const FrameManager: React.FC<FrameManagerProps> = ({
     }
     
     return null
+  }
+
+  const getTimestampError = (timestamp: number, currentIndex: number): string | null => {
+    return validateTimestamp(timestamp, currentIndex)
   }
 
   if (frames.length === 0) {
@@ -188,33 +193,46 @@ const FrameManager: React.FC<FrameManagerProps> = ({
               </div>
 
               {/* Timestamp Input */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.75rem', color: '#666', minWidth: '40px' }}>
-                  Time:
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={frameData.timestamp}
-                  onChange={(e) => {
-                    const newTimestamp = parseInt(e.target.value) || 0
-                    const error = validateTimestamp(newTimestamp, index)
-                    if (!error) {
-                      handleTimestampChange(index, newTimestamp)
-                    }
-                  }}
-                  disabled={readOnly}
-                  style={{
-                    width: '60px',
-                    padding: '0.25rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '3px',
-                    fontSize: '0.75rem',
-                    textAlign: 'center'
-                  }}
-                />
-                <span style={{ fontSize: '0.75rem', color: '#666' }}>s</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#666', minWidth: '40px' }}>
+                    Time:
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="3600"
+                    step="1"
+                    value={frameData.timestamp}
+                    onChange={(e) => {
+                      const newTimestamp = parseInt(e.target.value) || 0
+                      const error = getTimestampError(newTimestamp, index)
+                      if (!error) {
+                        handleTimestampChange(index, newTimestamp)
+                      }
+                    }}
+                    disabled={readOnly}
+                    style={{
+                      width: '60px',
+                      padding: '0.25rem',
+                      border: `1px solid ${getTimestampError(frameData.timestamp, index) ? '#dc3545' : '#ddd'}`,
+                      borderRadius: '3px',
+                      fontSize: '0.75rem',
+                      textAlign: 'center'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: '#666' }}>s</span>
+                </div>
+                {getTimestampError(frameData.timestamp, index) && (
+                  <div style={{ 
+                    fontSize: '0.625rem', 
+                    color: '#dc3545', 
+                    maxWidth: '120px',
+                    textAlign: 'right'
+                  }}>
+                    {getTimestampError(frameData.timestamp, index)}
+                  </div>
+                )}
               </div>
 
               {/* Remove Button */}
