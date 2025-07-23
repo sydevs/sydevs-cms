@@ -72,25 +72,59 @@ describe('MeditationFrameEditor Timestamp Rounding', () => {
       expect(newFrame.timestamp).toBe(0)
     })
 
-    it('should detect duplicate timestamps after rounding', () => {
+    it('should replace existing frame when timestamps match after rounding', () => {
       const existingFrames: FrameData[] = [
         { frame: 'frame1', timestamp: 10 },
         { frame: 'frame2', timestamp: 20 },
       ]
 
-      // User tries to add frame at 10.4s which rounds to 10s
+      // User tries to add frame3 at 10.4s which rounds to 10s
       const newTimestamp = Math.round(10.4)
-      const hasDuplicate = existingFrames.some(f => f.timestamp === newTimestamp)
+      const newFrame: FrameData = { frame: 'frame3', timestamp: newTimestamp }
+      
+      // Simulate frame replacement logic
+      const existingIndex = existingFrames.findIndex(f => f.timestamp === newTimestamp)
+      let updatedFrames: FrameData[]
+      
+      if (existingIndex !== -1) {
+        updatedFrames = [...existingFrames]
+        updatedFrames[existingIndex] = newFrame
+      } else {
+        updatedFrames = [...existingFrames, newFrame]
+      }
 
       expect(newTimestamp).toBe(10)
-      expect(hasDuplicate).toBe(true)
+      expect(existingIndex).toBe(0) // First frame should be replaced
+      expect(updatedFrames).toHaveLength(2) // Same number of frames
+      expect(updatedFrames[0]).toEqual({ frame: 'frame3', timestamp: 10 }) // Replaced
+      expect(updatedFrames[1]).toEqual({ frame: 'frame2', timestamp: 20 }) // Unchanged
+    })
 
-      // User tries to add frame at 10.6s which rounds to 11s
-      const newTimestamp2 = Math.round(10.6)
-      const hasDuplicate2 = existingFrames.some(f => f.timestamp === newTimestamp2)
+    it('should add new frame when no timestamp conflict exists', () => {
+      const existingFrames: FrameData[] = [
+        { frame: 'frame1', timestamp: 10 },
+        { frame: 'frame2', timestamp: 20 },
+      ]
 
-      expect(newTimestamp2).toBe(11)
-      expect(hasDuplicate2).toBe(false)
+      // User tries to add frame3 at 15.2s which rounds to 15s
+      const newTimestamp = Math.round(15.2)
+      const newFrame: FrameData = { frame: 'frame3', timestamp: newTimestamp }
+      
+      // Simulate frame addition logic
+      const existingIndex = existingFrames.findIndex(f => f.timestamp === newTimestamp)
+      let updatedFrames: FrameData[]
+      
+      if (existingIndex !== -1) {
+        updatedFrames = [...existingFrames]
+        updatedFrames[existingIndex] = newFrame
+      } else {
+        updatedFrames = [...existingFrames, newFrame]
+      }
+
+      expect(newTimestamp).toBe(15)
+      expect(existingIndex).toBe(-1) // No existing frame at this timestamp
+      expect(updatedFrames).toHaveLength(3) // One more frame added
+      expect(updatedFrames[2]).toEqual({ frame: 'frame3', timestamp: 15 }) // Added
     })
   })
 

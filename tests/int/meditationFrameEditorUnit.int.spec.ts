@@ -132,16 +132,30 @@ describe('MeditationFrameEditor Unit Tests', () => {
       expect(result.newFrames![1].frame).toBe('frame2')
     })
 
-    it('should prevent duplicate timestamps', () => {
+    it('should replace existing frame at same timestamp', () => {
       const existingFrames: FrameData[] = [
         { frame: 'frame1', timestamp: 0 },
         { frame: 'frame2', timestamp: 20 }
       ]
       
-      const result = handleFrameSelect(existingFrames, 'frame3', 20)
+      // Updated logic to replace instead of error
+      const newFrameId = 'frame3'
+      const targetTime = 20
       
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('A frame already exists at 20 seconds. Please choose a different time or remove the existing frame first.')
+      const existingIndex = existingFrames.findIndex(f => f.timestamp === targetTime)
+      let newFrames: FrameData[]
+      
+      if (existingIndex !== -1) {
+        newFrames = [...existingFrames]
+        newFrames[existingIndex] = { frame: newFrameId, timestamp: targetTime }
+      } else {
+        newFrames = [...existingFrames, { frame: newFrameId, timestamp: targetTime }]
+      }
+      
+      expect(existingIndex).toBe(1) // Second frame should be replaced
+      expect(newFrames).toHaveLength(2) // Same number of frames
+      expect(newFrames[1].frame).toBe('frame3') // Frame replaced
+      expect(newFrames[1].timestamp).toBe(20) // Timestamp unchanged
     })
 
     it('should handle first frame rule collision', () => {

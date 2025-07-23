@@ -69,15 +69,19 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
       newFrameData.timestamp = 0
     }
 
-    // Check for duplicate timestamp
-    const existingFrameAtTime = tempFrames.find(f => f.timestamp === newFrameData.timestamp)
-    if (existingFrameAtTime) {
-      const timeToShow = newFrameData.timestamp === 0 ? '0 (first frame rule)' : newFrameData.timestamp
-      alert(`A frame already exists at ${timeToShow} seconds. Please choose a different time or remove the existing frame first.`)
-      return
+    // Check for existing frame at this timestamp and replace it
+    const existingFrameIndex = tempFrames.findIndex(f => f.timestamp === newFrameData.timestamp)
+    
+    let newFrames: FrameData[]
+    if (existingFrameIndex !== -1) {
+      // Replace existing frame at this timestamp
+      newFrames = [...tempFrames]
+      newFrames[existingFrameIndex] = newFrameData
+    } else {
+      // Add new frame
+      newFrames = [...tempFrames, newFrameData]
     }
-
-    const newFrames = [...tempFrames, newFrameData]
+    
     handleFramesChange(newFrames)
   }
 
