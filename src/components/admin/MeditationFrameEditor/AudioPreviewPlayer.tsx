@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react'
 import type { FrameData } from './types'
 import type { Frame } from '@/payload-types'
 
@@ -11,16 +11,22 @@ interface AudioPreviewPlayerProps {
   onSeek?: (time: number) => void
   size?: 'small' | 'large'
   className?: string
+  _onPause?: () => void
 }
 
-const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
+export interface AudioPreviewPlayerRef {
+  pause: () => void
+}
+
+const AudioPreviewPlayer = forwardRef<AudioPreviewPlayerRef, AudioPreviewPlayerProps>(({
   audioUrl,
   frames,
   onTimeChange,
   onSeek,
   size = 'large',
   className = '',
-}) => {
+  _onPause,
+}, ref) => {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -39,11 +45,11 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
       progressHeight: '4px',
     },
     large: {
-      preview: 300,
-      controlHeight: 100,
+      preview: 320,
+      controlHeight: 110,
       fontSize: '0.875rem',
-      buttonSize: '2.5rem',
-      progressHeight: '6px',
+      buttonSize: '2.75rem',
+      progressHeight: '8px',
     },
   }
 
@@ -113,6 +119,86 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
     }
   }, [currentTime, frames, frameDetails])
 
+  const togglePlayPause = useCallback(() => {
+    if (!audioRef.current) return
+    
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+  }, [isPlaying])
+
+  // Expose pause function via ref
+  useImperativeHandle(ref, () => ({
+    pause: () => {
+      if (audioRef.current && isPlaying) {
+        audioRef.current.pause()
+      }
+    }
+  }), [isPlaying])
+
+  // Keyboard navigation (only for large size)
+  useEffect(() => {
+    // Disable keyboard shortcuts for collapsed/small view
+    if (size === 'small') return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!audioRef.current || !duration) return
+
+      // Only handle keyboard events if the component is focused or no input is focused
+      const activeElement = document.activeElement
+      const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA'
+      
+      if (isInputFocused) return
+
+      switch (event.code) {
+        case 'Space':
+          event.preventDefault()
+          togglePlayPause()
+          break
+        case 'ArrowLeft':
+          event.preventDefault()
+          // Seek backward 5 seconds
+          audioRef.current.currentTime = Math.max(0, currentTime - 5)
+          break
+        case 'ArrowRight':
+          event.preventDefault()
+          // Seek forward 5 seconds
+          audioRef.current.currentTime = Math.min(duration, currentTime + 5)
+          break
+        case 'ArrowUp':
+          event.preventDefault()
+          // Seek backward 10 seconds
+          audioRef.current.currentTime = Math.max(0, currentTime - 10)
+          break
+        case 'ArrowDown':
+          event.preventDefault()
+          // Seek forward 10 seconds
+          audioRef.current.currentTime = Math.min(duration, currentTime + 10)
+          break
+        case 'Home':
+          event.preventDefault()
+          // Go to beginning
+          audioRef.current.currentTime = 0
+          break
+        case 'End':
+          event.preventDefault()
+          // Go to end
+          audioRef.current.currentTime = duration
+          break
+      }
+    }
+
+    // Add event listener
+    document.addEventListener('keydown', handleKeyDown)
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [currentTime, duration, togglePlayPause, size])
+
   // Audio event handlers
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
@@ -131,16 +217,6 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
   const handlePlay = () => setIsPlaying(true)
   const handlePause = () => setIsPlaying(false)
   const handleEnded = () => setIsPlaying(false)
-
-  const togglePlayPause = () => {
-    if (!audioRef.current) return
-    
-    if (isPlaying) {
-      audioRef.current.pause()
-    } else {
-      audioRef.current.play()
-    }
-  }
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !duration) return
@@ -174,18 +250,20 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
     return (currentTime / duration) * 100
   }
 
-  return (
+
+  return <>
     <div className={`audio-preview-player ${className}`} style={{
-      backgroundColor: '#1a1a1a',
+      backgroundColor: '#f8f9fa',
       borderRadius: '8px',
       overflow: 'hidden',
       width: config.preview + 'px',
+      border: '1px solid #e0e0e0',
     }}>
       {/* Square Preview Area */}
       <div style={{
         width: config.preview + 'px',
         height: config.preview + 'px',
-        backgroundColor: '#000',
+        backgroundColor: '#f0f0f0',
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
@@ -194,7 +272,7 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
         {currentFrame ? (
           currentFrame.mimeType?.startsWith('video/') ? (
             <video
-              src={currentFrame.url}
+              src={currentFrame.url || undefined}
               style={{
                 width: '100%',
                 height: '100%',
@@ -207,7 +285,7 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
             />
           ) : (
             <img
-              src={currentFrame.url}
+              src={currentFrame.url || undefined}
               alt={currentFrame.name}
               style={{
                 width: '100%',
@@ -219,7 +297,7 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
         ) : (
           <div style={{
             textAlign: 'center',
-            color: '#666',
+            color: '#6c757d',
             fontSize: config.fontSize,
             padding: '1rem',
           }}>
@@ -251,13 +329,14 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
 
       {/* Audio Controls */}
       <div style={{
-        backgroundColor: '#2a2a2a',
+        backgroundColor: '#ffffff',
         padding: '0.75rem',
         height: config.controlHeight + 'px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         gap: '0.5rem',
+        borderTop: '1px solid #e0e0e0',
       }}>
         {audioUrl ? (
           <>
@@ -302,7 +381,7 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
               </button>
 
               <div style={{
-                color: '#ccc',
+                color: '#495057',
                 fontSize: config.fontSize,
                 fontFamily: 'monospace',
               }}>
@@ -316,7 +395,7 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
                 position: 'relative',
                 width: '100%',
                 height: config.progressHeight,
-                backgroundColor: '#444',
+                backgroundColor: '#e9ecef',
                 borderRadius: '3px',
                 cursor: 'pointer',
                 overflow: 'visible',
@@ -344,11 +423,11 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
                   style={{
                     position: 'absolute',
                     left: `${(frame.timestamp / duration) * 100}%`,
-                    top: '-2px',
-                    width: '2px',
-                    height: `calc(100% + 4px)`,
-                    backgroundColor: '#fff',
-                    opacity: 0.8,
+                    top: '-6px',
+                    width: '3px',
+                    height: `calc(100% + 12px)`,
+                    backgroundColor: '#f97316',
+                    opacity: 0.85,
                     pointerEvents: 'none',
                   }}
                   title={`Frame at ${frame.timestamp}s`}
@@ -361,10 +440,10 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
                 left: `${getProgressPercentage()}%`,
                 top: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: size === 'small' ? '10px' : '12px',
-                height: size === 'small' ? '10px' : '12px',
+                width: size === 'small' ? '12px' : '14px',
+                height: size === 'small' ? '12px' : '14px',
                 borderRadius: '50%',
-                backgroundColor: '#fff',
+                backgroundColor: '#ffffff',
                 border: '2px solid #007bff',
                 pointerEvents: 'none',
                 transition: isSeeking ? 'none' : 'left 0.1s',
@@ -374,7 +453,7 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
         ) : (
           <div style={{
             textAlign: 'center',
-            color: '#666',
+            color: '#6c757d',
             fontSize: config.fontSize,
           }}>
             No audio file uploaded
@@ -382,7 +461,28 @@ const AudioPreviewPlayer: React.FC<AudioPreviewPlayerProps> = ({
         )}
       </div>
     </div>
-  )
-}
+      
+    {/* Keyboard shortcuts help - outside the frame */}
+    {size === 'large' && audioUrl && (
+      <div style={{
+        fontSize: '0.75rem',
+        color: '#6b7280',
+        textAlign: 'center',
+        marginTop: '0.5rem',
+        padding: '0.5rem',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '4px',
+        border: '1px solid #e5e7eb',
+        lineHeight: 1.3,
+        fontWeight: '500',
+        width: '320px'
+      }}>
+        <strong>Keyboard Shortcuts:</strong><br />Space: Play/Pause • ←→: ±5s • ↑↓: ±10s • Home/End: Start/End
+      </div>
+    )}
+  </>
+})
+
+AudioPreviewPlayer.displayName = 'AudioPreviewPlayer'
 
 export default AudioPreviewPlayer

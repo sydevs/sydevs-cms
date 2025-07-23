@@ -19,6 +19,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [clickedFrameId, setClickedFrameId] = useState<string | null>(null)
 
   // Load frames and tags
   useEffect(() => {
@@ -79,6 +80,21 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
     setSelectedTags([])
   }
 
+  const handleFrameClick = (frame: Frame) => {
+    if (disabled) return
+    
+    // Trigger click animation
+    setClickedFrameId(frame.id)
+    
+    // Clear animation after 300ms
+    setTimeout(() => {
+      setClickedFrameId(null)
+    }, 300)
+    
+    // Call the selection handler
+    onFrameSelect(frame)
+  }
+
   if (isLoading) {
     return (
       <div className="frame-library loading">
@@ -114,8 +130,8 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
 
       {/* Tag Filters */}
       {tags.length > 0 && (
-        <div className="tag-filters" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <div className="tag-filters" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
             {tags.map(tag => (
               <button
                 key={tag.id}
@@ -167,42 +183,46 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
         <div className="frames-grid" style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
-          gap: '1rem',
+          gap: '16px',
           maxHeight: '400px',
           overflowY: 'auto',
-          padding: '1rem',
+          padding: '16px',
           backgroundColor: '#f8f9fa',
           borderRadius: '4px',
           border: '1px solid #e0e0e0'
         }}>
-          {filteredFrames.map(frame => (
-            <div
-              key={frame.id}
-              className="frame-item"
-              style={{
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                overflow: 'hidden',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                opacity: disabled ? 0.6 : 1,
-                transition: 'transform 0.2s, box-shadow 0.2s',
-              }}
-              onClick={() => !disabled && onFrameSelect(frame)}
-              onMouseEnter={(e) => {
-                if (!disabled) {
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!disabled) {
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }
-              }}
-            >
-              {/* Frame Preview - Square aspect ratio */}
+          {filteredFrames.map(frame => {
+            const isClicked = clickedFrameId === frame.id
+            return (
+              <div
+                key={frame.id}
+                className="frame-item"
+                style={{
+                  border: isClicked ? '2px solid #28a745' : '1px solid #ddd',
+                  borderRadius: '4px',
+                  backgroundColor: isClicked ? '#f8fff9' : '#fff',
+                  overflow: 'hidden',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.6 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  transform: isClicked ? 'scale(1.08)' : 'scale(1)',
+                  boxShadow: isClicked ? '0 6px 12px rgba(40, 167, 69, 0.3)' : 'none',
+                }}
+                onClick={() => handleFrameClick(frame)}
+                onMouseEnter={(e) => {
+                  if (!disabled && !isClicked) {
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!disabled && !isClicked) {
+                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }
+                }}
+              >
+                {/* Frame Preview - Square aspect ratio */}
               <div style={{ position: 'relative', paddingBottom: '100%', backgroundColor: '#f0f0f0' }}>
                 {frame.url ? (
                   frame.mimeType?.startsWith('video/') ? (
@@ -262,7 +282,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
                 )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>

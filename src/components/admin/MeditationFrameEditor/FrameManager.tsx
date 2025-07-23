@@ -121,10 +121,10 @@ const FrameManager: React.FC<FrameManagerProps> = ({
       </h4>
       
       <div className="frames-list" style={{ 
-        backgroundColor: '#fff', 
-        border: '1px solid #e0e0e0', 
+        backgroundColor: '#f8f9fa', 
+        border: '1px solid #ddd', 
         borderRadius: '4px',
-        maxHeight: '300px',
+        maxHeight: '400px',
         overflowY: 'auto'
       }}>
         {frames.map((frameData, index) => {
@@ -137,20 +137,21 @@ const FrameManager: React.FC<FrameManagerProps> = ({
               style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
-                padding: '1rem', 
-                borderBottom: index < frames.length - 1 ? '1px solid #e0e0e0' : 'none',
-                gap: '1rem'
+                padding: '0.75rem', 
+                borderBottom: index < frames.length - 1 ? '1px solid #ddd' : 'none',
+                gap: '0.5rem'
               }}
             >
               {/* Frame Preview - Square */}
               <div style={{ 
-                width: '48px', 
-                height: '48px', 
+                width: '40px', 
+                height: '40px', 
                 backgroundColor: '#f0f0f0', 
                 borderRadius: '4px',
                 overflow: 'hidden',
                 flexShrink: 0,
-                position: 'relative'
+                position: 'relative',
+                border: '1px solid #ccc'
               }}>
                 {frame?.url ? (
                   frame.mimeType?.startsWith('video/') ? (
@@ -182,22 +183,19 @@ const FrameManager: React.FC<FrameManagerProps> = ({
 
               {/* Frame Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: '500', marginBottom: '0.25rem' }}>
                   {frame?.name || `Frame ${frameData.frame}`}
                 </div>
                 {frame?.mimeType?.startsWith('video/') && frame.duration && (
-                  <div style={{ fontSize: '0.75rem', color: '#666' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#666' }}>
                     {frame.duration}s video
                   </div>
                 )}
               </div>
 
               {/* Timestamp Input */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.75rem', color: '#666', minWidth: '40px' }}>
-                    Time:
-                  </label>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.125rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                   <input
                     type="number"
                     min="0"
@@ -213,22 +211,24 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                     }}
                     disabled={readOnly}
                     style={{
-                      width: '60px',
-                      padding: '0.25rem',
+                      width: '40px',
+                      height: '28px',
+                      padding: '0.4rem 0.2rem',
                       border: `1px solid ${getTimestampError(frameData.timestamp, index) ? '#dc3545' : '#ddd'}`,
-                      borderRadius: '3px',
+                      borderRadius: '2px',
                       fontSize: '0.75rem',
                       textAlign: 'center'
                     }}
                   />
-                  <span style={{ fontSize: '0.75rem', color: '#666' }}>s</span>
+                  <span style={{ fontSize: '0.7rem', color: '#666' }}>s</span>
                 </div>
                 {getTimestampError(frameData.timestamp, index) && (
                   <div style={{ 
-                    fontSize: '0.625rem', 
+                    fontSize: '0.6rem', 
                     color: '#dc3545', 
-                    maxWidth: '120px',
-                    textAlign: 'right'
+                    maxWidth: '100px',
+                    textAlign: 'right',
+                    lineHeight: 1.2
                   }}>
                     {getTimestampError(frameData.timestamp, index)}
                   </div>
@@ -241,14 +241,19 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 onClick={() => handleRemoveFrame(index)}
                 disabled={readOnly}
                 style={{
-                  padding: '0.25rem 0.5rem',
+                  padding: '0.2rem 0.4rem',
                   backgroundColor: readOnly ? '#ccc' : '#dc3545',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '3px',
+                  borderRadius: '2px',
                   cursor: readOnly ? 'not-allowed' : 'pointer',
-                  fontSize: '0.75rem',
-                  flexShrink: 0
+                  fontSize: '0.7rem',
+                  flexShrink: 0,
+                  minWidth: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
                 title="Remove frame"
               >
@@ -257,22 +262,6 @@ const FrameManager: React.FC<FrameManagerProps> = ({
             </div>
           )
         })}
-      </div>
-
-      {/* Summary */}
-      <div style={{ 
-        marginTop: '0.5rem', 
-        fontSize: '0.75rem', 
-        color: '#666',
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
-        <span>
-          {frames.length} frame{frames.length !== 1 ? 's' : ''}
-        </span>
-        <span>
-          Duration: 0s - {Math.max(...frames.map(f => f.timestamp), 0)}s
-        </span>
       </div>
     </div>
   )

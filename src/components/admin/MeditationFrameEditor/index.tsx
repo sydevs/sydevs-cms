@@ -70,7 +70,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
     return (
       <div className="field-type">
         <label className="field-label">
-          {label || 'Meditation Frames'}
+          {label || 'Meditation Video'}
           {required && <span className="required">*</span>}
         </label>
         {description && <div className="field-description">{description}</div>}
@@ -84,7 +84,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   return (
     <div className="field-type">
       <label className="field-label">
-        {label || 'Meditation Frames'}
+        {label || 'Meditation Video'}
         {required && <span className="required">*</span>}
       </label>
       {description && <div className="field-description">{description}</div>}

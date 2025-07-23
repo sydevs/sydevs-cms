@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { FullscreenModal, useModal } from '@payloadcms/ui'
-import AudioPreviewPlayer from './AudioPreviewPlayer'
+import AudioPreviewPlayer, { type AudioPreviewPlayerRef } from './AudioPreviewPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
 import type { FrameData } from './types'
@@ -28,6 +28,48 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
   const { openModal, closeModal } = useModal()
   const [tempFrames, setTempFrames] = useState<FrameData[]>(initialFrames)
   const [currentTime, setCurrentTime] = useState(0)
+  const [frameDetails, setFrameDetails] = useState<{ [key: string]: Frame }>({})
+  const audioPlayerRef = useRef<AudioPreviewPlayerRef>(null)
+
+  // Load frame details for thumbnail display
+  useEffect(() => {
+    const loadFrameDetails = async () => {
+      const frameIds = initialFrames.map(f => f.frame)
+      const missingIds = frameIds.filter(id => !frameDetails[id])
+      
+      if (missingIds.length === 0) return
+
+      try {
+        const promises = missingIds.map(async (id) => {
+          try {
+            const response = await fetch(`/api/frames/${id}`)
+            if (response.ok) {
+              const frame = await response.json()
+              return { id, frame }
+            }
+          } catch (error) {
+            console.error(`Failed to load frame ${id}:`, error)
+          }
+          return null
+        })
+
+        const results = await Promise.all(promises)
+        const newFrameDetails = { ...frameDetails }
+        
+        results.forEach(result => {
+          if (result) {
+            newFrameDetails[result.id] = result.frame
+          }
+        })
+        
+        setFrameDetails(newFrameDetails)
+      } catch (error) {
+        console.error('Failed to load frame details:', error)
+      }
+    }
+
+    loadFrameDetails()
+  }, [initialFrames, frameDetails])
 
   const handleOpenModal = () => {
     // Reset temp state to current saved state when opening
@@ -37,11 +79,15 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
   }
 
   const handleSave = () => {
+    // Pause audio in collapsed view
+    audioPlayerRef.current?.pause()
     onSave([...tempFrames])
     closeModal(MODAL_SLUG)
   }
 
   const handleCancel = () => {
+    // Pause audio in collapsed view
+    audioPlayerRef.current?.pause()
     // Reset temp state and close without saving
     setTempFrames([...initialFrames])
     closeModal(MODAL_SLUG)
@@ -99,37 +145,163 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
       }}>
         {/* Unified Audio Preview Player */}
         <AudioPreviewPlayer
+          ref={audioPlayerRef}
           audioUrl={audioUrl}
           frames={initialFrames}
           size="small"
         />
 
-        {/* Edit Button and Info */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingTop: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            disabled={!audioUrl || readOnly}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: !audioUrl || readOnly ? '#ccc' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: !audioUrl || readOnly ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              alignSelf: 'flex-start',
-            }}
-          >
-            Edit Video
-          </button>
-          
-          {!audioUrl && (
-            <div style={{ fontSize: '0.75rem', color: '#666' }}>
-              Please upload an audio file first to edit frames.
+        {/* Right Side - Selected Frames and Edit Button */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '0.75rem',
+          minWidth: 0 // Allow shrinking
+        }}>
+          {/* Selected Frames Thumbnail Grid */}
+          {initialFrames.length > 0 && (
+            <div style={{ 
+              padding: '0.75rem',
+              backgroundColor: '#fff',
+              border: '1px solid #e0e0e0',
+              borderRadius: '6px',
+            }}>
+              <div style={{ 
+                fontSize: '0.75rem', 
+                fontWeight: '600', 
+                color: '#374151', 
+                marginBottom: '0.5rem' 
+              }}>
+                Selected Frames ({initialFrames.length})
+              </div>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                height: '140px',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                paddingBottom: '4px'
+              }}>
+                {[...initialFrames]
+                  .sort((a, b) => a.timestamp - b.timestamp)
+                  .map((frameData, index) => {
+                    const frame = frameDetails[frameData.frame]
+                    return (
+                      <div key={`${frameData.frame}-${frameData.timestamp}-${index}`} style={{
+                        position: 'relative',
+                        width: '120px',
+                        height: '140px',
+                        backgroundColor: '#f3f4f6',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        border: '1px solid #d1d5db',
+                        flexShrink: 0,
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}>
+                        {/* Image/Video container - Square */}
+                        <div style={{
+                          width: '100%',
+                          height: '120px',
+                          position: 'relative',
+                          backgroundColor: '#f9fafb'
+                        }}>
+                          {frame?.url ? (
+                            frame.mimeType?.startsWith('video/') ? (
+                              <video
+                                src={frame.url}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                muted
+                              />
+                            ) : (
+                              <img
+                                src={frame.url}
+                                alt={frame.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            )
+                          ) : (
+                            <div style={{
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.5rem',
+                              color: '#6b7280'
+                            }}>
+                              ...
+                            </div>
+                          )}
+                          {/* Timestamp overlay */}
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '4px',
+                            right: '4px',
+                            backgroundColor: 'rgba(0,0,0,0.85)',
+                            color: 'white',
+                            fontSize: '0.875rem',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            lineHeight: 1,
+                            fontWeight: '600'
+                          }}>
+                            {frameData.timestamp}s
+                          </div>
+                        </div>
+                        
+                        {/* Frame name */}
+                        <div style={{
+                          padding: '2px 4px',
+                          fontSize: '0.6rem',
+                          color: '#374151',
+                          lineHeight: 1.1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          height: '20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center'
+                        }}>
+                          {frame?.name || `Frame ${frameData.frame}`}
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
             </div>
           )}
+
+          {/* Edit Button and Info */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={handleOpenModal}
+              disabled={!audioUrl || readOnly}
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: !audioUrl || readOnly ? '#ccc' : '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: !audioUrl || readOnly ? 'not-allowed' : 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                width: '100%',
+              }}
+            >
+              Edit Video
+            </button>
+            
+            {!audioUrl && (
+              <div style={{ fontSize: '0.75rem', color: '#666' }}>
+                Please upload an audio file first to edit frames.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -145,7 +317,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
           backgroundColor: '#fff'
         }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-            Edit Video Frames
+            Create Meditation Video
           </h2>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
@@ -191,7 +363,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
           backgroundColor: '#fff',
           height: 'calc(100vh - 120px)'
         }}>
-          {/* Left Column */}
+          {/* Left Column - Audio Preview */}
           <div style={{ 
             flex: '0 0 350px', 
             display: 'flex', 
@@ -200,42 +372,60 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
             overflow: 'hidden'
           }}>
             {/* Unified Audio Preview Player */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <AudioPreviewPlayer
-                audioUrl={audioUrl}
-                frames={tempFrames}
-                onTimeChange={handleTimeChange}
-                onSeek={(time) => setCurrentTime(time)}
-                size="large"
-              />
-            </div>
+            <AudioPreviewPlayer
+              audioUrl={audioUrl}
+              frames={tempFrames}
+              onTimeChange={handleTimeChange}
+              onSeek={(time) => setCurrentTime(time)}
+              size="large"
+            />
+            
+            {/* Instructions */}
+            {narrator && (
+              <div style={{ 
+                fontSize: '0.75rem', 
+                color: '#6b7280', 
+                textAlign: 'center',
+                padding: '0.75rem',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                border: '1px solid #e5e7eb',
+                width: '320px'
+              }}>
+                Click any frame to add it at the current audio time ({Math.round(currentTime)}s)
+                {tempFrames.length === 0 && <><br />Your first frame will be set to 0 seconds</>}
+              </div>
+            )}
+          </div>
 
-            {/* Current Frames */}
+          {/* Middle Column - Frame Library */}
+          <div style={{ 
+            flex: 1, 
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <FrameManager
-                frames={tempFrames}
-                onFramesChange={handleFramesChange}
-                readOnly={readOnly}
+              <FrameLibrary
+                narrator={narrator}
+                onFrameSelect={handleFrameSelect}
+                disabled={readOnly}
               />
             </div>
           </div>
 
-          {/* Right Column - Frame Library */}
+          {/* Right Column - Current Frames */}
           <div style={{ 
-            flex: 1, 
+            flex: '0 0 280px', 
+            display: 'flex', 
+            flexDirection: 'column',
             overflow: 'hidden'
           }}>
-            <FrameLibrary
-              narrator={narrator}
-              onFrameSelect={handleFrameSelect}
-              disabled={readOnly}
+            <FrameManager
+              frames={tempFrames}
+              onFramesChange={handleFramesChange}
+              readOnly={readOnly}
             />
-            {narrator && (
-              <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
-                <strong>How to add frames:</strong> Click on any frame above to add it at the current audio time ({Math.round(currentTime)}s).
-                {tempFrames.length === 0 && ' Your first frame will automatically be set to 0 seconds.'}
-              </div>
-            )}
           </div>
         </div>
       </FullscreenModal>

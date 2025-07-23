@@ -4,11 +4,12 @@ import path from 'path'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     // Get the file path from the URL parameters
-    const filePath = params.path.join('/')
+    const { path: pathSegments } = await params
+    const filePath = pathSegments.join('/')
     
     // Construct the absolute path to the media file
     const mediaDir = path.resolve(process.cwd(), 'media')
