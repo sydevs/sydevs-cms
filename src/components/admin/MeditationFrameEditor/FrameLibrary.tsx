@@ -202,8 +202,8 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
                 }
               }}
             >
-              {/* Frame Preview */}
-              <div style={{ position: 'relative', paddingBottom: '75%', backgroundColor: '#f0f0f0' }}>
+              {/* Frame Preview - Square aspect ratio */}
+              <div style={{ position: 'relative', paddingBottom: '100%', backgroundColor: '#f0f0f0' }}>
                 {frame.url ? (
                   frame.mimeType?.startsWith('video/') ? (
                     <video

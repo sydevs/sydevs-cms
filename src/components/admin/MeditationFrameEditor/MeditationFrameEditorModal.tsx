@@ -2,10 +2,9 @@
 
 import React, { useState } from 'react'
 import { FullscreenModal, useModal } from '@payloadcms/ui'
-import AudioPlayer from './AudioPlayer'
+import AudioPreviewPlayer from './AudioPreviewPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
-import FramePreview from './FramePreview'
 import type { FrameData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
 
@@ -82,52 +81,48 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
   return (
     <>
       {/* Collapsed State */}
-      <div className="meditation-frame-editor-collapsed" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1rem', backgroundColor: '#fafafa' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-          {/* Live Preview */}
-          <div style={{ flexShrink: 0 }}>
-            <FramePreview
-              frames={initialFrames}
-              currentTime={0}
-              width={200}
-              height={150}
-            />
-          </div>
+      <div className="meditation-frame-editor-collapsed" style={{ 
+        display: 'flex', 
+        gap: '1rem', 
+        alignItems: 'flex-start',
+        padding: '1rem',
+        border: '1px solid #e0e0e0', 
+        borderRadius: '8px', 
+        backgroundColor: '#fafafa' 
+      }}>
+        {/* Unified Audio Preview Player */}
+        <AudioPreviewPlayer
+          audioUrl={audioUrl}
+          frames={initialFrames}
+          size="small"
+        />
 
-          {/* Edit Button and Info */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <button
-              type="button"
-              onClick={handleOpenModal}
-              disabled={!audioUrl || readOnly}
-              style={{
-                padding: '0.75rem 1.5rem',
-                backgroundColor: !audioUrl || readOnly ? '#ccc' : '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: !audioUrl || readOnly ? 'not-allowed' : 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                alignSelf: 'flex-start',
-              }}
-            >
-              Edit Video
-            </button>
-            
-            {!audioUrl && (
-              <div style={{ fontSize: '0.75rem', color: '#666' }}>
-                Please upload an audio file first to edit frames.
-              </div>
-            )}
-            
-            {audioUrl && initialFrames.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#666' }}>
-                {initialFrames.length} frame{initialFrames.length !== 1 ? 's' : ''} • 
-                Duration: 0s - {Math.max(...initialFrames.map(f => f.timestamp), 0)}s
-              </div>
-            )}
-          </div>
+        {/* Edit Button and Info */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingTop: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={handleOpenModal}
+            disabled={!audioUrl || readOnly}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: !audioUrl || readOnly ? '#ccc' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: !audioUrl || readOnly ? 'not-allowed' : 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              alignSelf: 'flex-start',
+            }}
+          >
+            Edit Video
+          </button>
+          
+          {!audioUrl && (
+            <div style={{ fontSize: '0.75rem', color: '#666' }}>
+              Please upload an audio file first to edit frames.
+            </div>
+          )}
         </div>
       </div>
 
@@ -191,35 +186,21 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
         }}>
           {/* Left Column */}
           <div style={{ 
-            flex: '0 0 400px', 
+            flex: '0 0 350px', 
             display: 'flex', 
             flexDirection: 'column', 
             gap: '1.5rem',
             overflow: 'hidden'
           }}>
-            {/* Live Preview */}
-            <div>
-              <FramePreview
+            {/* Unified Audio Preview Player */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <AudioPreviewPlayer
+                audioUrl={audioUrl}
                 frames={tempFrames}
-                currentTime={currentTime}
-                width={380}
-                height={285}
+                onTimeChange={handleTimeChange}
+                onSeek={(time) => setCurrentTime(time)}
+                size="large"
               />
-            </div>
-
-            {/* Audio Player */}
-            <div>
-              <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
-                Audio Player
-              </h4>
-              {audioUrl && (
-                <AudioPlayer
-                  audioUrl={audioUrl}
-                  frames={tempFrames}
-                  onTimeChange={handleTimeChange}
-                  onSeek={(time) => setCurrentTime(time)}
-                />
-              )}
             </div>
 
             {/* Current Frames */}

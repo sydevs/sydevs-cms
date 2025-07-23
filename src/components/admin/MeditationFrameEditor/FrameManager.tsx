@@ -142,10 +142,10 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 gap: '1rem'
               }}
             >
-              {/* Frame Preview */}
+              {/* Frame Preview - Square */}
               <div style={{ 
-                width: '60px', 
-                height: '45px', 
+                width: '48px', 
+                height: '48px', 
                 backgroundColor: '#f0f0f0', 
                 borderRadius: '4px',
                 overflow: 'hidden',
