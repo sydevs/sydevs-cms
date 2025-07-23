@@ -56,9 +56,12 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
   }
 
   const handleFrameSelect = (frame: Frame) => {
+    // Round timestamp to nearest second
+    const roundedTime = Math.round(currentTime)
+    
     const newFrameData: FrameData = {
       frame: frame.id,
-      timestamp: currentTime,
+      timestamp: roundedTime,
     }
 
     // Apply first frame rule: if this is the first frame, set timestamp to 0
@@ -225,7 +228,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
             />
             {narrator && (
               <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
-                <strong>How to add frames:</strong> Click on any frame above to add it at the current audio time ({currentTime}s).
+                <strong>How to add frames:</strong> Click on any frame above to add it at the current audio time ({Math.round(currentTime)}s).
                 {tempFrames.length === 0 && ' Your first frame will automatically be set to 0 seconds.'}
               </div>
             )}
