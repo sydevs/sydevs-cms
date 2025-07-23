@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Modal, useModal } from '@payloadcms/ui'
+import { FullscreenModal, useModal } from '@payloadcms/ui'
 import AudioPlayer from './AudioPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
@@ -132,133 +132,125 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
       </div>
 
       {/* Modal */}
-      <Modal slug={MODAL_SLUG} className="meditation-frame-editor-modal">
+      <FullscreenModal slug={MODAL_SLUG} className="meditation-frame-editor-modal">
+        {/* Modal Header */}
         <div style={{ 
-          width: '90vw', 
-          maxWidth: '1200px', 
-          height: '80vh', 
-          maxHeight: '800px',
-          backgroundColor: '#fff',
-          borderRadius: '8px',
+          padding: '1.5rem 1.5rem 1rem 1.5rem', 
+          borderBottom: '1px solid #e0e0e0',
           display: 'flex',
-          flexDirection: 'column'
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#fff'
         }}>
-          {/* Modal Header */}
-          <div style={{ 
-            padding: '1.5rem 1.5rem 1rem 1.5rem', 
-            borderBottom: '1px solid #e0e0e0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-              Edit Video Frames
-            </h2>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={handleCancel}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                }}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-
-          {/* Modal Content */}
-          <div style={{ 
-            flex: 1, 
-            display: 'flex', 
-            gap: '1.5rem', 
-            padding: '1.5rem',
-            overflow: 'hidden'
-          }}>
-            {/* Left Column */}
-            <div style={{ 
-              flex: '0 0 400px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '1.5rem',
-              overflow: 'hidden'
-            }}>
-              {/* Live Preview */}
-              <div>
-                <FramePreview
-                  frames={tempFrames}
-                  currentTime={currentTime}
-                  width={380}
-                  height={285}
-                />
-              </div>
-
-              {/* Audio Player */}
-              <div>
-                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
-                  Audio Player
-                </h4>
-                {audioUrl && (
-                  <AudioPlayer
-                    audioUrl={audioUrl}
-                    frames={tempFrames}
-                    onTimeChange={handleTimeChange}
-                    onSeek={(time) => setCurrentTime(time)}
-                  />
-                )}
-              </div>
-
-              {/* Current Frames */}
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <FrameManager
-                  frames={tempFrames}
-                  onFramesChange={handleFramesChange}
-                  readOnly={readOnly}
-                />
-              </div>
-            </div>
-
-            {/* Right Column - Frame Library */}
-            <div style={{ 
-              flex: 1, 
-              overflow: 'hidden'
-            }}>
-              <FrameLibrary
-                narrator={narrator}
-                onFrameSelect={handleFrameSelect}
-                disabled={readOnly}
-              />
-              {narrator && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
-                  <strong>How to add frames:</strong> Click on any frame above to add it at the current audio time ({currentTime}s).
-                  {tempFrames.length === 0 && ' Your first frame will automatically be set to 0 seconds.'}
-                </div>
-              )}
-            </div>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+            Edit Video Frames
+          </h2>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={handleCancel}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+              }}
+            >
+              Save
+            </button>
           </div>
         </div>
-      </Modal>
+
+        {/* Modal Content */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          gap: '1.5rem', 
+          padding: '1.5rem',
+          overflow: 'hidden',
+          backgroundColor: '#fff',
+          height: 'calc(100vh - 120px)'
+        }}>
+          {/* Left Column */}
+          <div style={{ 
+            flex: '0 0 400px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '1.5rem',
+            overflow: 'hidden'
+          }}>
+            {/* Live Preview */}
+            <div>
+              <FramePreview
+                frames={tempFrames}
+                currentTime={currentTime}
+                width={380}
+                height={285}
+              />
+            </div>
+
+            {/* Audio Player */}
+            <div>
+              <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+                Audio Player
+              </h4>
+              {audioUrl && (
+                <AudioPlayer
+                  audioUrl={audioUrl}
+                  frames={tempFrames}
+                  onTimeChange={handleTimeChange}
+                  onSeek={(time) => setCurrentTime(time)}
+                />
+              )}
+            </div>
+
+            {/* Current Frames */}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <FrameManager
+                frames={tempFrames}
+                onFramesChange={handleFramesChange}
+                readOnly={readOnly}
+              />
+            </div>
+          </div>
+
+          {/* Right Column - Frame Library */}
+          <div style={{ 
+            flex: 1, 
+            overflow: 'hidden'
+          }}>
+            <FrameLibrary
+              narrator={narrator}
+              onFrameSelect={handleFrameSelect}
+              disabled={readOnly}
+            />
+            {narrator && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+                <strong>How to add frames:</strong> Click on any frame above to add it at the current audio time ({currentTime}s).
+                {tempFrames.length === 0 && ' Your first frame will automatically be set to 0 seconds.'}
+              </div>
+            )}
+          </div>
+        </div>
+      </FullscreenModal>
     </>
   )
 }
