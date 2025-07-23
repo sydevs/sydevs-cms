@@ -21,7 +21,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
   // Load frame details for display
   useEffect(() => {
     const loadFrameDetails = async () => {
-      const frameIds = frames.map(f => f.frame).filter(id => id !== 'placeholder-frame-id')
+      const frameIds = frames.map(f => f.frame)
       const missingIds = frameIds.filter(id => !frameDetails[id])
       
       if (missingIds.length === 0) return
@@ -124,7 +124,6 @@ const FrameManager: React.FC<FrameManagerProps> = ({
       }}>
         {frames.map((frameData, index) => {
           const frame = frameDetails[frameData.frame]
-          const isPlaceholder = frameData.frame === 'placeholder-frame-id'
           
           return (
             <div
@@ -148,7 +147,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 flexShrink: 0,
                 position: 'relative'
               }}>
-                {frame?.url && !isPlaceholder ? (
+                {frame?.url ? (
                   frame.mimeType?.startsWith('video/') ? (
                     <video
                       src={frame.url}
@@ -171,7 +170,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                     color: '#999',
                     fontSize: '0.625rem'
                   }}>
-                    {isLoading ? '...' : isPlaceholder ? 'TMP' : 'N/A'}
+                    {isLoading ? '...' : 'N/A'}
                   </div>
                 )}
               </div>
@@ -179,14 +178,13 @@ const FrameManager: React.FC<FrameManagerProps> = ({
               {/* Frame Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
-                  {isPlaceholder ? 'Placeholder Frame' : frame?.name || `Frame ${frameData.frame}`}
+                  {frame?.name || `Frame ${frameData.frame}`}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#666' }}>
-                  {isPlaceholder ? 'Temporary placeholder' : frame?.imageSet || 'Unknown'}
-                  {frame?.mimeType?.startsWith('video/') && frame.duration && (
-                    <span> • {frame.duration}s video</span>
-                  )}
-                </div>
+                {frame?.mimeType?.startsWith('video/') && frame.duration && (
+                  <div style={{ fontSize: '0.75rem', color: '#666' }}>
+                    {frame.duration}s video
+                  </div>
+                )}
               </div>
 
               {/* Timestamp Input */}
@@ -252,8 +250,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
         justifyContent: 'space-between'
       }}>
         <span>
-          {frames.filter(f => f.frame !== 'placeholder-frame-id').length} real frames, 
-          {frames.filter(f => f.frame === 'placeholder-frame-id').length} placeholders
+          {frames.length} frame{frames.length !== 1 ? 's' : ''}
         </span>
         <span>
           Duration: 0s - {Math.max(...frames.map(f => f.timestamp), 0)}s

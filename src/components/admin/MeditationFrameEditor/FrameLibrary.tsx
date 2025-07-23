@@ -255,12 +255,11 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
                 <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
                   {frame.name}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#666' }}>
-                  {frame.imageSet}
-                  {frame.mimeType?.startsWith('video/') && frame.duration && (
-                    <span> • {frame.duration}s</span>
-                  )}
-                </div>
+                {frame.mimeType?.startsWith('video/') && frame.duration && (
+                  <div style={{ fontSize: '0.75rem', color: '#666' }}>
+                    {frame.duration}s video
+                  </div>
+                )}
               </div>
             </div>
           ))}
