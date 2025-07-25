@@ -11,44 +11,39 @@ export const isAPIClient = (user: any): boolean => {
  * Apply read-only access control for API clients
  * This helper wraps existing access control to enforce read-only access for API clients
  */
-export const applyClientAccessControl = (access: {
-  read?: Access
-  create?: Access
-  update?: Access
-  delete?: Access
-}) => {
+export const applyClientAccessControl = (access: Access): Access => {
   return {
     read: access.read || (() => true),
-    create: (args: any) => {
+    create: ({ req: { user } }) => {
       // API clients cannot create
-      if (isAPIClient(args.req.user)) {
+      if (isAPIClient(user)) {
         return false
       }
       // Otherwise use the original access control
       if (typeof access.create === 'function') {
-        return access.create(args)
+        return access.create({ req: { user } })
       }
       return access.create || false
     },
-    update: (args: any) => {
+    update: ({ req: { user } }) => {
       // API clients cannot update
-      if (isAPIClient(args.req.user)) {
+      if (isAPIClient(user)) {
         return false
       }
       // Otherwise use the original access control
       if (typeof access.update === 'function') {
-        return access.update(args)
+        return access.update({ req: { user } })
       }
       return access.update || false
     },
-    delete: (args: any) => {
+    delete: ({ req: { user } }) => {
       // API clients cannot delete
-      if (isAPIClient(args.req.user)) {
+      if (isAPIClient(user)) {
         return false
       }
       // Otherwise use the original access control
       if (typeof access.delete === 'function') {
-        return access.delete(args)
+        return access.delete({ req: { user } })
       }
       return access.delete || false
     },

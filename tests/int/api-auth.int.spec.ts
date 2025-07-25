@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Client, User, Meditation } from '@/payload-types'
+import type { Client, User } from '@/payload-types'
 import type { Payload, PayloadRequest } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -103,19 +103,16 @@ describe('API Authentication', () => {
   })
 
   describe('Read-Only Access Control', () => {
-    let testMeditation: Meditation
+    let testTag: any
 
     beforeAll(async () => {
-      // Create test data
-      testMeditation = await payload.create({
-        collection: 'meditations',
+      // Create test data - using tags instead of meditations since meditations require file upload
+      testTag = await payload.create({
+        collection: 'tags',
         data: {
-          title: 'Test Meditation for API Access',
-          slug: 'test-meditation-api',
-          narrator: null, // We'd need to create a narrator for a real test
-          tags: [],
+          title: 'Test Tag for API Access',
         },
-      }) as Meditation
+      })
     })
 
     it('allows read operations for API clients', async () => {
@@ -130,7 +127,7 @@ describe('API Authentication', () => {
 
       // Read operation should be allowed
       const result = await payload.find({
-        collection: 'meditations',
+        collection: 'tags',
         req: clientReq,
       })
 
@@ -151,10 +148,9 @@ describe('API Authentication', () => {
       // Create operation should be denied
       await expect(
         payload.create({
-          collection: 'meditations',
+          collection: 'tags',
           data: {
             title: 'Should Not Create',
-            slug: 'should-not-create',
           },
           req: clientReq,
         })
@@ -173,8 +169,8 @@ describe('API Authentication', () => {
       // Update operation should be denied
       await expect(
         payload.update({
-          collection: 'meditations',
-          id: testMeditation.id,
+          collection: 'tags',
+          id: testTag.id,
           data: {
             title: 'Should Not Update',
           },
@@ -195,8 +191,8 @@ describe('API Authentication', () => {
       // Delete operation should be denied
       await expect(
         payload.delete({
-          collection: 'meditations',
-          id: testMeditation.id,
+          collection: 'tags',
+          id: testTag.id,
           req: clientReq,
         })
       ).rejects.toThrow()
