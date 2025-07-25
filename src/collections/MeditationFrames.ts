@@ -1,7 +1,18 @@
 import type { CollectionConfig, Validate } from 'payload'
+import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const MeditationFrames: CollectionConfig = {
   slug: 'meditationFrames',
+  access: applyClientAccessControl({
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
+  }),
+  hooks: {
+    afterRead: [createAPITrackingHook()],
+  },
   admin: {
     hidden: true, // Hide from admin panel navigation
     useAsTitle: 'id', // Use the auto-generated ID as the title

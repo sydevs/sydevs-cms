@@ -1,9 +1,17 @@
 import type { CollectionConfig, Validate } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
+import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
+  access: applyClientAccessControl({
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
+  }),
   upload: {
     staticDir: 'media/meditations',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
@@ -14,6 +22,7 @@ export const Meditations: CollectionConfig = {
     useAsTitle: 'title',
   },
   hooks: {
+    afterRead: [createAPITrackingHook()],
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title

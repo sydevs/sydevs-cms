@@ -206,3 +206,101 @@ export async function waitForEmail(
 ): Promise<void> {
   await emailAdapter.waitForEmail(timeout)
 }
+
+/**
+ * Creates a test user for use in tests
+ * @param payload The Payload instance
+ * @param overrides Optional field overrides
+ */
+export async function createTestUser(
+  payload: Payload,
+  overrides: Partial<any> = {}
+): Promise<any> {
+  const defaultData = {
+    email: `test-user-${Date.now()}@example.com`,
+    password: 'password123',
+  }
+  
+  return await payload.create({
+    collection: 'users',
+    data: { ...defaultData, ...overrides },
+  })
+}
+
+/**
+ * Creates a test client for API authentication tests
+ * @param payload The Payload instance
+ * @param managers Array of user IDs who can manage this client
+ * @param primaryContact User ID of the primary contact
+ * @param overrides Optional field overrides
+ */
+export async function createTestClient(
+  payload: Payload,
+  managers: string[],
+  primaryContact: string,
+  overrides: Partial<any> = {}
+): Promise<any> {
+  const defaultData = {
+    name: `Test Client ${Date.now()}`,
+    description: 'Test client for automated testing',
+    role: 'full-access',
+    managers,
+    primaryContact,
+    active: true,
+  }
+  
+  return await payload.create({
+    collection: 'clients',
+    data: { ...defaultData, ...overrides },
+  })
+}
+
+/**
+ * Creates a test client with a manager user
+ * @param payload The Payload instance
+ * @param overrides Optional overrides for client or user
+ */
+export async function createTestClientWithManager(
+  payload: Payload,
+  overrides: {
+    user?: Partial<any>
+    client?: Partial<any>
+  } = {}
+): Promise<{
+  user: any
+  client: any
+}> {
+  // Create manager user
+  const user = await createTestUser(payload, overrides.user)
+  
+  // Create client with this user as manager and primary contact
+  const client = await createTestClient(
+    payload,
+    [user.id],
+    user.id,
+    overrides.client
+  )
+  
+  return { user, client }
+}
+
+/**
+ * Creates an authenticated request for a client (API key auth)
+ * @param clientId The client ID
+ * @param apiKey The API key for the client
+ */
+export function createClientAuthenticatedRequest(
+  clientId: string,
+  apiKey: string
+): Partial<PayloadRequest> {
+  return {
+    headers: {
+      authorization: `clients API-Key ${apiKey}`,
+    },
+    user: {
+      id: clientId,
+      collection: 'clients',
+      active: true,
+    } as any,
+  }
+}
