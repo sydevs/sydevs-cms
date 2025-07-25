@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { blockAPIClientAccess } from '@/lib/clientAccessControl'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -6,6 +7,7 @@ export const Users: CollectionConfig = {
     group: 'Utility',
     useAsTitle: 'email',
   },
+  access: blockAPIClientAccess(),
   auth: {
     verify: false, // TODO: Re-enable this but ensure there are proper warnings.
     maxLoginAttempts: 5,

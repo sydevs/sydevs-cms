@@ -6,6 +6,7 @@ import { Tags } from './Tags'
 import { Music } from './Music'
 import { Frames } from './Frames'
 import { MeditationFrames } from './MeditationFrames'
+import { Clients } from './Clients'
 
 // Export all collections as an array
 export const collections = [
@@ -19,6 +20,7 @@ export const collections = [
   Narrators,
   Users,
   Tags,
+  Clients,
 ]
 
 // Re-export each collection individually
@@ -30,3 +32,4 @@ export { Tags } from './Tags'
 export { Music } from './Music'
 export { Frames } from './Frames'
 export { MeditationFrames } from './MeditationFrames'
+export { Clients } from './Clients'

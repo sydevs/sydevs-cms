@@ -2,9 +2,17 @@ import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getVideoDuration, getVideoDimensions, validateVideoDuration, validateVideoFileSize } from '@/lib/videoUtils'
 import { getStorageConfig } from '@/lib/storage'
+import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Frames: CollectionConfig = {
   slug: 'frames',
+  access: applyClientAccessControl({
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
+  }),
   upload: {
     staticDir: 'media/frames',
     mimeTypes: [
@@ -24,6 +32,7 @@ export const Frames: CollectionConfig = {
     useAsTitle: 'name',
   },
   hooks: {
+    afterRead: [createAPITrackingHook()],
     beforeValidate: [
       async ({ data, req }) => {
         // Validate file size based on file type

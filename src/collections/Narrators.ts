@@ -1,12 +1,21 @@
 import type { CollectionConfig } from 'payload'
+import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
+  access: applyClientAccessControl({
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
+  }),
   admin: {
     group: 'Utility',
     useAsTitle: 'name',
   },
   hooks: {
+    afterRead: [createAPITrackingHook()],
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create' || (operation === 'update' && data.name)) {
