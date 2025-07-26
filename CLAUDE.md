@@ -237,8 +237,8 @@ The system implements secure REST API authentication for third-party clients wit
   - `applyClientAccessControl()`: Enforces read-only access for API clients
   - `blockAPIClientAccess()`: Blocks all access for sensitive collections
   
-- **Usage Tracking** (`src/lib/apiUsageTracking.ts`): Efficient request monitoring
-  - In-memory cache with batch updates every 5 minutes or 100 requests
+- **Usage Tracking** (`src/lib/apiUsageTracking.ts`): Simplified request monitoring
+  - In-memory counter with batch database updates every 10 requests
   - Automatic daily counter reset at midnight UTC
   - High usage alerts via Sentry when exceeding 1,000 requests/day
   

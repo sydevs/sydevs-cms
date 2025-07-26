@@ -13,7 +13,17 @@ export const isAPIClient = (user: any): boolean => {
  */
 export const applyClientAccessControl = (access: Access): Access => {
   return {
-    read: access.read || (() => true),
+    read: ({ req: { user } }) => {
+      // Check if client is active
+      if (isAPIClient(user) && !isClientActive(user)) {
+        return false
+      }
+      // Use original read access
+      if (typeof access.read === 'function') {
+        return access.read({ req: { user } })
+      }
+      return access.read !== undefined ? access.read : true
+    },
     create: ({ req: { user } }) => {
       // API clients cannot create
       if (isAPIClient(user)) {
