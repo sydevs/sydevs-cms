@@ -310,11 +310,12 @@ describe('Meditations Collection', () => {
       expect(meditation.frames).toHaveLength(2)
       
       // Check that frames are sorted by timestamp
-      expect(meditation.frames?.[0]?.timestamp).toBe(5.0)
-      expect(meditation.frames?.[1]?.timestamp).toBe(15.0)
+      const frames = meditation.frames as Array<{ frame: string | { id: string }, timestamp: number }>
+      expect(frames[0]?.timestamp).toBe(5.0)
+      expect(frames[1]?.timestamp).toBe(15.0)
       
-      const frame1Id = typeof meditation.frames?.[0]?.frame === 'object' ? meditation.frames[0].frame.id : meditation.frames?.[0]?.frame
-      const frame2Id = typeof meditation.frames?.[1]?.frame === 'object' ? meditation.frames[1].frame.id : meditation.frames?.[1]?.frame
+      const frame1Id = typeof frames[0]?.frame === 'object' ? frames[0].frame.id : frames[0]?.frame
+      const frame2Id = typeof frames[1]?.frame === 'object' ? frames[1].frame.id : frames[1]?.frame
       
       expect(frame1Id).toBe(testFrame1.id)
       expect(frame2Id).toBe(testFrame2.id)
@@ -343,8 +344,9 @@ describe('Meditations Collection', () => {
       expect(meditation.frames).toHaveLength(2)
       
       // Should be automatically sorted by timestamp
-      expect(meditation.frames?.[0]?.timestamp).toBe(5.0)
-      expect(meditation.frames?.[1]?.timestamp).toBe(20.0)
+      const sortedFrames = meditation.frames as Array<{ frame: string | { id: string }, timestamp: number }>
+      expect(sortedFrames[0]?.timestamp).toBe(5.0)
+      expect(sortedFrames[1]?.timestamp).toBe(20.0)
     })
 
     it('syncs meditation frames with MeditationFrames collection on create', async () => {
@@ -414,7 +416,8 @@ describe('Meditations Collection', () => {
 
       // Check meditation frames field
       expect(updated.frames).toHaveLength(1)
-      expect(updated.frames?.[0]?.timestamp).toBe(8.0)
+      const updatedFrames = updated.frames as Array<{ frame: string | { id: string }, timestamp: number }>
+      expect(updatedFrames[0]?.timestamp).toBe(8.0)
 
       // Check that MeditationFrames record was created
       const meditationFrames = await payload.find({

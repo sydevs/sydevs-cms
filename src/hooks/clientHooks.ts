@@ -1,13 +1,15 @@
-import { getClientId, isAPIClient } from '@/lib/clientAccessControl'
+import type { CollectionAfterReadHook, CollectionBeforeChangeHook, CollectionAfterChangeHook, Payload } from 'payload'
+import { getClientId, isAPIClient, type AuthenticatedUser } from '@/lib/clientAccessControl'
 import { trackAPIUsage, initializeUsageTracking } from '@/lib/apiUsageTracking'
 
 /**
  * Hook to track API usage on all collection operations
  */
-export const trackClientAPIUsage = async ({ req, operation }: any) => {
+export const trackClientAPIUsage: CollectionAfterReadHook = async ({ req }) => {
   // Only track read operations for API clients
-  if (isAPIClient(req.user) && operation === 'read') {
-    const clientId = getClientId(req.user)
+  const user = req.user as AuthenticatedUser
+  if (isAPIClient(user)) {
+    const clientId = getClientId(user)
     if (clientId && req.payload) {
       await trackAPIUsage(clientId, req.payload)
     }
@@ -17,16 +19,14 @@ export const trackClientAPIUsage = async ({ req, operation }: any) => {
 /**
  * Global hook to apply to all collections for API tracking
  */
-export const createAPITrackingHook = () => {
-  return async ({ req, operation }: any) => {
-    await trackClientAPIUsage({ req, operation })
-  }
+export const createAPITrackingHook = (): CollectionAfterReadHook => {
+  return trackClientAPIUsage
 }
 
 /**
  * Hook to validate client data before changes
  */
-export const validateClientData = async ({ data, operation, req: _req }: any) => {
+export const validateClientData: CollectionBeforeChangeHook = async ({ data, operation }) => {
   if (operation === 'create' || operation === 'update') {
     // Ensure primary contact is in managers list
     if (data?.primaryContact && data?.managers) {
@@ -56,7 +56,7 @@ export const validateClientData = async ({ data, operation, req: _req }: any) =>
 /**
  * Hook to check high usage after changes
  */
-export const checkHighUsageAlert = async ({ doc, req: _req }: any) => {
+export const checkHighUsageAlert: CollectionAfterChangeHook = async ({ doc }) => {
   // Virtual field highUsageAlert will be computed based on dailyRequests
   if (doc?.usageStats?.dailyRequests > 1000) {
     // The field component will handle the visual alert
@@ -71,7 +71,7 @@ export const checkHighUsageAlert = async ({ doc, req: _req }: any) => {
  * Initialize usage tracking on server startup
  * This should be called once when the server starts
  */
-export const initializeAPIUsageTracking = (payload: any): void => {
+export const initializeAPIUsageTracking = (payload: Payload): void => {
   // Initialize the periodic flush and daily reset
   initializeUsageTracking(payload)
 }

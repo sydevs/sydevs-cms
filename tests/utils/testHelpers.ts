@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename)
 
 // Constants
 const DEFAULT_EMAIL_TIMEOUT = 5000
-const UPLOAD_COLLECTIONS = ['media', 'frames'] as const
+const UPLOAD_COLLECTIONS: readonly string[] = ['media', 'frames']
 
 /**
  * Creates test-specific collections with image resizing disabled.
@@ -32,7 +32,7 @@ const UPLOAD_COLLECTIONS = ['media', 'frames'] as const
 function getTestCollections(): CollectionConfig[] {
   return collections.map(collection => {
     // Disable image resizing for upload collections in tests
-    if (UPLOAD_COLLECTIONS.includes(collection.slug as any)) {
+    if (UPLOAD_COLLECTIONS.includes(collection.slug)) {
       return {
         ...collection,
         upload: {
@@ -242,8 +242,8 @@ export async function createTestClient(
 ): Promise<any> {
   const defaultData = {
     name: `Test Client ${Date.now()}`,
-    description: 'Test client for automated testing',
-    role: 'full-access',
+    notes: 'Test client for automated testing',
+    role: 'full-access' as const,
     managers,
     primaryContact,
     active: true,
@@ -293,14 +293,17 @@ export function createClientAuthenticatedRequest(
   clientId: string,
   apiKey: string
 ): Partial<PayloadRequest> {
+  // Create a minimal request object for testing
+  // The headers type in PayloadRequest is complex, so we use a type assertion
+  const headers = new Headers()
+  headers.set('authorization', `clients API-Key ${apiKey}`)
+  
   return {
-    headers: {
-      authorization: `clients API-Key ${apiKey}`,
-    },
+    headers: headers as PayloadRequest['headers'],
     user: {
       id: clientId,
-      collection: 'clients',
+      collection: 'clients' as const,
       active: true,
-    } as any,
+    } as PayloadRequest['user'],
   }
 }

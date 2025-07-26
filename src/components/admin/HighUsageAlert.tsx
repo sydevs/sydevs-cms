@@ -10,12 +10,24 @@ interface HighUsageAlertProps {
   }
 }
 
+interface UsageStatsValue {
+  totalRequests?: number | null
+  dailyRequests?: number | null
+  lastRequestAt?: string | null
+  lastResetAt?: string | null
+}
+
+interface FormFieldValue {
+  value?: UsageStatsValue
+}
+
 export const HighUsageAlert: React.FC<HighUsageAlertProps> = ({ clientProps }) => {
   const fields = useFormFields(([fields]) => fields)
   const threshold = clientProps?.threshold || 1000
   
   // Extract daily requests from form fields
-  const usageStats = fields?.usageStats?.value as any
+  const usageStatsField = fields?.usageStats as FormFieldValue | undefined
+  const usageStats = usageStatsField?.value
   const dailyRequests = usageStats?.dailyRequests || 0
   
   // Only show alert when usage exceeds threshold

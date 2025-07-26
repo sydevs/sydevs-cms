@@ -1,4 +1,5 @@
-import type { Payload, Client } from 'payload'
+import type { Payload } from 'payload'
+import type { Client } from '@/payload-types'
 import * as Sentry from '@sentry/nextjs'
 
 // Simple in-memory cache for tracking API usage

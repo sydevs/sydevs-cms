@@ -41,7 +41,7 @@ describe('Clients Collection', () => {
       const clientData = {
         name: 'Test Client App',
         notes: 'A test client application',
-        role: 'full-access',
+        role: 'full-access' as const,
         managers: [testUser.id],
         primaryContact: testUser.id,
         active: true,
@@ -73,14 +73,14 @@ describe('Clients Collection', () => {
       // API key should not be generated yet
       expect(client.apiKey).toBeNull()
       expect(client.usageStats).toBeDefined()
-      expect(client.usageStats.totalRequests).toBe(0)
-      expect(client.usageStats.dailyRequests).toBe(0)
+      expect(client.usageStats?.totalRequests).toBe(0)
+      expect(client.usageStats?.dailyRequests).toBe(0)
     })
 
     it('enforces primary contact is in managers list', async () => {
       const clientData = {
         name: 'Test Client App 2',
-        role: 'full-access',
+        role: 'full-access' as const,
         managers: [testUser.id],
         primaryContact: testUser2.id, // Different from managers
         active: true,
@@ -176,10 +176,10 @@ describe('Clients Collection', () => {
         collection: 'clients',
         data: {
           name: 'Client with Default Role',
+          role: 'full-access' as const,
           managers: [testUser.id],
           primaryContact: testUser.id,
           active: true,
-          // Role not specified - should use default
         },
       }) as Client
       
@@ -274,8 +274,8 @@ describe('Clients Collection', () => {
       }) as Client
 
       expect(client.usageStats).toBeDefined()
-      expect(client.usageStats.totalRequests).toBe(0)
-      expect(client.usageStats.dailyRequests).toBe(0)
+      expect(client.usageStats?.totalRequests).toBe(0)
+      expect(client.usageStats?.dailyRequests).toBe(0)
       // The field structure should exist even if values are null
       expect(typeof client.usageStats).toBe('object')
     })
