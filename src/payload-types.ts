@@ -430,7 +430,7 @@ export interface Client {
   /**
    * Purpose and usage notes for this client
    */
-  description?: string | null;
+  notes?: string | null;
   /**
    * Access level for this client (currently only Full Access)
    */
@@ -471,11 +471,11 @@ export interface Client {
      * Last daily counter reset
      */
     lastResetAt?: string | null;
+    /**
+     * Indicates if daily limit exceeded (>1000 requests)
+     */
+    highUsageAlert?: boolean | null;
   };
-  /**
-   * Indicates if daily limit exceeded (>1000 requests)
-   */
-  highUsageAlert?: boolean | null;
   updatedAt: string;
   createdAt: string;
   enableAPIKey?: boolean | null;
@@ -766,7 +766,7 @@ export interface TagsSelect<T extends boolean = true> {
  */
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
-  description?: T;
+  notes?: T;
   role?: T;
   managers?: T;
   primaryContact?: T;
@@ -779,8 +779,8 @@ export interface ClientsSelect<T extends boolean = true> {
         dailyRequests?: T;
         lastRequestAt?: T;
         lastResetAt?: T;
+        highUsageAlert?: T;
       };
-  highUsageAlert?: T;
   updatedAt?: T;
   createdAt?: T;
   enableAPIKey?: T;

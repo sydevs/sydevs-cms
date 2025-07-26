@@ -4,7 +4,7 @@ import { blockAPIClientAccess } from '@/lib/clientAccessControl'
 export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
-    group: 'Utility',
+    group: 'Access',
     useAsTitle: 'email',
   },
   access: blockAPIClientAccess(),

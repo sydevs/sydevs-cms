@@ -8,7 +8,7 @@ export const Clients: CollectionConfig = {
     disableLocalStrategy: true, // Only API key authentication
   },
   admin: {
-    group: 'Utility',
+    group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active', 'role', 'usageStats.dailyRequests'],
   },
@@ -48,9 +48,9 @@ export const Clients: CollectionConfig = {
       },
     },
     {
-      name: 'description',
+      name: 'notes',
       type: 'textarea',
-      label: 'Description',
+      label: 'Notes',
       admin: {
         description: 'Purpose and usage notes for this client',
       },
@@ -105,6 +105,7 @@ export const Clients: CollectionConfig = {
       admin: {
         readOnly: true,
         description: 'Timestamp of last API key generation',
+        position: "sidebar",
       },
     },
     {
@@ -112,6 +113,7 @@ export const Clients: CollectionConfig = {
       type: 'group',
       admin: {
         description: 'API usage statistics',
+        position: "sidebar",
       },
       fields: [
         {
@@ -148,24 +150,24 @@ export const Clients: CollectionConfig = {
             description: 'Last daily counter reset',
           },
         },
-      ],
-    },
-    {
-      name: 'highUsageAlert',
-      type: 'checkbox',
-      virtual: true,
-      admin: {
-        readOnly: true,
-        description: 'Indicates if daily limit exceeded (>1000 requests)',
-        components: {
-          Field: {
-            path: '@/components/admin/HighUsageAlert',
-            clientProps: {
-              threshold: 1000,
+        {
+          name: 'highUsageAlert',
+          type: 'checkbox',
+          virtual: true,
+          admin: {
+            readOnly: true,
+            description: 'Indicates if daily limit exceeded (>1000 requests)',
+            components: {
+              Field: {
+                path: '@/components/admin/HighUsageAlert',
+                clientProps: {
+                  threshold: 1000,
+                },
+              },
             },
           },
         },
-      },
+      ],
     },
   ],
   hooks: {
