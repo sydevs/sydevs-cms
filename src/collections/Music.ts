@@ -1,17 +1,12 @@
 import type { CollectionConfig } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { readApiAccess } from '@/lib/accessControl'
 import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Music: CollectionConfig = {
   slug: 'music',
-  access: applyClientAccessControl({
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
-  }),
+  access: readApiAccess(),
   upload: {
     staticDir: 'media/music',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],

@@ -1,5 +1,5 @@
-import type { CollectionAfterReadHook, CollectionBeforeChangeHook, CollectionAfterChangeHook, Payload } from 'payload'
-import { getClientId, isAPIClient, type AuthenticatedUser } from '@/lib/clientAccessControl'
+import type { CollectionAfterReadHook, CollectionBeforeChangeHook, CollectionAfterChangeHook, Payload, TypedUser } from 'payload'
+import { isAPIClient } from '@/lib/accessControl'
 import { trackAPIUsage, initializeUsageTracking } from '@/lib/apiUsageTracking'
 
 /**
@@ -7,11 +7,10 @@ import { trackAPIUsage, initializeUsageTracking } from '@/lib/apiUsageTracking'
  */
 export const trackClientAPIUsage: CollectionAfterReadHook = async ({ req }) => {
   // Only track read operations for API clients
-  const user = req.user as AuthenticatedUser
+  const user = req.user as TypedUser
   if (isAPIClient(user)) {
-    const clientId = getClientId(user)
-    if (clientId && req.payload) {
-      await trackAPIUsage(clientId, req.payload)
+    if (user.id && req.payload) {
+      await trackAPIUsage(user.id, req.payload)
     }
   }
 }

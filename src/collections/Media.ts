@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getStorageConfig } from '@/lib/storage'
-import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { readApiAccess } from '@/lib/accessControl'
 import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Media: CollectionConfig = {
@@ -9,9 +9,7 @@ export const Media: CollectionConfig = {
   admin: {
     group: 'Utility',
   },
-  access: applyClientAccessControl({
-    read: () => true,
-  }),
+  access: readApiAccess(),
   upload: {
     staticDir: 'media/images',
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],

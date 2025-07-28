@@ -1,8 +1,7 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Client, User } from '@/payload-types'
-import type { Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest, TypedUser } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { isAPIClient, isClientActive, type AuthenticatedUser } from '@/lib/clientAccessControl'
 
 // For testing access control functions, we only need minimal user objects
 // These partial types are sufficient for testing the access control logic
@@ -24,6 +23,7 @@ describe('API Authentication', () => {
     testUser = await payload.create({
       collection: 'users',
       data: {
+        name: 'API Test Manager',
         email: 'api-test-manager@example.com',
         password: 'password123',
       },
@@ -98,27 +98,6 @@ describe('API Authentication', () => {
     })
   })
 
-  describe('Access Control Functions', () => {
-    it('correctly identifies API clients', () => {
-      const apiClient = { collection: 'clients', id: '123' } as AuthenticatedUser
-      const regularUser = { collection: 'users', id: '456' } as AuthenticatedUser
-      
-      expect(isAPIClient(apiClient)).toBe(true)
-      expect(isAPIClient(regularUser)).toBe(false)
-      expect(isAPIClient(null)).toBe(false)
-    })
-
-    it('correctly checks client active status', () => {
-      const activeClient = { collection: 'clients', id: '123', active: true } as AuthenticatedUser
-      const inactiveClient = { collection: 'clients', id: '456', active: false } as AuthenticatedUser
-      const regularUser = { collection: 'users', id: '789' } as AuthenticatedUser
-      
-      expect(isClientActive(activeClient)).toBe(true)
-      expect(isClientActive(inactiveClient)).toBe(false)
-      expect(isClientActive(regularUser)).toBe(false)
-    })
-  })
-
   describe('Read-Only Access Control', () => {
     let testTag: any
 
@@ -161,13 +140,13 @@ describe('API Authentication', () => {
       
       // Test the access control function directly
       const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456' }
+      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
       
       const createAccess = tagsCollection?.access?.create
       if (typeof createAccess === 'function') {
         // Testing access control with minimal request objects
-        const clientReq = { user: clientUser as AuthenticatedUser } as PayloadRequest
-        const userReq = { user: regularUser as AuthenticatedUser } as PayloadRequest
+        const clientReq = { user: clientUser } as PayloadRequest
+        const userReq = { user: regularUser } as PayloadRequest
         expect(createAccess({ req: clientReq })).toBe(false)
         expect(createAccess({ req: userReq })).toBe(true)
       }
@@ -178,12 +157,12 @@ describe('API Authentication', () => {
       expect(tagsCollection?.access?.update).toBeDefined()
       
       const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456' }
+      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
       
       const updateAccess = tagsCollection?.access?.update
       if (typeof updateAccess === 'function') {
-        const clientReq = { user: clientUser as AuthenticatedUser } as PayloadRequest
-        const userReq = { user: regularUser as AuthenticatedUser } as PayloadRequest
+        const clientReq = { user: clientUser } as PayloadRequest
+        const userReq = { user: regularUser } as PayloadRequest
         expect(updateAccess({ req: clientReq })).toBe(false)
         expect(updateAccess({ req: userReq })).toBe(true)
       }
@@ -194,12 +173,12 @@ describe('API Authentication', () => {
       expect(tagsCollection?.access?.delete).toBeDefined()
       
       const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456' }
+      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
       
       const deleteAccess = tagsCollection?.access?.delete
       if (typeof deleteAccess === 'function') {
-        const clientReq = { user: clientUser as AuthenticatedUser } as PayloadRequest
-        const userReq = { user: regularUser as AuthenticatedUser } as PayloadRequest
+        const clientReq = { user: clientUser } as PayloadRequest
+        const userReq = { user: regularUser } as PayloadRequest
         expect(deleteAccess({ req: clientReq })).toBe(false)
         expect(deleteAccess({ req: userReq })).toBe(true)
       }
@@ -213,12 +192,12 @@ describe('API Authentication', () => {
       expect(usersCollection?.access?.read).toBeDefined()
       
       const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456' }
+      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
       
       const readAccess = usersCollection?.access?.read
       if (typeof readAccess === 'function') {
-        const clientReq = { user: clientUser as AuthenticatedUser } as PayloadRequest
-        const userReq = { user: regularUser as AuthenticatedUser } as PayloadRequest
+        const clientReq = { user: clientUser } as PayloadRequest
+        const userReq = { user: regularUser } as PayloadRequest
         expect(readAccess({ req: clientReq })).toBe(false)
         expect(readAccess({ req: userReq })).toBe(true)
       }
@@ -233,7 +212,7 @@ describe('API Authentication', () => {
       
       const readAccess = clientsCollection?.access?.read
       if (typeof readAccess === 'function') {
-        const clientReq = { user: clientUser as AuthenticatedUser } as PayloadRequest
+        const clientReq = { user: clientUser } as PayloadRequest
         expect(readAccess({ req: clientReq })).toBe(false)
       }
     })
@@ -258,7 +237,7 @@ describe('API Authentication', () => {
         if (collection?.access?.read && typeof collection.access.read === 'function') {
           const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
           // Read should be allowed for active clients
-          const clientReq = { user: clientUser as AuthenticatedUser } as PayloadRequest
+          const clientReq = { user: clientUser } as PayloadRequest
           expect(collection.access.read({ req: clientReq })).toBe(true)
         }
       }

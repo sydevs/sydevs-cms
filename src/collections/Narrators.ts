@@ -1,15 +1,10 @@
 import type { CollectionConfig } from 'payload'
-import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { readApiAccess } from '@/lib/accessControl'
 import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
-  access: applyClientAccessControl({
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
-  }),
+  access: readApiAccess(),
   admin: {
     group: 'Utility',
     useAsTitle: 'name',

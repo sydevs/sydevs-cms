@@ -18,6 +18,7 @@ describe('Clients Collection', () => {
     testUser = await payload.create({
       collection: 'users',
       data: {
+        name: 'Client Manager',
         email: 'client-manager@example.com',
         password: 'password123',
       },
@@ -26,6 +27,7 @@ describe('Clients Collection', () => {
     testUser2 = await payload.create({
       collection: 'users',
       data: {
+        name: 'Client Manager 2',
         email: 'client-manager2@example.com',
         password: 'password123',
       },

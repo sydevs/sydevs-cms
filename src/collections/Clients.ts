@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
+import { adminOnlyAccess } from '@/lib/accessControl'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -10,33 +11,9 @@ export const Clients: CollectionConfig = {
   admin: {
     group: 'Access',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'active', 'role', 'usageStats.dailyRequests'],
+    defaultColumns: ['name', 'active', 'role'],
   },
-  access: {
-    read: ({ req: { user } }) => {
-      // Clients cannot read the clients collection
-      if (user?.collection === 'clients') {
-        return false
-      }
-      // Users can read all clients
-      return !!user
-    },
-    create: ({ req: { user } }) => {
-      // Only users can create clients
-      return user?.collection === 'users'
-    },
-    update: ({ req: { user } }) => {
-      // Only users can update clients
-      if (user?.collection === 'users') {
-        return true
-      }
-      return false
-    },
-    delete: ({ req: { user } }) => {
-      // Only users can delete clients
-      return user?.collection === 'users'
-    },
-  },
+  access: adminOnlyAccess(),
   fields: [
     {
       name: 'name',
@@ -89,6 +66,13 @@ export const Clients: CollectionConfig = {
       required: true,
       admin: {
         description: 'Primary user contact for this client',
+      },
+    },
+    {
+      name: 'domains',
+      type: 'text',
+      admin: {
+        description: 'What domains are associated with this client. Put each domain on a new line.',
       },
     },
     {

@@ -232,11 +232,6 @@ The system implements secure REST API authentication for third-party clients wit
   - Managers can regenerate keys and manage client settings
   - Virtual `highUsageAlert` field indicates when daily limits are exceeded
   
-- **Access Control** (`src/lib/clientAccessControl.ts`): Helper functions for API access
-  - `isAPIClient()`: Identifies API client requests
-  - `applyClientAccessControl()`: Enforces read-only access for API clients
-  - `blockAPIClientAccess()`: Blocks all access for sensitive collections
-  
 - **Usage Tracking** (`src/lib/apiUsageTracking.ts`): Simplified request monitoring
   - In-memory counter with batch database updates every 10 requests
   - Automatic daily counter reset at midnight UTC

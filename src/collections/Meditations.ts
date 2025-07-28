@@ -1,17 +1,12 @@
 import type { CollectionConfig, Validate } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { applyClientAccessControl } from '@/lib/clientAccessControl'
+import { readApiAccess } from '@/lib/accessControl'
 import { createAPITrackingHook } from '@/hooks/clientHooks'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: applyClientAccessControl({
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
-  }),
+  access: readApiAccess(),
   upload: {
     staticDir: 'media/meditations',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
@@ -69,71 +64,6 @@ export const Meditations: CollectionConfig = {
         }
         
         return data
-      },
-    ],
-    afterChange: [
-      async ({ doc, req }) => {
-        // Sync frame relationships with MeditationFrames collection
-        if (doc.frames && Array.isArray(doc.frames)) {
-          try {
-            // Delete existing frame relationships for this meditation
-            await req.payload.delete({
-              collection: 'meditationFrames',
-              where: {
-                meditation: {
-                  equals: doc.id,
-                },
-              },
-            })
-
-            // Create new frame relationships
-            for (const frameData of doc.frames) {
-              if (frameData.frame && typeof frameData.timestamp === 'number') {
-                await req.payload.create({
-                  collection: 'meditationFrames',
-                  data: {
-                    meditation: doc.id,
-                    frame: frameData.frame,
-                    timestamp: frameData.timestamp,
-                  },
-                })
-              }
-            }
-          } catch (error) {
-            req.payload.logger.error({
-              msg: 'Failed to sync meditation frame relationships',
-              err: error,
-              meditationId: doc.id,
-              meditationTitle: doc.title,
-              framesCount: doc.frames.length,
-            })
-            // Re-throw to prevent silent failures
-            throw error
-          }
-        }
-      },
-    ],
-    afterDelete: [
-      async ({ doc, req }) => {
-        try {
-          await req.payload.delete({
-            collection: 'meditationFrames',
-            where: {
-              meditation: {
-                equals: doc.id,
-              },
-            },
-          })
-        } catch (error) {
-          req.payload.logger.error({
-            msg: 'Failed to cleanup meditation frame relationships on deletion',
-            err: error,
-            meditationId: doc.id,
-            meditationTitle: doc.title,
-          })
-          // Re-throw to prevent silent failures
-          throw error
-        }
       },
     ],
   },

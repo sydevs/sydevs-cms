@@ -71,11 +71,10 @@ export interface Config {
     meditations: Meditation;
     music: Music;
     frames: Frame;
-    meditationFrames: MeditationFrame;
     media: Media;
     narrators: Narrator;
-    users: User;
     tags: Tag;
+    users: User;
     clients: Client;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -93,11 +92,10 @@ export interface Config {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
-    meditationFrames: MeditationFramesSelect<false> | MeditationFramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
-    users: UsersSelect<false> | UsersSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
+    users: UsersSelect<false> | UsersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -380,25 +378,19 @@ export interface Narrator {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditationFrames".
- */
-export interface MeditationFrame {
-  id: string;
-  meditation: string | Meditation;
-  frame: string | Frame;
-  /**
-   * Timestamp in seconds - used for ordering frames within a meditation
-   */
-  timestamp: number;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
   id: string;
+  name: string;
+  /**
+   * Access level for this client (currently only Full Access)
+   */
+  role: 'super-admin';
+  /**
+   * Enable or disable this user
+   */
+  active?: boolean | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -443,6 +435,10 @@ export interface Client {
    * Primary user contact for this client
    */
   primaryContact: string | User;
+  /**
+   * What domains are associated with this client. Put each domain on a new line.
+   */
+  domains?: string | null;
   /**
    * Enable or disable API access for this client
    */
@@ -502,10 +498,6 @@ export interface PayloadLockedDocument {
         value: string | Frame;
       } | null)
     | ({
-        relationTo: 'meditationFrames';
-        value: string | MeditationFrame;
-      } | null)
-    | ({
         relationTo: 'media';
         value: string | Media;
       } | null)
@@ -514,12 +506,12 @@ export interface PayloadLockedDocument {
         value: string | Narrator;
       } | null)
     | ({
-        relationTo: 'users';
-        value: string | User;
-      } | null)
-    | ({
         relationTo: 'tags';
         value: string | Tag;
+      } | null)
+    | ({
+        relationTo: 'users';
+        value: string | User;
       } | null)
     | ({
         relationTo: 'clients';
@@ -650,17 +642,6 @@ export interface FramesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditationFrames_select".
- */
-export interface MeditationFramesSelect<T extends boolean = true> {
-  meditation?: T;
-  frame?: T;
-  timestamp?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
@@ -727,9 +708,25 @@ export interface NarratorsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags_select".
+ */
+export interface TagsSelect<T extends boolean = true> {
+  title?: T;
+  meditations?: T;
+  music?: T;
+  media?: T;
+  frames?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  name?: T;
+  role?: T;
+  active?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -749,19 +746,6 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags_select".
- */
-export interface TagsSelect<T extends boolean = true> {
-  title?: T;
-  meditations?: T;
-  music?: T;
-  media?: T;
-  frames?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "clients_select".
  */
 export interface ClientsSelect<T extends boolean = true> {
@@ -770,6 +754,7 @@ export interface ClientsSelect<T extends boolean = true> {
   role?: T;
   managers?: T;
   primaryContact?: T;
+  domains?: T;
   active?: T;
   keyGeneratedAt?: T;
   usageStats?:
