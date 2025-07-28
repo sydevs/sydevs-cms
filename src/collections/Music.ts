@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
 import { readApiAccess } from '@/lib/accessControl'
-import { createAPITrackingHook } from '@/hooks/clientHooks'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -17,7 +17,7 @@ export const Music: CollectionConfig = {
     useAsTitle: 'title',
   },
   hooks: {
-    afterRead: [createAPITrackingHook()],
+    afterRead: [trackClientUsageHook],
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title

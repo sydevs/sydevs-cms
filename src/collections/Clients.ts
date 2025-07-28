@@ -119,19 +119,20 @@ export const Clients: CollectionConfig = {
           },
         },
         {
+          name: 'maxDailyRequests',
+          type: 'number',
+          defaultValue: 0,
+          admin: {
+            readOnly: true,
+            description: "Maximum historical request count",
+          },
+        },
+        {
           name: 'lastRequestAt',
           type: 'date',
           admin: {
             readOnly: true,
             description: 'Last API call timestamp',
-          },
-        },
-        {
-          name: 'lastResetAt',
-          type: 'date',
-          admin: {
-            readOnly: true,
-            description: 'Last daily counter reset',
           },
         },
         {

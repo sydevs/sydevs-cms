@@ -7,8 +7,8 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { collections, Users } from './collections'
+import { tasks } from './jobs'
 import { createMinIOStorage, isMinIOConfigured } from './lib/minioAdapter'
-import { initializeAPIUsageTracking } from './hooks/clientHooks'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -40,6 +40,16 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     collections,
     editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || '',
+    jobs: {
+      tasks,
+      deleteJobOnComplete: true,
+      autoRun: [
+        {
+          cron: '0 * * * *', // Runs every hour
+          queue: 'nightly',
+        },
+      ],
+    },
     graphQL: {
       disable: true, // Disable GraphQL as per requirements
     },
@@ -80,12 +90,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)
       },
-    },
-    onInit: async (payload) => {
-      // Initialize API usage tracking
-      if (!isTestEnvironment) {
-        initializeAPIUsageTracking(payload)
-      }
     },
     // Allow overrides (especially important for test database URIs)
     ...overrides,

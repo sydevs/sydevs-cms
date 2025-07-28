@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { readApiAccess } from '@/lib/accessControl'
-import { createAPITrackingHook } from '@/hooks/clientHooks'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
@@ -10,7 +10,7 @@ export const Narrators: CollectionConfig = {
     useAsTitle: 'name',
   },
   hooks: {
-    afterRead: [createAPITrackingHook()],
+    afterRead: [trackClientUsageHook],
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create' || (operation === 'update' && data.name)) {

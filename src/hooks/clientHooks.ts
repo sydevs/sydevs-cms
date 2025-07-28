@@ -1,26 +1,4 @@
-import type { CollectionAfterReadHook, CollectionBeforeChangeHook, CollectionAfterChangeHook, Payload, TypedUser } from 'payload'
-import { isAPIClient } from '@/lib/accessControl'
-import { trackAPIUsage, initializeUsageTracking } from '@/lib/apiUsageTracking'
-
-/**
- * Hook to track API usage on all collection operations
- */
-export const trackClientAPIUsage: CollectionAfterReadHook = async ({ req }) => {
-  // Only track read operations for API clients
-  const user = req.user as TypedUser
-  if (isAPIClient(user)) {
-    if (user.id && req.payload) {
-      await trackAPIUsage(user.id, req.payload)
-    }
-  }
-}
-
-/**
- * Global hook to apply to all collections for API tracking
- */
-export const createAPITrackingHook = (): CollectionAfterReadHook => {
-  return trackClientAPIUsage
-}
+import type { CollectionBeforeChangeHook, CollectionAfterChangeHook } from 'payload'
 
 /**
  * Hook to validate client data before changes
@@ -35,16 +13,13 @@ export const validateClientData: CollectionBeforeChangeHook = async ({ data, ope
       }
     }
     
-    // Set keyGeneratedAt when API key is regenerated
-    // This will be handled by Payload's internal API key generation
-    
     // Initialize usage stats on creation
     if (operation === 'create' && !data.usageStats) {
       data.usageStats = {
         totalRequests: 0,
         dailyRequests: 0,
+        maxDailyRequests: 0,
         lastRequestAt: null,
-        lastResetAt: new Date().toISOString(),
       }
     }
   }
@@ -57,20 +32,11 @@ export const validateClientData: CollectionBeforeChangeHook = async ({ data, ope
  */
 export const checkHighUsageAlert: CollectionAfterChangeHook = async ({ doc }) => {
   // Virtual field highUsageAlert will be computed based on dailyRequests
-  if (doc?.usageStats?.dailyRequests > 1000) {
+  if (doc?.usageStats?.dailyRequests > 1000 || doc?.usageStats?.maxDailyRequests > 1000) {
     // The field component will handle the visual alert
     // Log for monitoring
     console.warn(`High usage alert for client ${doc.name}: ${doc.usageStats.dailyRequests} requests today`)
   }
   
   return doc
-}
-
-/**
- * Initialize usage tracking on server startup
- * This should be called once when the server starts
- */
-export const initializeAPIUsageTracking = (payload: Payload): void => {
-  // Initialize the periodic flush and daily reset
-  initializeUsageTracking(payload)
 }

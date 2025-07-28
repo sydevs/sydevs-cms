@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getStorageConfig } from '@/lib/storage'
 import { readApiAccess } from '@/lib/accessControl'
-import { createAPITrackingHook } from '@/hooks/clientHooks'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -114,7 +114,7 @@ export const Media: CollectionConfig = {
       },
     ],
     afterRead: [
-      createAPITrackingHook(),
+      trackClientUsageHook,
     ],
   },
   fields: [

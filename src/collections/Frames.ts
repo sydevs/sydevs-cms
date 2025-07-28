@@ -3,7 +3,7 @@ import sharp from 'sharp'
 import { getVideoDuration, getVideoDimensions, validateVideoDuration, validateVideoFileSize } from '@/lib/videoUtils'
 import { getStorageConfig } from '@/lib/storage'
 import { readApiAccess } from '@/lib/accessControl'
-import { createAPITrackingHook } from '@/hooks/clientHooks'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Frames: CollectionConfig = {
   slug: 'frames',
@@ -27,7 +27,7 @@ export const Frames: CollectionConfig = {
     useAsTitle: 'name',
   },
   hooks: {
-    afterRead: [createAPITrackingHook()],
+    afterRead: [trackClientUsageHook],
     beforeValidate: [
       async ({ data, req }) => {
         // Validate file size based on file type

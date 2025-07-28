@@ -13,6 +13,7 @@ import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
 
 // Project imports
 import { collections, Users } from '../../src/collections'
+import { tasks } from '../../src/jobs'
 import { EmailTestAdapter } from './emailTestAdapter'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -67,6 +68,10 @@ function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
     db: mongooseAdapter({
       url: mongoUri,
     }),
+    jobs: {
+      tasks,
+      deleteJobOnComplete: true,
+    },
     email: emailConfig || nodemailerAdapter({
       defaultFromAddress: 'no-reply@test.com',
       defaultFromName: 'Test Suite',
