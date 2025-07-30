@@ -228,7 +228,7 @@ export const testDataFactory = {
   async createTranslateUser(payload: Payload, collection: string, locales: string[], overrides = {}): Promise<User> {
     return await this.createUserWithPermissions(payload, [
       {
-        collection,
+        allowedCollection: collection,
         level: 'Translate',
         locales,
       }
@@ -245,7 +245,7 @@ export const testDataFactory = {
   async createManageUser(payload: Payload, collection: string, locales: string[], overrides = {}): Promise<User> {
     return await this.createUserWithPermissions(payload, [
       {
-        collection,
+        allowedCollection: collection,
         level: 'Manage',
         locales,
       }
@@ -280,7 +280,7 @@ export const testDataFactory = {
   async createReadClient(payload: Payload, collection: string, locales: string[], overrides = {}) {
     return await this.createClient(payload, [
       {
-        collection,
+        allowedCollection: collection,
         level: 'Read',
         locales,
       }
@@ -296,7 +296,7 @@ export const testDataFactory = {
   async createManageClient(payload: Payload, collection: string, locales: string[], overrides = {}) {
     return await this.createClient(payload, [
       {
-        collection,
+        allowedCollection: collection,
         level: 'Manage',
         locales,
       }

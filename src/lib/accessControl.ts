@@ -2,7 +2,7 @@ import type { Access, CollectionConfig, PayloadRequest, TypedUser } from 'payloa
 
 // Permission types
 export interface Permission {
-  collection: string
+  allowedCollection: string
   level: 'Translate' | 'Manage' | 'Read'
   locales: string[]
 }
@@ -79,7 +79,7 @@ export const hasPermission = (
   const permissions = user.permissions || []
   
   // Find permission for this collection
-  const permission = permissions.find(p => p.collection === collection)
+  const permission = permissions.find(p => p.allowedCollection === collection)
   if (!permission) {
     // Users have default read access to all collections
     // API clients have no default access
@@ -150,7 +150,7 @@ export const hasFieldAccess = (
   if (isAPIClient(user)) return true
   
   const permissions = user.permissions || []
-  const permission = permissions.find(p => p.collection === collection)
+  const permission = permissions.find(p => p.allowedCollection === collection)
   
   if (!permission) {
     return operation === 'read' // Default read access
@@ -184,7 +184,7 @@ export const createLocaleFilter = (
   }
   
   const permissions = user.permissions || []
-  const permission = permissions.find(p => p.collection === collection)
+  const permission = permissions.find(p => p.allowedCollection === collection)
   
   if (!permission) {
     // Users have default read access, API clients have no default access

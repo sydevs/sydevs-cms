@@ -165,7 +165,7 @@ export const Meditations: CollectionConfig = {
       admin: {
         description: 'Frames associated with this meditation with audio-synchronized editing',
         components: {
-          Field: '/components/admin/MeditationFrameEditor/index.tsx#default',
+          Field: '@/components/admin/MeditationFrameEditor/index.tsx#default',
         },
       },
       validate: (value) => {

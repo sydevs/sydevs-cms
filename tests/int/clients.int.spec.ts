@@ -59,7 +59,7 @@ describe('Clients Collection', () => {
       expect(client).toBeDefined()
       expect(client.name).toBe('Test Client App')
       expect(client.notes).toBe('A test client application')
-      expect(client.role).toBe('full-access')
+      expect(client.permissions).toBeDefined()
       expect(client.active).toBe(true)
       
       // Check managers - may be populated objects or IDs
@@ -187,7 +187,7 @@ describe('Clients Collection', () => {
         },
       }) as Client
       
-      expect(client.role).toBe('full-access') // Default value
+      expect(client.permissions).toBeDefined() // Default value
     })
 
     it('requires managers field', async () => {

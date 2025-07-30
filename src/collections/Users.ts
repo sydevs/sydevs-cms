@@ -1,3 +1,4 @@
+import { PermissionRowLabel } from '@/components/admin/PermissionRowLabel'
 import { adminOnlyAccess, getAvailableCollections } from '@/lib/accessControl'
 import type { CollectionConfig } from 'payload'
 
@@ -32,12 +33,16 @@ export const Users: CollectionConfig = {
       name: 'permissions',
       type: 'array',
       admin: {
+        isSortable: false,
         description: 'Granular permissions for specific collections and locales. Not needed for admin users.',
         condition: (data) => !data.admin, // Hide permissions field for admin users
+        components: {
+          RowLabel: '@/components/admin/PermissionRowLabel',
+        },
       },
       fields: [
         {
-          name: 'collection',
+          name: 'allowedCollection',
           type: 'select',
           required: true,
           options: getAvailableCollections(),

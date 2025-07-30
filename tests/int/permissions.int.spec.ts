@@ -33,7 +33,7 @@ describe('Permission System Tests', () => {
     it('creates user with specific permissions', async () => {
       const permissions = [
         {
-          collection: 'music',
+          allowedCollection: 'music',
           level: 'Translate',
           locales: ['en', 'it'],
         }
@@ -45,7 +45,7 @@ describe('Permission System Tests', () => {
 
       expect(user.admin).toBe(false)
       expect(user.permissions).toHaveLength(1)
-      expect(user.permissions![0].collection).toBe('music')
+      expect(user.permissions![0].allowedCollection).toBe('music')
       expect(user.permissions![0].level).toBe('Translate')
       expect(user.permissions![0].locales).toEqual(['en', 'it'])
     })
@@ -55,7 +55,7 @@ describe('Permission System Tests', () => {
       
       expect(translateUser.permissions).toHaveLength(1)
       expect(translateUser.permissions![0].level).toBe('Translate')
-      expect(translateUser.permissions![0].collection).toBe('music')
+      expect(translateUser.permissions![0].allowedCollection).toBe('music')
       expect(translateUser.permissions![0].locales).toEqual(['en'])
     })
 
@@ -64,7 +64,7 @@ describe('Permission System Tests', () => {
       
       expect(manageUser.permissions).toHaveLength(1)
       expect(manageUser.permissions![0].level).toBe('Manage')
-      expect(manageUser.permissions![0].collection).toBe('meditations')
+      expect(manageUser.permissions![0].allowedCollection).toBe('meditations')
       expect(manageUser.permissions![0].locales).toEqual(['all'])
     })
   })
@@ -75,7 +75,7 @@ describe('Permission System Tests', () => {
       
       expect(client.permissions).toHaveLength(1)
       expect(client.permissions[0].level).toBe('Read')
-      expect(client.permissions[0].collection).toBe('music')
+      expect(client.permissions[0].allowedCollection).toBe('music')
       expect(client.permissions[0].locales).toEqual(['en'])
     })
 
@@ -84,7 +84,7 @@ describe('Permission System Tests', () => {
       
       expect(client.permissions).toHaveLength(1)
       expect(client.permissions[0].level).toBe('Manage')
-      expect(client.permissions[0].collection).toBe('meditations')
+      expect(client.permissions[0].allowedCollection).toBe('meditations')
       expect(client.permissions[0].locales).toEqual(['all'])
     })
   })
@@ -110,7 +110,7 @@ describe('Permission System Tests', () => {
         const apiClient = { 
           active: true, 
           collection: 'clients',
-          permissions: [{ collection: 'music', level: 'Read', locales: ['all'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Read', locales: ['all'] }]
         } as any
         
         expect(hasPermission(apiClient, 'users', 'read')).toBe(false)
@@ -122,7 +122,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Translate', locales: ['en'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Translate', locales: ['en'] }]
         } as any
         
         expect(hasPermission(translateUser, 'music', 'read')).toBe(true)
@@ -136,7 +136,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['all'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['all'] }]
         } as any
         
         expect(hasPermission(manageUser, 'music', 'read')).toBe(true)
@@ -149,7 +149,7 @@ describe('Permission System Tests', () => {
         const readClient = {
           active: true,
           collection: 'clients',
-          permissions: [{ collection: 'music', level: 'Read', locales: ['en'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Read', locales: ['en'] }]
         } as any
         
         expect(hasPermission(readClient, 'music', 'read')).toBe(true)
@@ -162,7 +162,7 @@ describe('Permission System Tests', () => {
         const manageClient = {
           active: true,
           collection: 'clients',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['all'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['all'] }]
         } as any
         
         expect(hasPermission(manageClient, 'music', 'read')).toBe(true)
@@ -176,7 +176,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['en'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['en'] }]
         } as any
         
         expect(hasPermission(user, 'music', 'read', 'en')).toBe(true)
@@ -188,7 +188,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['all'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['all'] }]
         } as any
         
         expect(hasPermission(user, 'music', 'read', 'en')).toBe(true)
@@ -233,7 +233,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Translate', locales: ['en'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Translate', locales: ['en'] }]
         } as any
         
         const localizedField = { localized: true }
@@ -253,7 +253,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['all'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['all'] }]
         } as any
         
         const field = { localized: false }
@@ -266,7 +266,7 @@ describe('Permission System Tests', () => {
         const apiClient = {
           active: true,
           collection: 'clients',
-          permissions: [{ collection: 'music', level: 'Read', locales: ['en'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Read', locales: ['en'] }]
         } as any
         
         const field = { localized: false }
@@ -289,7 +289,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['all'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['all'] }]
         } as any
         
         const filter = createLocaleFilter(user, 'music')
@@ -301,7 +301,7 @@ describe('Permission System Tests', () => {
           admin: false,
           active: true,
           collection: 'users',
-          permissions: [{ collection: 'music', level: 'Manage', locales: ['en', 'it'] }]
+          permissions: [{ allowedCollection: 'music', level: 'Manage', locales: ['en', 'it'] }]
         } as any
         
         const filter = createLocaleFilter(user, 'music')

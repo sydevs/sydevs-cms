@@ -411,7 +411,7 @@ export interface User {
         /**
          * Select the collection to grant permissions for
          */
-        collection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -467,7 +467,7 @@ export interface Client {
         /**
          * Select the collection to grant permissions for
          */
-        collection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
         /**
          * Read: Read-only access. Manage: Can create and update records (but never delete).
          */
@@ -889,7 +889,7 @@ export interface UsersSelect<T extends boolean = true> {
   permissions?:
     | T
     | {
-        collection?: T;
+        allowedCollection?: T;
         level?: T;
         locales?: T;
         id?: T;
@@ -922,7 +922,7 @@ export interface ClientsSelect<T extends boolean = true> {
   permissions?:
     | T
     | {
-        collection?: T;
+        allowedCollection?: T;
         level?: T;
         locales?: T;
         id?: T;

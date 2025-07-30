@@ -36,11 +36,15 @@ export const Clients: CollectionConfig = {
       name: 'permissions',
       type: 'array',
       admin: {
+        isSortable: false,
         description: 'Granular permissions for specific collections and locales. If no permissions are set, the client will have no API access.',
+        components: {
+          RowLabel: '@/components/admin/PermissionRowLabel',
+        },
       },
       fields: [
         {
-          name: 'collection',
+          name: 'allowedCollection',
           type: 'select',
           required: true,
           options: getAvailableCollections(),
