@@ -22,7 +22,7 @@ describe('Users Collection', () => {
       name: 'Test User',
       email: 'test@example.com',
       password: 'password123',
-      role: 'super-admin' as const,
+      admin: true,
     }
     
     const user = await payload.create({
@@ -33,6 +33,7 @@ describe('Users Collection', () => {
     expect(user).toBeDefined()
     expect(user.email).toBe('test@example.com')
     expect(user.id).toBeDefined()
+    expect(user.admin).toBe(true)
     // Password should not be returned in response
     expect((user as any).password).toBeUndefined()
   })

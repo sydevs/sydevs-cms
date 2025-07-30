@@ -190,7 +190,7 @@ export const testDataFactory = {
   },
 
   /**
-   * Create a user
+   * Create a user with default admin privileges
    */
   async createUser(payload: Payload, overrides = {}): Promise<User> {
     return await payload.create({
@@ -199,9 +199,110 @@ export const testDataFactory = {
         name: 'Test User',
         email: 'test@example.com',
         password: 'password123',
-        role: 'super-admin',
+        admin: true, // Default to admin user for backward compatibility
         ...overrides,
       },
     }) as User
+  },
+
+  /**
+   * Create a user with specific permissions
+   */
+  async createUserWithPermissions(payload: Payload, permissions: any[], overrides = {}): Promise<User> {
+    return await payload.create({
+      collection: 'users',
+      data: {
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'password123',
+        admin: false,
+        permissions,
+        ...overrides,
+      },
+    }) as User
+  },
+
+  /**
+   * Create a translate user with specific collection and locale permissions
+   */
+  async createTranslateUser(payload: Payload, collection: string, locales: string[], overrides = {}): Promise<User> {
+    return await this.createUserWithPermissions(payload, [
+      {
+        collection,
+        level: 'Translate',
+        locales,
+      }
+    ], {
+      name: 'Translate User',
+      email: 'translate@example.com',
+      ...overrides,
+    })
+  },
+
+  /**
+   * Create a manage user with specific collection and locale permissions
+   */
+  async createManageUser(payload: Payload, collection: string, locales: string[], overrides = {}): Promise<User> {
+    return await this.createUserWithPermissions(payload, [
+      {
+        collection,
+        level: 'Manage',
+        locales,
+      }
+    ], {
+      name: 'Manage User',
+      email: 'manage@example.com',
+      ...overrides,
+    })
+  },
+
+  /**
+   * Create an API client with specific permissions
+   */
+  async createClient(payload: Payload, permissions: any[], overrides = {}) {
+    const adminUser = await this.createUser(payload, { email: 'admin@example.com' })
+    
+    return await payload.create({
+      collection: 'clients',
+      data: {
+        name: 'Test Client',
+        permissions,
+        managers: [adminUser.id],
+        primaryContact: adminUser.id,
+        ...overrides,
+      },
+    })
+  },
+
+  /**
+   * Create a read-only API client
+   */
+  async createReadClient(payload: Payload, collection: string, locales: string[], overrides = {}) {
+    return await this.createClient(payload, [
+      {
+        collection,
+        level: 'Read',
+        locales,
+      }
+    ], {
+      name: 'Read Client',
+      ...overrides,
+    })
+  },
+
+  /**
+   * Create a manage API client
+   */
+  async createManageClient(payload: Payload, collection: string, locales: string[], overrides = {}) {
+    return await this.createClient(payload, [
+      {
+        collection,
+        level: 'Manage',
+        locales,
+      }
+    ], {
+      name: 'Manage Client',
+      ...overrides,
+    })
   },
 }
