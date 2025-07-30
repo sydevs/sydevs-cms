@@ -26,7 +26,7 @@ describe('API Authentication', () => {
         name: 'API Test Manager',
         email: 'api-test-manager@example.com',
         password: 'password123',
-        role: 'super-admin' as const,
+        admin: true,
       },
     }) as User
 

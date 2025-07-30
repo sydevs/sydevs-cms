@@ -32,7 +32,7 @@ describe('Email Sending', () => {
         name: 'Verify User',
         email: 'verify@test.com',
         password: 'TestPassword123!',
-        role: 'super-admin' as const,
+        admin: true,
       }
 
       // Clear any existing emails

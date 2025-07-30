@@ -55,7 +55,7 @@ describe('Users Collection', () => {
       name: 'Unique User',
       email: 'unique@example.com',
       password: 'password123',
-      role: 'super-admin' as const,
+      admin: true,
     }
 
     // Create first user
@@ -80,7 +80,7 @@ describe('Users Collection', () => {
         name: 'User 1',
         email: 'user1@example.com',
         password: 'password123',
-        role: 'super-admin' as const,
+        admin: true,
       },
     }) as User
 
@@ -90,7 +90,7 @@ describe('Users Collection', () => {
         name: 'User 2',
         email: 'user2@example.com',
         password: 'password123',
-        role: 'super-admin' as const,
+        admin: true,
       },
     }) as User
 
@@ -114,7 +114,7 @@ describe('Users Collection', () => {
         name: 'Update User',
         email: 'update@example.com',
         password: 'password123',
-        role: 'super-admin' as const,
+        admin: true,
       },
     }) as User
 
@@ -136,7 +136,7 @@ describe('Users Collection', () => {
         name: 'Delete User',
         email: 'delete@example.com',
         password: 'password123',
-        role: 'super-admin' as const,
+        admin: true,
       },
     }) as User
 
@@ -165,7 +165,7 @@ describe('Users Collection', () => {
         name: 'Isolation Test User',
         email: 'isolation-test@example.com',
         password: 'password123',
-        role: 'super-admin' as const,
+        admin: true,
       },
     }) as User
 
