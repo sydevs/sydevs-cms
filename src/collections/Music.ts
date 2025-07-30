@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Music: CollectionConfig = {
@@ -97,6 +97,7 @@ export const Music: CollectionConfig = {
       type: 'relationship',
       relationTo: 'tags',
       hasMany: true,
+      access: createFieldAccess('music', { localized: false }),
     },
     {
       name: 'credit',

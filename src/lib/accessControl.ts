@@ -118,6 +118,20 @@ export const hasPermission = (
 }
 
 /**
+ * Create field-level access control function for use in collection field definitions
+ */
+export const createFieldAccess = (collectionSlug: string, field: any) => {
+  return {
+    read: ({ req }: { req: PayloadRequest }) => {
+      return hasFieldAccess(req.user as UserWithPermissions, collectionSlug, field, 'read')
+    },
+    update: ({ req }: { req: PayloadRequest }) => {
+      return hasFieldAccess(req.user as UserWithPermissions, collectionSlug, field, 'update')
+    }
+  }
+}
+
+/**
  * Check if a user can access a specific field (for field-level restrictions)
  */
 export const hasFieldAccess = (
