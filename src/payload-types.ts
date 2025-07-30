@@ -204,6 +204,7 @@ export interface Meditation {
     | null;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -328,6 +329,7 @@ export interface Music {
   credit?: string | null;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -398,9 +400,29 @@ export interface User {
   id: string;
   name: string;
   /**
-   * Access level for this client (currently only Full Access)
+   * Admin users bypass all permission restrictions and have complete access to all collections and features.
    */
-  role: 'super-admin';
+  admin?: boolean | null;
+  /**
+   * Granular permissions for specific collections and locales. Not needed for admin users.
+   */
+  permissions?:
+    | {
+        /**
+         * Select the collection to grant permissions for
+         */
+        collection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        /**
+         * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
+         */
+        level: 'Translate' | 'Manage';
+        /**
+         * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
+         */
+        locales: ('all' | 'en' | 'it')[];
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Enable or disable this user
    */
@@ -438,9 +460,25 @@ export interface Client {
    */
   notes?: string | null;
   /**
-   * Access level for this client (currently only Full Access)
+   * Granular permissions for specific collections and locales. If no permissions are set, the client will have no API access.
    */
-  role: 'full-access';
+  permissions?:
+    | {
+        /**
+         * Select the collection to grant permissions for
+         */
+        collection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        /**
+         * Read: Read-only access. Manage: Can create and update records (but never delete).
+         */
+        level: 'Read' | 'Manage';
+        /**
+         * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
+         */
+        locales: ('all' | 'en' | 'it')[];
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Users who can manage this client
    */
@@ -706,6 +744,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   frames?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -728,6 +767,7 @@ export interface MusicSelect<T extends boolean = true> {
   credit?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -845,7 +885,15 @@ export interface TagsSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
-  role?: T;
+  admin?: T;
+  permissions?:
+    | T
+    | {
+        collection?: T;
+        level?: T;
+        locales?: T;
+        id?: T;
+      };
   active?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -871,7 +919,14 @@ export interface UsersSelect<T extends boolean = true> {
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
   notes?: T;
-  role?: T;
+  permissions?:
+    | T
+    | {
+        collection?: T;
+        level?: T;
+        locales?: T;
+        id?: T;
+      };
   managers?: T;
   primaryContact?: T;
   domains?: T;

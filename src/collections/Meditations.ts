@@ -1,12 +1,12 @@
 import type { CollectionConfig, Validate } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { readApiAccess } from '@/lib/accessControl'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: readApiAccess(),
+  access: permissionBasedAccess('meditations'),
   trash: true,
   upload: {
     staticDir: 'media/meditations',
