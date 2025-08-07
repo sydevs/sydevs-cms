@@ -73,6 +73,7 @@ export const Music: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
+      access: createFieldAccess('music', 'title'),
     },
     {
       name: 'slug',
@@ -97,7 +98,6 @@ export const Music: CollectionConfig = {
       type: 'relationship',
       relationTo: 'tags',
       hasMany: true,
-      access: createFieldAccess('music', { localized: false }),
     },
     {
       name: 'credit',

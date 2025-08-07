@@ -15,6 +15,7 @@ import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
 import { collections, Users } from '../../src/collections'
 import { tasks } from '../../src/jobs'
 import { EmailTestAdapter } from './emailTestAdapter'
+import { expect } from 'vitest'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

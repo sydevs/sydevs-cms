@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOnlyAccess, getAvailableCollections } from '@/lib/accessControl'
+import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -32,69 +32,7 @@ export const Clients: CollectionConfig = {
         description: 'Purpose and usage notes for this client',
       },
     },
-    {
-      name: 'permissions',
-      type: 'array',
-      admin: {
-        isSortable: false,
-        description: 'Granular permissions for specific collections and locales. If no permissions are set, the client will have no API access.',
-        components: {
-          RowLabel: '@/components/admin/PermissionRowLabel',
-        },
-      },
-      fields: [
-        {
-          name: 'allowedCollection',
-          type: 'select',
-          required: true,
-          options: getAvailableCollections(),
-          admin: {
-            description: 'Select the collection to grant permissions for',
-          },
-        },
-        {
-          name: 'level',
-          type: 'select',
-          required: true,
-          options: [
-            {
-              label: 'Read',
-              value: 'Read',
-            },
-            {
-              label: 'Manage',
-              value: 'Manage',
-            },
-          ],
-          admin: {
-            description: 'Read: Read-only access. Manage: Can create and update records (but never delete).',
-          },
-        },
-        {
-          name: 'locales',
-          type: 'select',
-          hasMany: true,
-          required: true,
-          options: [
-            {
-              label: 'All Locales',
-              value: 'all',
-            },
-            {
-              label: 'English',
-              value: 'en',
-            },
-            {
-              label: 'Italian',
-              value: 'it',
-            },
-          ],
-          admin: {
-            description: 'Select which locales this permission applies to. "All Locales" grants unrestricted locale access.',
-          },
-        },
-      ],
-    },
+    createPermissionsField({ excludedLevels: ['translate'] }),
     {
       name: 'managers',
       type: 'relationship',

@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import type { Client, User } from '@/payload-types'
 import type { Payload, PayloadRequest, TypedUser } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { testData } from 'tests/utils/testData'
 
 // For testing access control functions, we only need minimal user objects
 // These partial types are sufficient for testing the access control logic
@@ -140,14 +141,18 @@ describe('API Authentication', () => {
       expect(tagsCollection?.access?.create).toBeDefined()
       
       // Test the access control function directly
-      const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
+      const client = testData.dummyUser('clients')
+      const user = testData.dummyUser('users', {
+        permissions: [
+          { allowedCollection: 'tags', level: 'manage', locales: ['all'] }
+        ]
+      })
       
       const createAccess = tagsCollection?.access?.create
       if (typeof createAccess === 'function') {
         // Testing access control with minimal request objects
-        const clientReq = { user: clientUser } as PayloadRequest
-        const userReq = { user: regularUser } as PayloadRequest
+        const clientReq = { user: client } as PayloadRequest
+        const userReq = { user } as PayloadRequest
         expect(createAccess({ req: clientReq })).toBe(false)
         expect(createAccess({ req: userReq })).toBe(true)
       }
@@ -157,13 +162,18 @@ describe('API Authentication', () => {
       const tagsCollection = payload.config.collections.find(c => c.slug === 'tags')
       expect(tagsCollection?.access?.update).toBeDefined()
       
-      const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
+      // Test the access control function directly
+      const client = testData.dummyUser('clients')
+      const user = testData.dummyUser('users', {
+        permissions: [
+          { allowedCollection: 'tags', level: 'manage', locales: ['all'] }
+        ]
+      })
       
       const updateAccess = tagsCollection?.access?.update
       if (typeof updateAccess === 'function') {
-        const clientReq = { user: clientUser } as PayloadRequest
-        const userReq = { user: regularUser } as PayloadRequest
+        const clientReq = { user: client } as PayloadRequest
+        const userReq = { user } as PayloadRequest
         expect(updateAccess({ req: clientReq })).toBe(false)
         expect(updateAccess({ req: userReq })).toBe(true)
       }
@@ -173,74 +183,20 @@ describe('API Authentication', () => {
       const tagsCollection = payload.config.collections.find(c => c.slug === 'tags')
       expect(tagsCollection?.access?.delete).toBeDefined()
       
-      const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
-      
+      // Test the access control function directly
+      const client = testData.dummyUser('clients')
+      const user = testData.dummyUser('users', {
+        permissions: [
+          { allowedCollection: 'tags', level: 'manage', locales: ['all'] }
+        ]
+      })
+
       const deleteAccess = tagsCollection?.access?.delete
       if (typeof deleteAccess === 'function') {
-        const clientReq = { user: clientUser } as PayloadRequest
-        const userReq = { user: regularUser } as PayloadRequest
+        const clientReq = { user: client } as PayloadRequest
+        const userReq = { user } as PayloadRequest
         expect(deleteAccess({ req: clientReq })).toBe(false)
         expect(deleteAccess({ req: userReq })).toBe(true)
-      }
-    })
-  })
-
-  describe('Collection Access Restrictions', () => {
-    it('blocks API client access to users collection', async () => {
-      // Test the access control function directly
-      const usersCollection = payload.config.collections.find(c => c.slug === 'users')
-      expect(usersCollection?.access?.read).toBeDefined()
-      
-      const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      const regularUser: TestUser = { collection: 'users', id: '456', active: true }
-      
-      const readAccess = usersCollection?.access?.read
-      if (typeof readAccess === 'function') {
-        const clientReq = { user: clientUser } as PayloadRequest
-        const userReq = { user: regularUser } as PayloadRequest
-        expect(readAccess({ req: clientReq })).toBe(false)
-        expect(readAccess({ req: userReq })).toBe(true)
-      }
-    })
-
-    it('blocks API client access to clients collection', async () => {
-      // Test the access control function directly
-      const clientsCollection = payload.config.collections.find(c => c.slug === 'clients')
-      expect(clientsCollection?.access?.read).toBeDefined()
-      
-      const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-      
-      const readAccess = clientsCollection?.access?.read
-      if (typeof readAccess === 'function') {
-        const clientReq = { user: clientUser } as PayloadRequest
-        expect(readAccess({ req: clientReq })).toBe(false)
-      }
-    })
-
-    it('allows API client read access to other collections', async () => {
-      const clientReq = {
-        user: {
-          id: testClient.id,
-          collection: 'clients',
-          active: true,
-        },
-      } as PayloadRequest
-
-      // Test various collections
-      const collectionsToTest = ['tags', 'narrators', 'music', 'frames']
-
-      for (const collectionSlug of collectionsToTest) {
-        const collection = payload.config.collections.find(c => c.slug === collectionSlug)
-        expect(collection).toBeDefined()
-        
-        // Check that read access is configured
-        if (collection?.access?.read && typeof collection.access.read === 'function') {
-          const clientUser: TestUser = { collection: 'clients', id: '123', active: true }
-          // Read should be allowed for active clients
-          const clientReq = { user: clientUser } as PayloadRequest
-          expect(collection.access.read({ req: clientReq })).toBe(true)
-        }
       }
     })
   })

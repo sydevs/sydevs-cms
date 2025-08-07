@@ -301,7 +301,7 @@ Each permission entry contains:
 - **Locale Filtering**: Automatic filtering based on granted locale permissions
 
 #### Access Control Implementation
-- **Permission-Based Access Control**: `permissionBasedAccess()` function replaces `readApiAccess()`
+- **Permission-Based Access Control**: Use `permissionBasedAccess()` function to implement access control
 - **Dynamic Collection Discovery**: Automatically detects available collections from payload config
 - **Field-Level Restrictions**: `createFieldAccess()` function for Translate users
 - **Locale-Aware Filtering**: `createLocaleFilter()` function for query-based access control

@@ -404,7 +404,7 @@ export interface User {
    */
   admin?: boolean | null;
   /**
-   * Granular permissions for specific collections and locales. Not needed for admin users.
+   * Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.
    */
   permissions?:
     | {
@@ -415,11 +415,11 @@ export interface User {
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
-        level: 'Translate' | 'Manage';
+        level: 'translate' | 'manage';
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'it')[];
+        locales: ('all' | 'en' | 'it' | 'fr')[];
         id?: string | null;
       }[]
     | null;
@@ -460,7 +460,7 @@ export interface Client {
    */
   notes?: string | null;
   /**
-   * Granular permissions for specific collections and locales. If no permissions are set, the client will have no API access.
+   * Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.
    */
   permissions?:
     | {
@@ -469,13 +469,13 @@ export interface Client {
          */
         allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
         /**
-         * Read: Read-only access. Manage: Can create and update records (but never delete).
+         * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
-        level: 'Read' | 'Manage';
+        level: 'read' | 'manage';
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'it')[];
+        locales: ('all' | 'en' | 'it' | 'fr')[];
         id?: string | null;
       }[]
     | null;

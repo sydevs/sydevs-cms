@@ -1,8 +1,9 @@
-import type { Payload } from 'payload'
+import type { Payload, TypedUser } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music, Frame, User } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame, User, Client } from '@/payload-types'
+import { permission } from 'process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -11,7 +12,7 @@ const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 /**
  * Test data factory functions for creating test entities with payload.create()
  */
-export const testDataFactory = {
+export const testData = {
   /**
    * Create a narrator
    */
@@ -192,117 +193,57 @@ export const testDataFactory = {
   /**
    * Create a user with default admin privileges
    */
-  async createUser(payload: Payload, overrides = {}): Promise<User> {
-    return await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-        admin: true, // Default to admin user for backward compatibility
-        ...overrides,
-      },
-    }) as User
-  },
+  async createUser(payload: Payload, overrides: Partial<User> = {}) {
+    const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
-  /**
-   * Create a user with specific permissions
-   */
-  async createUserWithPermissions(payload: Payload, permissions: any[], overrides = {}): Promise<User> {
-    return await payload.create({
+    const user = await payload.create({
       collection: 'users',
       data: {
         name: 'Test User',
-        email: 'test@example.com',
+        email: `${testEmail}@example.com`,
         password: 'password123',
+        active: true,
         admin: false,
-        permissions,
         ...overrides,
       },
-    }) as User
-  },
-
-  /**
-   * Create a translate user with specific collection and locale permissions
-   */
-  async createTranslateUser(payload: Payload, collection: string, locales: string[], overrides = {}): Promise<User> {
-    return await this.createUserWithPermissions(payload, [
-      {
-        allowedCollection: collection,
-        level: 'Translate',
-        locales,
-      }
-    ], {
-      name: 'Translate User',
-      email: 'translate@example.com',
-      ...overrides,
     })
-  },
 
-  /**
-   * Create a manage user with specific collection and locale permissions
-   */
-  async createManageUser(payload: Payload, collection: string, locales: string[], overrides = {}): Promise<User> {
-    return await this.createUserWithPermissions(payload, [
-      {
-        allowedCollection: collection,
-        level: 'Manage',
-        locales,
-      }
-    ], {
-      name: 'Manage User',
-      email: 'manage@example.com',
-      ...overrides,
-    })
+    return {
+      collection: 'users',
+      ...user,
+    } as TypedUser
   },
 
   /**
    * Create an API client with specific permissions
    */
-  async createClient(payload: Payload, permissions: any[], overrides = {}) {
+  async createClient(payload: Payload, overrides = {}) {
     const adminUser = await this.createUser(payload, { email: 'admin@example.com' })
     
-    return await payload.create({
+    const client = await payload.create({
       collection: 'clients',
       data: {
         name: 'Test Client',
-        permissions,
         managers: [adminUser.id],
         primaryContact: adminUser.id,
         ...overrides,
       },
     })
+
+    return {
+      collection: 'clients',
+      ...client,
+    } as TypedUser
   },
 
-  /**
-   * Create a read-only API client
-   */
-  async createReadClient(payload: Payload, collection: string, locales: string[], overrides = {}) {
-    return await this.createClient(payload, [
-      {
-        allowedCollection: collection,
-        level: 'Read',
-        locales,
-      }
-    ], {
-      name: 'Read Client',
+  dummyUser(collection: 'users' | 'clients', overrides: Partial<User | Client> = {}) {
+    return {
+      collection,
+      admin: false,
+      active: true,
+      permissions: [],
       ...overrides,
-    })
-  },
+    } as any
+  }
 
-  /**
-   * Create a manage API client
-   */
-  async createManageClient(payload: Payload, collection: string, locales: string[], overrides = {}) {
-    return await this.createClient(payload, [
-      {
-        allowedCollection: collection,
-        level: 'Manage',
-        locales,
-      }
-    ], {
-      name: 'Manage Client',
-      ...overrides,
-    })
-  },
 }

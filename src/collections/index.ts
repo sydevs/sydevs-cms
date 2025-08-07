@@ -22,6 +22,20 @@ export const collections = [
   Clients,
 ]
 
+export const collectionNames = {
+  // Content
+  meditations: "Meditations",
+  music: "Music",
+  frames: "Frames",
+  // Resources
+  media: "Media",
+  narrators: "Narrators",
+  tags: "Tags",
+  // Access
+  users: "Users",
+  clients: "Clients",
+}
+
 export {
   Users,
   Media,

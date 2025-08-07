@@ -1,20 +1,52 @@
-import type { Access, CollectionConfig, PayloadRequest, TypedUser } from 'payload'
+import { collectionNames } from '@/collections'
+import { User } from '@/payload-types'
+import type { CollectionConfig, Field, FieldBase, Operation, PayloadRequest, TypedUser } from 'payload'
+
+const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
+type PermissionLevel = typeof PERMISSION_LEVELS[number]
 
 // Permission types
 export interface Permission {
   allowedCollection: string
-  level: 'Translate' | 'Manage' | 'Read'
+  level: PermissionLevel
   locales: string[]
 }
 
-export interface UserWithPermissions extends TypedUser {
-  admin?: boolean
-  permissions?: Permission[]
-}
+type AvailableLocale = 'en' | 'it' | 'fr'
+type PermissionLocale = AvailableLocale | 'all'
 
-export interface ClientWithPermissions extends TypedUser {
-  permissions?: Permission[]
-}
+const COLLECTIONS = Object.values({
+  // Content
+  meditations: "Meditations",
+  music: "Music",
+  frames: "Frames",
+  // Resources
+  media: "Media",
+  narrators: "Narrators",
+  tags: "Tags",
+  // Access
+  users: "Users",
+  clients: "Clients",
+})
+
+const LOCALE_OPTIONS: Array<{ label: string, value: PermissionLocale }> = [
+  {
+    label: 'All Locales',
+    value: 'all',
+  },
+  {
+    label: 'English',
+    value: 'en',
+  },
+  {
+    label: 'Italian',
+    value: 'it',
+  },
+  {
+    label: 'French',
+    value: 'fr',
+  },
+]
 
 /**
  * Check if the authenticated user is an API client
@@ -23,95 +55,80 @@ export const isAPIClient = (user: TypedUser | null) => {
   return user?.collection === 'clients'
 }
 
-/**
- * Get the list of collections that should be excluded from permission options
- * (Users, Clients, and any hidden collections)
- */
-export const getExcludedCollections = (): string[] => {
-  return ['users', 'clients', 'meditationframes'] // Hidden collections like join tables
-}
-
-/**
- * Get available collection options for permission fields
- */
-export const getAvailableCollections = (): Array<{ label: string; value: string }> => {
-  const excluded = getExcludedCollections()
-  
-  // These should match the collections in your collections/index.ts
-  const allCollections = [
-    { label: 'Meditations', value: 'meditations' },
-    { label: 'Music', value: 'music' },
-    { label: 'Frames', value: 'frames' },
-    { label: 'Media', value: 'media' },
-    { label: 'Narrators', value: 'narrators' },
-    { label: 'Tags', value: 'tags' },
-  ]
-  
-  return allCollections.filter(collection => !excluded.includes(collection.value))
-}
 
 /**
  * Check if a user has permission for a specific collection and operation
  */
-export const hasPermission = (
-  user: UserWithPermissions | ClientWithPermissions | null,
+export const hasPermission = ({
+  user,
+  collection,
+  operation,
+  field,
+  locale,
+} : {
+  user: TypedUser | null,
   collection: string,
-  operation: 'read' | 'create' | 'update' | 'delete',
-  locale?: string
-): boolean => {
+  operation: Operation,
+  field?: any,
+  locale?: AvailableLocale
+}): boolean => {
+  const isClient = user?.collection === 'clients'
+
+  console.log("CHECK PERMISSION", operation, locale, collection, 'for', field)
+  // Block inactive or null users
   if (!user?.active) return false
-  
+  console.log("has active user")
   // Admin users bypass all restrictions
-  if (!isAPIClient(user) && (user as UserWithPermissions).admin) {
-    return true
-  }
-  
-  // Users and Clients collections are completely blocked for API clients
-  if (isAPIClient(user) && (collection === 'users' || collection === 'clients')) {
-    return false
-  }
-  
-  // Check if collection is in excluded list
-  if (getExcludedCollections().includes(collection)) {
-    return !isAPIClient(user) // Only allow admin users for excluded collections
-  }
-  
-  const permissions = user.permissions || []
+  if (!isClient && (user as User).admin) return true
+  console.log("non-admin user")
+  // Block access to Users and Clients for non-admins
+  if (collection === 'users' || collection === 'clients') return false
+  console.log('is permissible collection')
+  // Users have read access by default
+  if (!isClient && operation === 'read') return true
+  console.log("not a read operation")
   
   // Find permission for this collection
+  const permissions = user.permissions || []
   const permission = permissions.find(p => p.allowedCollection === collection)
-  if (!permission) {
-    // Users have default read access to all collections
-    // API clients have no default access
-    return !isAPIClient(user) && operation === 'read'
-  }
+  if (!permission) return false
+  console.log("has a permission")
   
   // Check locale access if locale is specified
+  console.log(locale, 'vs', permission.locales)
   if (locale && !permission.locales.includes('all') && !permission.locales.includes(locale)) {
     return false
   }
+  console.log("has locale access")
   
   // Check operation permissions based on level
-  if (isAPIClient(user)) {
+  if (isClient) {
     // API client permissions
     switch (permission.level) {
-      case 'Read':
+      case 'read':
         return operation === 'read'
-      case 'Manage':
-        return operation === 'read' || operation === 'create' || operation === 'update'
-        // Note: API clients never get delete access, even with Manage permission
+      case 'manage':
+        // API clients never get delete access, even with Manage permission
+        return operation !== 'delete'
       default:
         return false
     }
   } else {
     // User permissions
     switch (permission.level) {
-      case 'Translate':
-        return operation === 'read' || operation === 'update'
+      case 'translate':
+        console.log('is translator')
         // Translate users cannot create or delete
-      case 'Manage':
+        if (field) {
+          return field.localized && operation !== 'delete'
+        } else {
+          return operation === 'read' || operation === 'update'
+        }
+      case 'manage':
+        console.log('is manager')
         return true // Full access for manage users
       default:
+        console.log('is reader')
         return operation === 'read' // Default read access for users
     }
   }
@@ -120,91 +137,17 @@ export const hasPermission = (
 /**
  * Create field-level access control function for use in collection field definitions
  */
-export const createFieldAccess = (collectionSlug: string, field: any) => {
+export const createFieldAccess = (collection: string, field: any): FieldBase['access'] => {
   return {
-    read: ({ req }: { req: PayloadRequest }) => {
-      return hasFieldAccess(req.user as UserWithPermissions, collectionSlug, field, 'read')
+    read: ({ req: { user } }: { req: PayloadRequest }) => {
+      return hasPermission({ operation: 'read', user, collection, field })
     },
-    update: ({ req }: { req: PayloadRequest }) => {
-      return hasFieldAccess(req.user as UserWithPermissions, collectionSlug, field, 'update')
-    }
-  }
-}
-
-/**
- * Check if a user can access a specific field (for field-level restrictions)
- */
-export const hasFieldAccess = (
-  user: UserWithPermissions | null,
-  collection: string,
-  field: any,
-  operation: 'read' | 'update',
-  locale?: string
-): boolean => {
-  if (!user?.active) return false
-  
-  // Admin users bypass all restrictions
-  if (user.admin) return true
-  
-  // API clients don't have field-level restrictions (handled at collection level)
-  if (isAPIClient(user)) return true
-  
-  const permissions = user.permissions || []
-  const permission = permissions.find(p => p.allowedCollection === collection)
-  
-  if (!permission) {
-    return operation === 'read' // Default read access
-  }
-  
-  // Check locale access
-  if (locale && !permission.locales.includes('all') && !permission.locales.includes(locale)) {
-    return false
-  }
-  
-  // Translate users can only edit localized fields
-  if (permission.level === 'Translate' && operation === 'update') {
-    return field.localized === true
-  }
-  
-  return true
-}
-
-/**
- * Create locale-aware query filter for collections
- */
-export const createLocaleFilter = (
-  user: UserWithPermissions | ClientWithPermissions | null,
-  collection: string
-) => {
-  if (!user?.active) return false
-  
-  // Admin users bypass all filters
-  if (!isAPIClient(user) && (user as UserWithPermissions).admin) {
-    return true
-  }
-  
-  const permissions = user.permissions || []
-  const permission = permissions.find(p => p.allowedCollection === collection)
-  
-  if (!permission) {
-    // Users have default read access, API clients have no default access
-    return !isAPIClient(user)
-  }
-  
-  // If user has 'all' locales permission, no filtering needed
-  if (permission.locales.includes('all')) {
-    return true
-  }
-  
-  // Create locale filter for specific locales
-  // This returns a query that can be used by Payload to filter results
-  return {
-    or: [
-      // Documents with no locale (non-localized content)
-      { locale: { exists: false } },
-      // Documents with permitted locales
-      { locale: { in: permission.locales } }
-    ]
+    create: ({ req: { user } }: { req: PayloadRequest }) => {
+      return hasPermission({ operation: 'create', user, collection, field })
+    },
+    update: ({ req: { user } }: { req: PayloadRequest }) => {
+      return hasPermission({ operation: 'update', user, collection, field })
+    },
   }
 }
 
@@ -212,32 +155,30 @@ export const createLocaleFilter = (
  * New permission-based access control for collections that should be accessible to API clients
  */
 export const permissionBasedAccess = (
-  collectionSlug: string,
+  collection: string,
   access: CollectionConfig['access'] = {}
 ): CollectionConfig['access'] => {
   return {
     ...access,
-    read: ({ req }) => {
-      const hasAccess = hasPermission(req.user as any, collectionSlug, 'read')
+    read: ({ req: { user } }) => {
+      const hasAccess = hasPermission({ operation: 'read', user, collection })
       if (!hasAccess) return false
       
-      // Apply locale filtering if user has restricted locale access
-      const localeFilter = createLocaleFilter(req.user as any, collectionSlug)
-      return localeFilter
+      // Return a filter which will restrict access to a specific locale
+      return createLocaleFilter(user, collection)
     },
-    create: ({ req }) => {
-      return hasPermission(req.user as any, collectionSlug, 'create')
+    create: ({ req: { user } }) => {
+      return hasPermission({ operation: 'create', user, collection })
     },
-    update: ({ req }) => {
-      const hasAccess = hasPermission(req.user as any, collectionSlug, 'update')
+    update: ({ req: { user } }) => {
+      const hasAccess = hasPermission({ operation: 'update', user, collection })
       if (!hasAccess) return false
       
-      // Apply locale filtering for updates
-      const localeFilter = createLocaleFilter(req.user as any, collectionSlug)
-      return localeFilter
+      // Return a filter which will restrict access to a specific locale
+      return createLocaleFilter(user, collection)
     },
-    delete: ({ req }) => {
-      return hasPermission(req.user as any, collectionSlug, 'delete')
+    delete: ({ req: { user } }) => {
+      return hasPermission({ operation: 'delete', user, collection })
     },
   }
 }
@@ -248,32 +189,103 @@ export const permissionBasedAccess = (
 export const adminOnlyAccess = (access: CollectionConfig['access'] = {}): CollectionConfig['access'] => {
   return {
     ...access,
-    read: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.read || true),
-    create: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.create || true),
-    update: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.update || true),
-    delete: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.delete || true),
+    read: ({ req }) => !isAPIClient(req.user) && req.user?.admin || false,
+    create: ({ req }) => !isAPIClient(req.user) && req.user?.admin || false,
+    update: ({ req }) => !isAPIClient(req.user) && req.user?.admin || false,
+    delete: ({ req }) => !isAPIClient(req.user) && req.user?.admin || false,
   }
 }
 
-// Legacy function - kept for backward compatibility but will be replaced
-export const readApiAccess = (access: CollectionConfig['access'] = {}): CollectionConfig['access'] => {
+export const createPermissionsField = ({
+  excludedLevels,
+} : {
+  excludedLevels: PermissionLevel[]
+}): Field => {
+  const permissionLevels = PERMISSION_LEVELS
+    .filter(level => !excludedLevels.includes(level as PermissionLevel))
+    .map((v) => {
+      return {
+        label: v.charAt(0).toUpperCase() + v.slice(1),
+        value: v,
+      }
+    })
+
   return {
-    ...access,
-    read: ({ req }) => basicAccess(req, access?.read || true),
-    create: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.create || true),
-    update: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.update || true),
-    delete: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.delete || true),
-  }
+      name: 'permissions',
+      type: 'array',
+      admin: {
+        isSortable: false,
+        description: 'Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.',
+        condition: (data) => !data.admin, // Hide permissions field for admin users
+        components: {
+          RowLabel: '@/components/admin/PermissionRowLabel',
+        },
+      },
+      fields: [
+        {
+          name: 'allowedCollection',
+          type: 'select',
+          required: true,
+          options: COLLECTIONS.filter((v) => !['Users', 'Clients'].includes(v)).map((v) => {
+            return {
+              label: v,
+              value: v.toLowerCase(),
+            }
+          }),
+          admin: {
+            description: 'Select the collection to grant permissions for',
+          },
+        },
+        {
+          name: 'level',
+          type: 'select',
+          required: true,
+          options: permissionLevels,
+          admin: {
+            description: 'Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.',
+          },
+        },
+        {
+          name: 'locales',
+          type: 'select',
+          hasMany: true,
+          required: true,
+          options: LOCALE_OPTIONS,
+          admin: {
+            description: 'Select which locales this permission applies to. "All Locales" grants unrestricted locale access.',
+          },
+        },
+      ],
+    }
 }
 
-function basicAccess(req: PayloadRequest, value?: Access | boolean) {
-  const user = req.user as TypedUser
+/**
+ * Create locale-aware query filter for collections
+ */
+export const createLocaleFilter = (
+  user: TypedUser | null,
+  collection: string
+) => {
+  if (!user?.active) return false
+  // Admin users bypass all filters
+  if (!isAPIClient(user) && user.admin) return true
   
-  if (!user?.active) {
-    return false
-  } else if (typeof value === 'function') {
-    return value({ req })
-  } else {
-    return value !== undefined ? value : true
+  const permissions = user.permissions || []
+  const permission = permissions.find(p => p.allowedCollection === collection)
+  
+  // If no permission is found, only give user clients access
+  if (!permission) return !isAPIClient(user)
+  // If user has 'all' locales permission, no filtering needed
+  if (permission?.locales.includes('all')) return true
+  
+  // Create locale filter for specific locales
+  // This returns a query that can be used by Payload to filter results
+  return {
+    or: [
+      // Documents with no locale (non-localized content)
+      { locale: { exists: false } },
+      // Documents with permitted locales
+      { locale: { in: permission.locales } }
+    ]
   }
 }
