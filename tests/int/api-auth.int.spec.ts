@@ -37,7 +37,6 @@ describe('API Authentication', () => {
       data: {
         name: 'API Test Client',
         notes: 'Client for API authentication testing',
-        role: 'full-access',
         managers: [testUser.id],
         primaryContact: testUser.id,
         active: true,
@@ -88,7 +87,6 @@ describe('API Authentication', () => {
         collection: 'clients',
         data: {
           name: 'Inactive Client',
-          role: 'full-access',
           managers: [testUser.id],
           primaryContact: testUser.id,
           active: false,
@@ -442,7 +440,6 @@ describe('API Authentication', () => {
         collection: 'clients',
         data: {
           name: 'Zero Usage Client',
-          role: 'full-access',
           managers: [testUser.id],
           primaryContact: testUser.id,
           active: true,
@@ -489,7 +486,6 @@ describe('API Authentication', () => {
         collection: 'clients',
         data: {
           name: 'High Usage Client',
-          role: 'full-access',
           managers: [testUser.id],
           primaryContact: testUser.id,
           active: true,
@@ -518,7 +514,6 @@ describe('API Authentication', () => {
         collection: 'clients',
         data: {
           name: 'High Max Usage Client',
-          role: 'full-access',
           managers: [testUser.id],
           primaryContact: testUser.id,
           active: true,
@@ -545,7 +540,6 @@ describe('API Authentication', () => {
         collection: 'clients',
         data: {
           name: 'Normal Usage Client',
-          role: 'full-access',
           managers: [testUser.id],
           primaryContact: testUser.id,
           active: true,
