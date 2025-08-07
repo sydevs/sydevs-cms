@@ -1,33 +1,30 @@
-import { collectionNames } from '@/collections'
 import { User } from '@/payload-types'
 import type { CollectionConfig, Field, FieldBase, Operation, PayloadRequest, TypedUser } from 'payload'
 
 const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = typeof PERMISSION_LEVELS[number]
 
-// Permission types
-export interface Permission {
-  allowedCollection: string
-  level: PermissionLevel
-  locales: string[]
-}
+const PERMISSION_COLLECTIONS = [
+  // Content
+  "Meditations",
+  "Music",
+  "Frames",
+  // Resources
+  "Media",
+  "Narrators",
+  "Tags",
+]
+type PermissionCollection = typeof PERMISSION_COLLECTIONS[number]
 
 type AvailableLocale = 'en' | 'it' | 'fr'
 type PermissionLocale = AvailableLocale | 'all'
 
-const COLLECTIONS = Object.values({
-  // Content
-  meditations: "Meditations",
-  music: "Music",
-  frames: "Frames",
-  // Resources
-  media: "Media",
-  narrators: "Narrators",
-  tags: "Tags",
-  // Access
-  users: "Users",
-  clients: "Clients",
-})
+// Permission types
+export interface Permission {
+  allowedCollection: PermissionCollection
+  level: PermissionLevel
+  locales: PermissionLocale[]
+}
 
 const LOCALE_OPTIONS: Array<{ label: string, value: PermissionLocale }> = [
   {
@@ -226,7 +223,7 @@ export const createPermissionsField = ({
           name: 'allowedCollection',
           type: 'select',
           required: true,
-          options: COLLECTIONS.filter((v) => !['Users', 'Clients'].includes(v)).map((v) => {
+          options: PERMISSION_COLLECTIONS.map((v) => {
             return {
               label: v,
               value: v.toLowerCase(),
