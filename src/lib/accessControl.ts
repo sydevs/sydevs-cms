@@ -71,32 +71,24 @@ export const hasPermission = ({
 }): boolean => {
   const isClient = user?.collection === 'clients'
 
-  console.log("CHECK PERMISSION", operation, locale, collection, 'for', field)
   // Block inactive or null users
   if (!user?.active) return false
-  console.log("has active user")
   // Admin users bypass all restrictions
   if (!isClient && (user as User).admin) return true
-  console.log("non-admin user")
   // Block access to Users and Clients for non-admins
   if (collection === 'users' || collection === 'clients') return false
-  console.log('is permissible collection')
   // Users have read access by default
   if (!isClient && operation === 'read') return true
-  console.log("not a read operation")
   
   // Find permission for this collection
   const permissions = user.permissions || []
   const permission = permissions.find(p => p.allowedCollection === collection)
   if (!permission) return false
-  console.log("has a permission")
   
   // Check locale access if locale is specified
-  console.log(locale, 'vs', permission.locales)
   if (locale && !permission.locales.includes('all') && !permission.locales.includes(locale)) {
     return false
   }
-  console.log("has locale access")
   
   // Check operation permissions based on level
   if (isClient) {
@@ -114,7 +106,6 @@ export const hasPermission = ({
     // User permissions
     switch (permission.level) {
       case 'translate':
-        console.log('is translator')
         // Translate users cannot create or delete
         if (field) {
           return field.localized && operation !== 'delete'
@@ -122,10 +113,8 @@ export const hasPermission = ({
           return operation === 'read' || operation === 'update'
         }
       case 'manage':
-        console.log('is manager')
         return true // Full access for manage users
       default:
-        console.log('is reader')
         return operation === 'read' // Default read access for users
     }
   }
