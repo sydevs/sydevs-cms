@@ -16,6 +16,7 @@ import { collections, Users } from '../../src/collections'
 import { tasks } from '../../src/jobs'
 import { EmailTestAdapter } from './emailTestAdapter'
 import { expect } from 'vitest'
+import { testData } from './testData'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,6 +24,7 @@ const __dirname = path.dirname(__filename)
 // Constants
 const DEFAULT_EMAIL_TIMEOUT = 5000
 const UPLOAD_COLLECTIONS: readonly string[] = ['media', 'frames']
+export const TEST_ADMIN_ID = '655cc2b6bc711365d666f155'
 
 /**
  * Creates test-specific collections with image resizing disabled.
@@ -133,6 +135,10 @@ export async function createTestEnvironment(): Promise<{
 
   const config = createBaseTestConfig(mongoUri)
   const payload = await getPayload({ config })
+  await testData.createUser(payload, {
+    id: TEST_ADMIN_ID,
+    email: 'admin@example.com',
+  })
 
   const cleanup = () => cleanupTestEnvironment(payload, baseUri, testDbName)
 

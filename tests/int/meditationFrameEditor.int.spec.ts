@@ -63,7 +63,7 @@ describe('MeditationFrameEditor Integration', () => {
 
     // Create test meditation with audio
     const thumbnail = await testData.createMediaImage(payload)
-    meditation = await testData.createMeditationWithAudio(
+    meditation = await testData.createMeditation(
       payload,
       {
         narrator: narrator.id,

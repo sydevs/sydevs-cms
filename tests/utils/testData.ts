@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Narrator, Media, Tag, Meditation, Music, Frame, User, Client } from '@/payload-types'
-import { permission } from 'process'
+import { TEST_ADMIN_ID } from './testHelpers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -66,29 +66,9 @@ export const testData = {
   },
 
   /**
-   * Create a meditation with required dependencies (without audio file)
-   */
-  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}): Promise<Meditation> {
-    return await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Test Meditation',
-        duration: 15,
-        thumbnail: deps.thumbnail,
-        narrator: deps.narrator,
-        tags: deps.tags || [],
-        musicTag: deps.musicTag,
-        isPublished: false,
-        locale: 'en',
-        ...overrides,
-      },
-    }) as Meditation
-  },
-
-  /**
    * Create a meditation with direct audio upload
    */
-  async createMeditationWithAudio(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
+  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
@@ -211,21 +191,19 @@ export const testData = {
     return {
       collection: 'users',
       ...user,
-    } as TypedUser
+    } as User & { collection: "users" }
   },
 
   /**
    * Create an API client with specific permissions
    */
   async createClient(payload: Payload, overrides = {}) {
-    const adminUser = await this.createUser(payload, { email: 'admin@example.com' })
-    
     const client = await payload.create({
       collection: 'clients',
       data: {
         name: 'Test Client',
-        managers: [adminUser.id],
-        primaryContact: adminUser.id,
+        managers: [TEST_ADMIN_ID],
+        primaryContact: TEST_ADMIN_ID,
         ...overrides,
       },
     })
@@ -233,7 +211,7 @@ export const testData = {
     return {
       collection: 'clients',
       ...client,
-    } as TypedUser
+    } as Client & { collection: "clients" }
   },
 
   dummyUser(collection: 'users' | 'clients', overrides: Partial<User | Client> = {}) {

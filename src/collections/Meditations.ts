@@ -1,4 +1,4 @@
-import type { CollectionConfig, Validate } from 'payload'
+import type { CollectionConfig, Validate, Where } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
 import { permissionBasedAccess } from '@/lib/accessControl'
@@ -76,8 +76,16 @@ export const Meditations: CollectionConfig = {
     },
     {
       name: 'locale',
-      type: 'text',
+      type: 'select',
+      options: [
+        { label: 'English', value: 'en' },
+        { label: 'Italian', value: 'it' }
+      ],
       required: true,
+      defaultValue: 'en',
+      admin: {
+        position: 'sidebar'
+      }
     },
     {
       name: 'slug',

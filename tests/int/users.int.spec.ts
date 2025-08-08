@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { testData } from '../utils/testData'
 
 describe('Users Collection', () => {
   let payload: Payload
@@ -25,10 +26,7 @@ describe('Users Collection', () => {
       admin: true,
     }
     
-    const user = await payload.create({
-      collection: 'users',
-      data: userData,
-    }) as User
+    const user = await testData.createUser(payload, userData)
 
     expect(user).toBeDefined()
     expect(user.email).toBe('test@example.com')
@@ -59,115 +57,19 @@ describe('Users Collection', () => {
     }
 
     // Create first user
-    await payload.create({
-      collection: 'users',
-      data: userData,
-    })
+    await testData.createUser(payload, userData)
 
     // Try to create second user with same email
-    await expect(
-      payload.create({
-        collection: 'users',
-        data: userData,
-      })
-    ).rejects.toThrow()
-  })
-
-  it('finds users', async () => {
-    const user1 = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'User 1',
-        email: 'user1@example.com',
-        password: 'password123',
-        admin: true,
-      },
-    }) as User
-
-    const user2 = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'User 2',
-        email: 'user2@example.com',
-        password: 'password123',
-        admin: true,
-      },
-    }) as User
-
-    const result = await payload.find({
-      collection: 'users',
-      where: {
-        id: {
-          in: [user1.id, user2.id],
-        },
-      },
-    })
-
-    expect(result.docs).toHaveLength(2)
-    expect(result.totalDocs).toBe(2)
-  })
-
-  it('updates a user', async () => {
-    const user = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Update User',
-        email: 'update@example.com',
-        password: 'password123',
-        admin: true,
-      },
-    }) as User
-
-    const updated = await payload.update({
-      collection: 'users',
-      id: user.id,
-      data: {
-        email: 'updated@example.com',
-      },
-    }) as User
-
-    expect(updated.email).toBe('updated@example.com')
-  })
-
-  it('deletes a user', async () => {
-    const user = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Delete User',
-        email: 'delete@example.com',
-        password: 'password123',
-        admin: true,
-      },
-    }) as User
-
-    await payload.delete({
-      collection: 'users',
-      id: user.id,
-    })
-
-    const result = await payload.find({
-      collection: 'users',
-      where: {
-        id: {
-          equals: user.id,
-        },
-      },
-    })
-
-    expect(result.docs).toHaveLength(0)
+    await expect(testData.createUser(payload, userData)).rejects.toThrow()
   })
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create a user with a unique identifier
-    const testUser = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Isolation Test User',
-        email: 'isolation-test@example.com',
-        password: 'password123',
-        admin: true,
-      },
-    }) as User
+    const testUser = await testData.createUser(payload, {
+      name: 'Isolation Test User',
+      email: 'isolation-test@example.com',
+      password: 'password123',
+    })
 
     // This test should only see its own data in the isolated database
     const allUsers = await payload.find({

@@ -35,7 +35,7 @@ describe('Meditations Collection', () => {
   })
 
   it('creates a meditation with auto-generated slug', async () => {
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
       thumbnail: testImageMedia.id,
       tags: [testTag1.id, testTag2.id],
@@ -64,9 +64,9 @@ describe('Meditations Collection', () => {
   })
 
   it('ignores custom slug on create', async () => {
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: 'Evening Meditation',
       slug: 'custom-evening-slug', // This should be ignored
@@ -77,7 +77,7 @@ describe('Meditations Collection', () => {
   })
 
   it('handles special characters in slug generation', async () => {
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -95,6 +95,7 @@ describe('Meditations Collection', () => {
         data: {
           title: 'Incomplete Meditation',
           duration: 10,
+          locale: 'en',
           // Missing thumbnail, audioFile, and narrator
         } as any,
       })
@@ -117,9 +118,9 @@ describe('Meditations Collection', () => {
   })
 
   it('creates meditation with relationships', async () => {
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
       tags: [testTag1.id],
       musicTag: testMusicTag.id,
     }, {
@@ -132,9 +133,9 @@ describe('Meditations Collection', () => {
   })
 
   it('preserves slug on update', async () => {
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: 'Original Title',
       duration: 15,
@@ -157,9 +158,9 @@ describe('Meditations Collection', () => {
 
   it('publishes meditation with date', async () => {
     const publishDate = new Date()
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: 'Published Meditation',
       duration: 30,
@@ -174,9 +175,9 @@ describe('Meditations Collection', () => {
   it('finds meditations with filters', async () => {
     // Create published meditation with unique title
     const publishedTitle = 'Filter Test Published Meditation'
-    const published = await testData.createMeditationWithAudio(payload, {
+    const published = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: publishedTitle,
       duration: 20,
@@ -185,9 +186,9 @@ describe('Meditations Collection', () => {
     })
 
     // Create unpublished meditation
-    await testData.createMeditationWithAudio(payload, {
+    await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: 'Filter Test Unpublished Meditation',
       duration: 15,
@@ -219,9 +220,9 @@ describe('Meditations Collection', () => {
   })
 
   it('deletes a meditation', async () => {
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
-            thumbnail: testImageMedia.id,
+      thumbnail: testImageMedia.id,
     }, {
       title: 'To Delete',
       duration: 10,
@@ -265,7 +266,7 @@ describe('Meditations Collection', () => {
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create a meditation in this test
-    const meditation = await testData.createMeditationWithAudio(payload, {
+    const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -289,7 +290,7 @@ describe('Meditations Collection', () => {
 
   describe('Meditation-Frame Relationships', () => {
     it('creates meditation with frame relationships', async () => {
-      const meditation = await testData.createMeditationWithAudio(payload, {
+      const meditation = await testData.createMeditation(payload, {
         narrator: testNarrator.id,
         thumbnail: testImageMedia.id,
       }, {
@@ -324,7 +325,7 @@ describe('Meditations Collection', () => {
 
     it('automatically sorts frames by timestamp', async () => {
       // Create frames out of chronological order
-      const meditation = await testData.createMeditationWithAudio(payload, {
+      const meditation = await testData.createMeditation(payload, {
         narrator: testNarrator.id,
         thumbnail: testImageMedia.id,
       }, {
