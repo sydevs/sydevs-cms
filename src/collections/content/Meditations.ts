@@ -228,56 +228,33 @@ export const Meditations: CollectionConfig = {
       hooks: {
         afterRead: [
           async ({ data, req }) => {
-            // Extract frames array from the document
             const frames = data?.frames || []
-            const frameIds = frames
-              .map((f: any) => f?.frame)
-              .filter(Boolean)
+            if (frames.length === 0) return []
             
-            if (frameIds.length === 0) {
-              return []
-            }
+            const frameIds = frames.map((f: any) => f?.frame).filter(Boolean)
+            if (frameIds.length === 0) return []
             
-            // Bulk fetch all frame documents
             const frameDocs = await req.payload.find({
               collection: 'frames',
-              where: {
-                id: {
-                  in: frameIds,
-                },
-              },
+              where: { id: { in: frameIds } },
               limit: frameIds.length,
             })
             
-            // Create a map for quick frame lookup
-            const frameMap = new Map()
-            frameDocs.docs.forEach((frame: any) => {
-              frameMap.set(frame.id, frame)
-            })
+            const frameMap = Object.fromEntries(
+              frameDocs.docs.map((frame: any) => [frame.id, frame])
+            )
             
-            // Build the result array with URLs and timestamps
-            const frameData = frames
-              .map((frameData: any) => {
-                const frameDoc = frameMap.get(frameData.frame)
+            return frames
+              .map((item: any) => {
+                const frameDoc = frameMap[item.frame]
                 if (!frameDoc?.url) {
-                  // Log warning for missing frame but don't fail
-                  req.payload.logger.warn({
-                    msg: 'Frame document not found or missing URL',
-                    frameId: frameData.frame,
-                    meditationId: data?.id,
-                  })
+                  req.payload.logger.warn(`Frame ${item.frame} not found for meditation ${data?.id}`)
                   return null
                 }
-                
-                return {
-                  url: frameDoc.url,
-                  timestamp: frameData.timestamp,
-                }
+                return { url: frameDoc.url, timestamp: item.timestamp }
               })
-              .filter(Boolean) // Remove null entries
-              .sort((a: any, b: any) => a.timestamp - b.timestamp) // Sort by timestamp
-            
-            return frameData
+              .filter(Boolean)
+              .sort((a: any, b: any) => a.timestamp - b.timestamp)
           },
         ],
       },
