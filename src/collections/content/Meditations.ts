@@ -218,5 +218,69 @@ export const Meditations: CollectionConfig = {
         ],
       },
     },
+    {
+      name: 'frameData',
+      type: 'json',
+      virtual: true,
+      admin: {
+        hidden: true,
+      },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) => {
+            // Extract frames array from the document
+            const frames = data?.frames || []
+            const frameIds = frames
+              .map((f: any) => f?.frame)
+              .filter(Boolean)
+            
+            if (frameIds.length === 0) {
+              return []
+            }
+            
+            // Bulk fetch all frame documents
+            const frameDocs = await req.payload.find({
+              collection: 'frames',
+              where: {
+                id: {
+                  in: frameIds,
+                },
+              },
+              limit: frameIds.length,
+            })
+            
+            // Create a map for quick frame lookup
+            const frameMap = new Map()
+            frameDocs.docs.forEach((frame: any) => {
+              frameMap.set(frame.id, frame)
+            })
+            
+            // Build the result array with URLs and timestamps
+            const frameData = frames
+              .map((frameData: any) => {
+                const frameDoc = frameMap.get(frameData.frame)
+                if (!frameDoc?.url) {
+                  // Log warning for missing frame but don't fail
+                  req.payload.logger.warn({
+                    msg: 'Frame document not found or missing URL',
+                    frameId: frameData.frame,
+                    meditationId: data?.id,
+                  })
+                  return null
+                }
+                
+                return {
+                  url: frameDoc.url,
+                  timestamp: frameData.timestamp,
+                }
+              })
+              .filter(Boolean) // Remove null entries
+              .sort((a: any, b: any) => a.timestamp - b.timestamp) // Sort by timestamp
+            
+            return frameData
+          },
+        ],
+      },
+    },
   ],
 }
