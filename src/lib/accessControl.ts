@@ -5,14 +5,10 @@ const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = typeof PERMISSION_LEVELS[number]
 
 const PERMISSION_COLLECTIONS = [
-  // Content
   "Meditations",
   "Music",
   "Frames",
-  // Resources
   "Media",
-  "Narrators",
-  "Tags",
 ]
 type PermissionCollection = typeof PERMISSION_COLLECTIONS[number]
 

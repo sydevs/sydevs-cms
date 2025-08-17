@@ -3,6 +3,22 @@ import sharp from 'sharp'
 import { getVideoDuration, getVideoDimensions, validateVideoDuration, validateVideoFileSize } from '@/lib/videoUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { GENDER_OPTIONS } from './Narrators'
+
+export const FRAME_TAGS = [
+  'mooladhara',
+  'swadhistan',
+  'nabhi',
+  'anahat',
+  'vishuddhi',
+  'agnya',
+  'sahasrara',
+  'left',
+  'right',
+  'center',
+  'misc',
+] as const
+
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -123,17 +139,14 @@ export const Frames: CollectionConfig = {
     {
       name: 'imageSet',
       type: 'select',
-      options: ['male', 'female'],
+      options: GENDER_OPTIONS,
       required: true,
-      admin: {
-        description: 'Whether this frame is for male or female meditation poses',
-      },
     },
     {
       name: 'tags',
-      type: 'relationship',
-      relationTo: 'tags',
+      type: 'select',
       hasMany: true,
+      options: [...FRAME_TAGS],
     },
     {
       name: 'dimensions',

@@ -2,9 +2,20 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
+export const GENDER_OPTIONS = [
+  {
+    label: 'Male',
+    value: 'male',
+  },
+  {
+    label: 'Female',
+    value: 'female',
+  },
+]
+
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
-  access: permissionBasedAccess('narrators'),
+  access: permissionBasedAccess('meditations'),
   admin: {
     group: 'Resources',
     useAsTitle: 'name',
@@ -33,26 +44,10 @@ export const Narrators: CollectionConfig = {
       required: true,
     },
     {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      admin: {
-        position: 'sidebar',
-      },
-    },
-    {
       name: 'gender',
       type: 'select',
-      options: [
-        {
-          label: 'Male',
-          value: 'male',
-        },
-        {
-          label: 'Female',
-          value: 'female',
-        },
-      ],
+      required: true,
+      options: GENDER_OPTIONS,
     },
   ],
 }

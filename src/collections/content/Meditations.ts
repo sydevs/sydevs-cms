@@ -136,13 +136,13 @@ export const Meditations: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'tags',
+      relationTo: 'meditation-tags',
       hasMany: true,
     },
     {
       name: 'musicTag',
       type: 'relationship',
-      relationTo: 'tags',
+      relationTo: 'music-tags',
       admin: {
         description: 'Music with this tag will be offered to the seeker',
       },
