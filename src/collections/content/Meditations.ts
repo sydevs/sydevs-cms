@@ -213,7 +213,12 @@ export const Meditations: CollectionConfig = {
             if (!value || !Array.isArray(value)) return value
             
             // Sort frames by timestamp for consistent ordering
-            return [...value].sort((a, b) => a.timestamp - b.timestamp)
+            return [...value].map(v => {
+              return {
+                ...v,
+                timestamp: Math.round(v.timestamp),
+              }
+            }).sort((a, b) => a.timestamp - b.timestamp)
           },
         ],
       },
