@@ -1,6 +1,6 @@
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
-import type { Client, User } from '@/payload-types'
-import type { Payload, PayloadRequest, TypedUser } from 'payload'
+import type { Client } from '@/payload-types'
+import type { Payload, PayloadRequest } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from 'tests/utils/testData'
 
