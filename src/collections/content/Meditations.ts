@@ -2,6 +2,7 @@ import type { CollectionConfig, Validate } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { FrameData } from '@/components/admin/MeditationFrameEditor/types'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -236,10 +237,10 @@ export const Meditations: CollectionConfig = {
       hooks: {
         afterRead: [
           async ({ data, req }) => {
-            const frames = data?.frames || []
+            const frames = (data?.frames as FrameData[]) || []
             if (frames.length === 0) return []
 
-            const frameIds = frames.map((f: any) => f?.frame).filter(Boolean)
+            const frameIds = frames.map((f) => f?.frame).filter(Boolean)
             if (frameIds.length === 0) return []
 
             const frameDocs = await req.payload.find({
@@ -248,12 +249,10 @@ export const Meditations: CollectionConfig = {
               limit: frameIds.length,
             })
 
-            const frameMap = Object.fromEntries(
-              frameDocs.docs.map((frame: any) => [frame.id, frame]),
-            )
+            const frameMap = Object.fromEntries(frameDocs.docs.map((frame) => [frame.id, frame]))
 
             return frames
-              .map((item: any) => {
+              .map((item) => {
                 const frameDoc = frameMap[item.frame]
                 if (!frameDoc?.url) {
                   req.payload.logger.warn(
