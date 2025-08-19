@@ -183,6 +183,7 @@ export interface Meditation {
   id: string;
   title: string;
   locale: 'en' | 'it';
+  publishAt?: string | null;
   slug?: string | null;
   thumbnail: string | Media;
   /**
@@ -195,8 +196,6 @@ export interface Meditation {
    * Music with this tag will be offered to the seeker
    */
   musicTag?: (string | null) | MusicTag;
-  isPublished?: boolean | null;
-  publishedDate?: string | null;
   /**
    * Frames associated with this meditation with audio-synchronized editing
    */
@@ -796,14 +795,13 @@ export interface PayloadMigration {
 export interface MeditationsSelect<T extends boolean = true> {
   title?: T;
   locale?: T;
+  publishAt?: T;
   slug?: T;
   thumbnail?: T;
   duration?: T;
   narrator?: T;
   tags?: T;
   musicTag?: T;
-  isPublished?: T;
-  publishedDate?: T;
   frames?: T;
   frameData?: T;
   updatedAt?: T;

@@ -12,8 +12,6 @@ describe('Meditations Collection', () => {
   let testTag1: MeditationTag
   let testTag2: MeditationTag
   let testMusicTag: MusicTag
-  let testFrame1: Frame
-  let testFrame2: Frame
   let testMeditation: Meditation
 
   beforeAll(async () => {
@@ -27,20 +25,22 @@ describe('Meditations Collection', () => {
     testTag1 = await testData.createMeditationTag(payload)
     testTag2 = await testData.createMeditationTag(payload)
     testMusicTag = await testData.createMusicTag(payload)
-    testFrame1 = await testData.createFrame(payload)
-    testFrame2 = await testData.createFrame(payload)
 
     // Create test meditation
-    testMeditation = await testData.createMeditation(payload, {
-      narrator: testNarrator.id,
-      thumbnail: testImageMedia.id,
-    }, {
-      title: 'Morning Meditation',
-      duration: 15,
-      isPublished: false,
-      tags: [testTag1.id, testTag2.id],
-      musicTag: testMusicTag.id,
-    })
+    testMeditation = await testData.createMeditation(
+      payload,
+      {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      },
+      {
+        title: 'Morning Meditation',
+        duration: 15,
+        isPublished: false,
+        tags: [testTag1.id, testTag2.id],
+        musicTag: testMusicTag.id,
+      },
+    )
   })
 
   afterAll(async () => {
@@ -53,39 +53,56 @@ describe('Meditations Collection', () => {
     expect(testMeditation.slug).toBe('morning-meditation')
     expect(testMeditation.duration).toBe(42) // Auto-populated from audio file
     expect(testMeditation.filename).toBeDefined() // Now has direct audio upload
-    expect(typeof testMeditation.narrator === 'object' ? testMeditation.narrator.id : testMeditation.narrator).toBe(testNarrator.id)
+    expect(
+      typeof testMeditation.narrator === 'object'
+        ? testMeditation.narrator.id
+        : testMeditation.narrator,
+    ).toBe(testNarrator.id)
     expect(testMeditation.tags).toHaveLength(2)
     // Tags may be populated objects or IDs
-    const tagIds = Array.isArray(testMeditation.tags) 
-      ? testMeditation.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
+    const tagIds = Array.isArray(testMeditation.tags)
+      ? testMeditation.tags.map((tag) =>
+          typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag,
+        )
       : []
     expect(tagIds).toContain(testTag1.id)
     expect(tagIds).toContain(testTag2.id)
-    expect(typeof testMeditation.musicTag === 'object' && testMeditation.musicTag ? testMeditation.musicTag.id : testMeditation.musicTag).toBe(testMusicTag.id)
-    expect(testMeditation.isPublished).toBe(false)
+    expect(
+      typeof testMeditation.musicTag === 'object' && testMeditation.musicTag
+        ? testMeditation.musicTag.id
+        : testMeditation.musicTag,
+    ).toBe(testMusicTag.id)
   })
 
   it('ignores custom slug on create', async () => {
-    const meditation = await testData.createMeditation(payload, {
-      narrator: testNarrator.id,
-      thumbnail: testImageMedia.id,
-    }, {
-      title: 'Evening Meditation',
-      slug: 'custom-evening-slug', // This should be ignored
-      duration: 20,
-    })
+    const meditation = await testData.createMeditation(
+      payload,
+      {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      },
+      {
+        title: 'Evening Meditation',
+        slug: 'custom-evening-slug', // This should be ignored
+        duration: 20,
+      },
+    )
 
     expect(meditation.slug).toBe('evening-meditation') // Auto-generated from title
   })
 
   it('handles special characters in slug generation', async () => {
-    const meditation = await testData.createMeditation(payload, {
-      narrator: testNarrator.id,
-      thumbnail: testImageMedia.id,
-    }, {
-      title: 'Meditación: Relajación & Paz',
-      duration: 10,
-    })
+    const meditation = await testData.createMeditation(
+      payload,
+      {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      },
+      {
+        title: 'Meditación: Relajación & Paz',
+        duration: 10,
+      },
+    )
 
     expect(meditation.slug).toBe('meditaci-n-relajaci-n-paz')
   })
@@ -101,20 +118,20 @@ describe('Meditations Collection', () => {
           narrator: testNarrator.id,
           locale: 'en',
         },
-      })
+      }),
     ).rejects.toThrow()
   })
 
   it('preserves slug on update', async () => {
     const originalSlug = testMeditation.slug
-    const updated = await payload.update({
+    const updated = (await payload.update({
       collection: 'meditations',
       id: testMeditation.id,
       data: {
         title: 'Updated Title',
         slug: 'attempted-slug-change', // This should be ignored
       },
-    }) as Meditation
+    })) as Meditation
 
     expect(updated.title).toBe('Updated Title')
     expect(updated.slug).toBe(originalSlug) // Slug should remain unchanged
@@ -122,18 +139,20 @@ describe('Meditations Collection', () => {
 
   it('publishes meditation with date', async () => {
     const publishDate = new Date()
-    const meditation = await testData.createMeditation(payload, {
-      narrator: testNarrator.id,
-      thumbnail: testImageMedia.id,
-    }, {
-      title: 'Published Meditation',
-      duration: 30,
-      isPublished: true,
-      publishedDate: publishDate.toISOString(), // TODO: This should be auto-populated if not specified
-    })
+    const meditation = await testData.createMeditation(
+      payload,
+      {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      },
+      {
+        title: 'Published Meditation',
+        duration: 30,
+        publishAt: publishDate.toISOString(), // TODO: This should be auto-populated if not specified
+      },
+    )
 
-    expect(meditation.isPublished).toBe(true)
-    expect(meditation.publishedDate).toBeDefined()
+    expect(meditation.publishAt).toBeDefined()
   })
 })
 
@@ -162,33 +181,37 @@ describe('Meditation-Frame Relationships', () => {
   })
 
   it('created with sorted and rounded frame relationships', async () => {
-    const meditation = await testData.createMeditation(payload, {
-      narrator: testNarrator.id,
-      thumbnail: testImageMedia.id,
-    }, {
-      frames: [
-        {
-          frame: testFrame2.id,
-          timestamp: 23.3,
-        },
-        {
-          frame: testFrame1.id,
-          timestamp: 15.7,
-        },
-      ],
-    })
+    const meditation = await testData.createMeditation(
+      payload,
+      {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      },
+      {
+        frames: [
+          {
+            frame: testFrame2.id,
+            timestamp: 23.3,
+          },
+          {
+            frame: testFrame1.id,
+            timestamp: 15.7,
+          },
+        ],
+      },
+    )
 
     expect(meditation.frames).toBeDefined()
     expect(meditation.frames).toHaveLength(2)
-    
+
     // Check that frames are sorted by timestamp and rounded
-    const frames = meditation.frames as Array<{ frame: string | { id: string }, timestamp: number }>
+    const frames = meditation.frames as Array<{ frame: string | { id: string }; timestamp: number }>
     expect(frames[0]?.timestamp).toBe(16)
     expect(frames[1]?.timestamp).toBe(23)
-    
+
     const frame1Id = typeof frames[0]?.frame === 'object' ? frames[0].frame.id : frames[0]?.frame
     const frame2Id = typeof frames[1]?.frame === 'object' ? frames[1].frame.id : frames[1]?.frame
-    
+
     expect(frame1Id).toBe(testFrame1.id)
     expect(frame2Id).toBe(testFrame2.id)
   })
