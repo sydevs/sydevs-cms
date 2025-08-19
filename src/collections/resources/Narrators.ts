@@ -1,17 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-
-export const GENDER_OPTIONS = [
-  {
-    label: 'Male',
-    value: 'male',
-  },
-  {
-    label: 'Female',
-    value: 'female',
-  },
-]
+import { GENDER_OPTIONS } from '@/lib/data'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
