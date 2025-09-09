@@ -171,8 +171,9 @@ The system automatically generates thumbnails for video frames to optimize admin
 
 #### Implementation Details
 - **File Processing** (`src/lib/fieldUtils.ts`) - Extended `convertFile` hook handles video thumbnail generation
-- **Collection Schema** - Frames collection includes `thumbnail` relationship field for generated thumbnails
-- **Component Integration** - `ThumbnailCell` and `FrameItem` components display thumbnails with play button overlays
+- **Storage Strategy** - Thumbnails stored in `sizes.small` object on the same document (like Payload's image resizing)
+- **Component Integration** - `ThumbnailCell` and `FrameItem` components display thumbnails from `sizes.small.url`
+- **File Management** - Thumbnail files written to disk alongside video files in the same directory
 - **Graceful Fallbacks** - Falls back to video elements when thumbnail generation fails
 - **Error Handling** - Comprehensive error handling ensures system stability
 
