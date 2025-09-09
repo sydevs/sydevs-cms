@@ -45,6 +45,56 @@ const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
   }
 
   if (mimeType?.startsWith('video/')) {
+    // Check if we have a generated thumbnail
+    const thumbnailUrl = rowData?.thumbnail?.sizes?.small?.url || rowData?.sizes?.small?.url
+    
+    if (thumbnailUrl) {
+      // Display generated thumbnail with play button overlay
+      return (
+        <div
+          style={{
+            position: 'relative',
+            width: '60px',
+            height: '60px',
+            overflow: 'hidden',
+            borderRadius: '4px',
+            backgroundColor: '#f5f5f5',
+          }}
+        >
+          <Image
+            src={thumbnailUrl}
+            alt={altText}
+            fill
+            style={{
+              objectFit: 'cover',
+            }}
+            sizes="60px"
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: 'white',
+              fontSize: '20px',
+              textShadow: '0 0 4px rgba(0,0,0,0.5)',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ▶
+          </div>
+        </div>
+      )
+    }
+    
+    // Fallback to original video element if no thumbnail
     return (
       <div
         style={{

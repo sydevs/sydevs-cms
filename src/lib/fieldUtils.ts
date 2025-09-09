@@ -7,6 +7,7 @@ import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
 import slugify from 'slugify'
 import { extractFileMetadata } from './fileUtils'
+import { generateVideoThumbnail, shouldGenerateThumbnail } from './videoThumbnailUtils'
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -111,9 +112,30 @@ export const convertFile: CollectionBeforeChangeHook = async ({ data, req }) => 
         req.file.name = req.file.name.replace(/\.(jpe?g|png)$/i, '.webp')
       }
     } else if (mimetype.startsWith('video/')) {
-      // TODO: Video conversion to WEBM would go here
+      // Generate thumbnail for video files
+      if (shouldGenerateThumbnail(mimetype)) {
+        try {
+          const thumbnailBuffer = await generateVideoThumbnail(req.file.data)
+          
+          // Create a separate file entry for the thumbnail that will be processed as an image
+          // This allows Payload to generate image sizes automatically
+          const thumbnailData = {
+            data: thumbnailBuffer,
+            mimetype: 'image/webp',
+            name: req.file.name.replace(/\.[^.]+$/, '-thumbnail.webp'),
+            size: thumbnailBuffer.length
+          }
+          
+          // Store thumbnail data for later processing
+          data.thumbnailData = thumbnailData
+        } catch (error) {
+          console.warn('Failed to generate video thumbnail:', error instanceof Error ? error.message : 'Unknown error')
+          // Continue without thumbnail - component will fall back to video display
+        }
+      }
+      
+      // TODO: Video conversion to WEBM would go here in the future
       // For now, we'll keep the original format
-      // In production, this would convert MP4 to WEBM with optimization
     }
   }
 

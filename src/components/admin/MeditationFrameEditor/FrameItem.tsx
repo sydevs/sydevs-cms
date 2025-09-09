@@ -101,6 +101,45 @@ const FrameItem: React.FC<FrameItemProps> = ({
     }
 
     if (isVideo) {
+      // Check if we have a generated thumbnail
+      const thumbnailUrl = frame.thumbnail?.sizes?.small?.url || frame.thumbnail?.url
+      
+      if (thumbnailUrl) {
+        // Display generated thumbnail for video
+        return (
+          <>
+            <Image
+              src={thumbnailUrl}
+              alt={frame.category || 'Video Frame'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              width={frame.thumbnail?.sizes?.small?.width || frame.thumbnail?.width || size}
+              height={frame.thumbnail?.sizes?.small?.height || frame.thumbnail?.height || size}
+            />
+            {/* Play button overlay for video indication */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '4px',
+                left: '4px',
+                color: 'white',
+                fontSize: '16px',
+                textShadow: '0 0 4px rgba(0,0,0,0.5)',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ▶
+            </div>
+          </>
+        )
+      }
+      
+      // Fallback to original video element
       return (
         <video
           src={frame.url || ''}

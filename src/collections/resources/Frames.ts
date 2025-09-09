@@ -56,6 +56,49 @@ export const Frames: CollectionConfig = {
     afterRead: [trackClientUsageHook],
     beforeValidate: [processFile({})],
     beforeChange: [convertFile],
+    afterChange: [
+      // Process thumbnail data if generated
+      async ({ data, req }) => {
+        if (data.thumbnailData && req.payload) {
+          try {
+            // Create thumbnail file entry in the same collection
+            const thumbnailFile = {
+              data: data.thumbnailData.data,
+              mimetype: data.thumbnailData.mimetype,
+              name: data.thumbnailData.name,
+              size: data.thumbnailData.size
+            }
+            
+            // Create thumbnail as a separate document
+            const thumbnailDoc = await req.payload.create({
+              collection: 'frames',
+              data: {
+                filename: data.thumbnailData.name,
+                category: data.category,
+                imageSet: data.imageSet,
+                tags: ['thumbnail'], // Mark as thumbnail
+              },
+              file: thumbnailFile
+            })
+            
+            // Link thumbnail to original video
+            await req.payload.update({
+              collection: 'frames', 
+              id: data.id,
+              data: {
+                thumbnail: thumbnailDoc.id
+              }
+            })
+            
+            // Clean up temporary thumbnail data
+            delete data.thumbnailData
+          } catch (error) {
+            console.warn('Failed to process thumbnail:', error instanceof Error ? error.message : 'Unknown error')
+          }
+        }
+        return data
+      }
+    ],
   },
   fields: [
     {
@@ -127,6 +170,16 @@ export const Frames: CollectionConfig = {
           },
         ],
       },
+    },
+    {
+      name: 'thumbnail',
+      type: 'relationship',
+      relationTo: 'frames',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Auto-generated thumbnail (for videos only)'
+      }
     },
     {
       name: 'fileMetadata',
