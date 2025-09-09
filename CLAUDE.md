@@ -159,6 +159,29 @@ SMTP_FROM=contact@sydevelopers.com
 - **Password Reset**: Uses Payload's default password reset functionality
 - **Automatic Emails**: Sent for user registration and password reset requests using default templates
 
+### Video Thumbnail Generation Architecture
+
+The system automatically generates thumbnails for video frames to optimize admin interface performance:
+
+#### Key Components
+- **Video Thumbnail Utils** (`src/lib/videoThumbnailUtils.ts`) - Core thumbnail generation logic using FFmpeg
+- **FFmpeg Integration** - Uses `ffmpeg-static` for reliable video processing
+- **Sharp Processing** - Generates 160x160 WebP thumbnails matching existing image sizes
+- **Automatic Generation** - Thumbnails created at 0.1 seconds into video during upload
+
+#### Implementation Details
+- **File Processing** (`src/lib/fieldUtils.ts`) - Extended `convertFile` hook handles video thumbnail generation
+- **Collection Schema** - Frames collection includes `thumbnail` relationship field for generated thumbnails
+- **Component Integration** - `ThumbnailCell` and `FrameItem` components display thumbnails with play button overlays
+- **Graceful Fallbacks** - Falls back to video elements when thumbnail generation fails
+- **Error Handling** - Comprehensive error handling ensures system stability
+
+#### Admin Interface Benefits
+- **Fast Loading** - Thumbnail images load significantly faster than video elements
+- **Visual Identification** - Video content easily identifiable in admin lists and frame editor
+- **Performance Optimized** - Reduces page load times when multiple video frames are displayed
+- **Consistent UX** - Unified thumbnail display for both image and video content
+
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation
 - `src/instrumentation-client.ts` - Client-side Sentry instrumentation  
