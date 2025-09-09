@@ -55,15 +55,21 @@ describe('Video Thumbnail Generation', () => {
   })
 
   describe('Frame Collection Integration', () => {
-    it('should have thumbnail field in frames schema', async () => {
-      // Test that the thumbnail field exists in the collection structure
+    it('should support sizes object for video thumbnails', async () => {
+      // Test that the frames collection supports storing thumbnails in sizes object
       const collections = payload.config.collections
       const framesCollection = collections.find(c => c.slug === 'frames')
       
       expect(framesCollection).toBeDefined()
-      const thumbnailField = framesCollection?.fields.find(f => 'name' in f && f.name === 'thumbnail')
-      expect(thumbnailField).toBeDefined()
-      expect(thumbnailField?.type).toBe('relationship')
+      // Check that imageSizes is configured
+      expect(framesCollection?.upload?.imageSizes).toBeDefined()
+      expect(framesCollection?.upload?.imageSizes?.length).toBeGreaterThan(0)
+      
+      // Check for small size configuration
+      const smallSize = framesCollection?.upload?.imageSizes?.find(s => s.name === 'small')
+      expect(smallSize).toBeDefined()
+      expect(smallSize?.width).toBe(160)
+      expect(smallSize?.height).toBe(160)
     })
 
     it('should handle frame creation without files', async () => {

@@ -45,8 +45,8 @@ const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
   }
 
   if (mimeType?.startsWith('video/')) {
-    // Check if we have a generated thumbnail
-    const thumbnailUrl = rowData?.thumbnail?.sizes?.small?.url || rowData?.sizes?.small?.url
+    // Check if we have a generated thumbnail in the sizes object
+    const thumbnailUrl = rowData?.sizes?.small?.url
     
     if (thumbnailUrl) {
       // Display generated thumbnail with play button overlay

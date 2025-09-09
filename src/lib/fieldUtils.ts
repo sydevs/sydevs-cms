@@ -117,17 +117,45 @@ export const convertFile: CollectionBeforeChangeHook = async ({ data, req }) => 
         try {
           const thumbnailBuffer = await generateVideoThumbnail(req.file.data)
           
-          // Create a separate file entry for the thumbnail that will be processed as an image
-          // This allows Payload to generate image sizes automatically
-          const thumbnailData = {
-            data: thumbnailBuffer,
-            mimetype: 'image/webp',
-            name: req.file.name.replace(/\.[^.]+$/, '-thumbnail.webp'),
-            size: thumbnailBuffer.length
+          // Get metadata for the thumbnail image
+          const { width, height } = await sharp(thumbnailBuffer).metadata()
+          
+          // Create a sizes object similar to how Payload handles image sizes
+          // This stores the thumbnail as part of the same document
+          data.sizes = data.sizes || {}
+          
+          // Add the thumbnail to the sizes object
+          // This matches the structure that Payload uses for image sizes
+          data.sizes.small = {
+            filename: req.file.name.replace(/\.[^.]+$/, '-small.webp'),
+            mimeType: 'image/webp',
+            filesize: thumbnailBuffer.length,
+            width: width || 160,
+            height: height || 160,
+            url: null, // Will be set by Payload
           }
           
-          // Store thumbnail data for later processing
-          data.thumbnailData = thumbnailData
+          // Store the thumbnail buffer in a way that Payload can process it
+          // We'll need to write this file to disk in the same directory as the video
+          if (req.payload) {
+            const fs = await import('fs')
+            const path = await import('path')
+            
+            // Determine the upload directory based on collection configuration
+            const uploadDir = path.join(process.cwd(), 'frames')
+            const thumbnailPath = path.join(uploadDir, data.sizes.small.filename)
+            
+            // Ensure directory exists
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true })
+            }
+            
+            // Write thumbnail file to disk
+            fs.writeFileSync(thumbnailPath, thumbnailBuffer)
+            
+            // Set the URL for the thumbnail
+            data.sizes.small.url = `/api/frames/file/${data.sizes.small.filename}`
+          }
         } catch (error) {
           console.warn('Failed to generate video thumbnail:', error instanceof Error ? error.message : 'Unknown error')
           // Continue without thumbnail - component will fall back to video display

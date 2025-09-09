@@ -458,10 +458,6 @@ export interface Frame {
       )[]
     | null;
   duration?: number | null;
-  /**
-   * Auto-generated thumbnail (for videos only)
-   */
-  thumbnail?: (string | null) | Frame;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -914,7 +910,6 @@ export interface FramesSelect<T extends boolean = true> {
   category?: T;
   tags?: T;
   duration?: T;
-  thumbnail?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;

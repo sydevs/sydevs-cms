@@ -101,8 +101,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
     }
 
     if (isVideo) {
-      // Check if we have a generated thumbnail
-      const thumbnailUrl = frame.thumbnail?.sizes?.small?.url || frame.thumbnail?.url
+      // Check if we have a generated thumbnail in the sizes object
+      const thumbnailUrl = frame.sizes?.small?.url
       
       if (thumbnailUrl) {
         // Display generated thumbnail for video
@@ -112,8 +112,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
               src={thumbnailUrl}
               alt={frame.category || 'Video Frame'}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              width={frame.thumbnail?.sizes?.small?.width || frame.thumbnail?.width || size}
-              height={frame.thumbnail?.sizes?.small?.height || frame.thumbnail?.height || size}
+              width={frame.sizes?.small?.width || size}
+              height={frame.sizes?.small?.height || size}
             />
             {/* Play button overlay for video indication */}
             <div
