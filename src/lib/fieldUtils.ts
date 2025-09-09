@@ -117,52 +117,22 @@ export const convertFile: CollectionBeforeChangeHook = async ({ data, req }) => 
         try {
           const thumbnailBuffer = await generateVideoThumbnail(req.file.data)
           
-          // Get metadata for the thumbnail image
-          const { width, height } = await sharp(thumbnailBuffer).metadata()
-          
-          // Create a sizes object similar to how Payload handles image sizes
-          // This stores the thumbnail as part of the same document
-          data.sizes = data.sizes || {}
-          
-          // Add the thumbnail to the sizes object
-          // This matches the structure that Payload uses for image sizes
-          data.sizes.small = {
-            filename: req.file.name.replace(/\.[^.]+$/, '-small.webp'),
-            mimeType: 'image/webp',
-            filesize: thumbnailBuffer.length,
-            width: width || 160,
-            height: height || 160,
-            url: null, // Will be set by Payload
+          // Add the thumbnail to req.payloadUploadSizes so Payload's storage system can handle it
+          // This is the same way Payload handles imageSizes internally
+          if (!req.payloadUploadSizes) {
+            req.payloadUploadSizes = {}
           }
           
-          // Store the thumbnail buffer in a way that Payload can process it
-          // We'll need to write this file to disk in the same directory as the video
-          if (req.payload) {
-            const fs = await import('fs')
-            const path = await import('path')
-            
-            // Determine the upload directory based on collection configuration
-            const uploadDir = path.join(process.cwd(), 'frames')
-            const thumbnailPath = path.join(uploadDir, data.sizes.small.filename)
-            
-            // Ensure directory exists
-            if (!fs.existsSync(uploadDir)) {
-              fs.mkdirSync(uploadDir, { recursive: true })
-            }
-            
-            // Write thumbnail file to disk
-            fs.writeFileSync(thumbnailPath, thumbnailBuffer)
-            
-            // Set the URL for the thumbnail
-            data.sizes.small.url = `/api/frames/file/${data.sizes.small.filename}`
-          }
+          // Add our generated thumbnail as the 'small' size
+          // This will be automatically handled by Payload's storage adapter
+          req.payloadUploadSizes.small = thumbnailBuffer
         } catch (error) {
           console.warn('Failed to generate video thumbnail:', error instanceof Error ? error.message : 'Unknown error')
           // Continue without thumbnail - component will fall back to video display
         }
       }
       
-      // TODO: Video conversion to WEBM would go here in the future
+      // TODO: Video conversion to WEBM would go here in the future  
       // For now, we'll keep the original format
     }
   }
