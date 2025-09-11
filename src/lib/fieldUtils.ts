@@ -1,4 +1,7 @@
 import {
+  CollectionAfterChangeHook,
+  CollectionAfterDeleteHook,
+  CollectionAfterReadHook,
   CollectionBeforeChangeHook,
   CollectionBeforeOperationHook,
   CollectionBeforeValidateHook,
@@ -6,8 +9,9 @@ import {
 import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
 import slugify from 'slugify'
-import { extractFileMetadata } from './fileUtils'
-import { generateVideoThumbnail, shouldGenerateThumbnail } from './videoThumbnailUtils'
+import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
+import tmp from 'tmp'
+import fs from 'fs'
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -111,33 +115,103 @@ export const convertFile: CollectionBeforeChangeHook = async ({ data, req }) => 
         req.file.mimetype = 'image/webp'
         req.file.name = req.file.name.replace(/\.(jpe?g|png)$/i, '.webp')
       }
-    } else if (mimetype.startsWith('video/')) {
-      // Generate thumbnail for video files
-      if (shouldGenerateThumbnail(mimetype)) {
-        try {
-          const thumbnailBuffer = await generateVideoThumbnail(req.file.data)
-          
-          // Add the thumbnail to req.payloadUploadSizes so Payload's storage system can handle it
-          // This is the same way Payload handles imageSizes internally
-          if (!req.payloadUploadSizes) {
-            req.payloadUploadSizes = {}
-          }
-          
-          // Add our generated thumbnail as the 'small' size
-          // This will be automatically handled by Payload's storage adapter
-          req.payloadUploadSizes.small = thumbnailBuffer
-        } catch (error) {
-          console.warn('Failed to generate video thumbnail:', error instanceof Error ? error.message : 'Unknown error')
-          // Continue without thumbnail - component will fall back to video display
-        }
-      }
-      
-      // TODO: Video conversion to WEBM would go here in the future  
-      // For now, we'll keep the original format
     }
   }
 
   return data
+}
+
+export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
+  doc,
+  req,
+  operation,
+}) => {
+  if (operation !== 'create' || !doc.mimeType?.startsWith('video/') || !req.file?.data) {
+    return doc
+  }
+
+  try {
+    const thumbnailBuffer = await extractVideoThumbnail(req.file.data)
+    const tmpFile = tmp.fileSync({ postfix: '.webp' })
+    fs.writeFileSync(tmpFile.fd, thumbnailBuffer)
+
+    const thumbnailMedia = await req.payload.create({
+      collection: 'media',
+      data: {
+        alt: `Thumbnail for ${doc.filename}`,
+      },
+      filePath: tmpFile.name,
+    })
+
+    const updatedDoc = await req.payload.update({
+      collection: 'frames',
+      id: doc.id,
+      data: {
+        thumbnail: thumbnailMedia.id,
+      },
+    })
+
+    return updatedDoc
+  } catch (error) {
+    console.warn(
+      'Failed to store video thumbnail:',
+      error instanceof Error ? error.message : 'Unknown error',
+    )
+    return doc
+  }
+}
+
+export const deleteThumbnailHook: CollectionAfterDeleteHook = async ({ doc, req }) => {
+  if (!doc?.thumbnail) {
+    return
+  }
+
+  const thumbnailId = typeof doc.thumbnail === 'string' ? doc.thumbnail : doc.thumbnail.id
+
+  if (thumbnailId) {
+    await req.payload.delete({
+      collection: 'media',
+      id: thumbnailId,
+    })
+  }
+}
+
+export const setPreviewUrlHook: CollectionAfterReadHook = async ({ doc, req }) => {
+  if (!doc) return doc
+
+  // For video frames, use thumbnail if available
+  if (doc.mimeType?.startsWith('video/') && doc.thumbnail) {
+    // If thumbnail is just an ID, we need to populate it
+    if (typeof doc.thumbnail === 'string') {
+      try {
+        const thumbnailDoc = await req.payload.findByID({
+          collection: 'media',
+          id: doc.thumbnail,
+        })
+        if (thumbnailDoc?.url) {
+          doc.previewUrl = thumbnailDoc.url
+          return doc
+        }
+      } catch (error) {
+        console.warn('Failed to fetch thumbnail:', error)
+      }
+    } else if (typeof doc.thumbnail === 'object' && doc.thumbnail?.url) {
+      doc.previewUrl = doc.thumbnail.url
+      return doc
+    }
+  }
+
+  // For images or fallback, use small size if available
+  if (doc.sizes?.small?.url) {
+    doc.previewUrl = doc.sizes.small.url
+  } else {
+    // Final fallback to main URL (but only for images, not videos)
+    if (!doc.mimeType?.startsWith('video/')) {
+      doc.previewUrl = doc.url
+    }
+  }
+
+  return doc
 }
 
 export const generateSlug: CollectionBeforeChangeHook = async ({
