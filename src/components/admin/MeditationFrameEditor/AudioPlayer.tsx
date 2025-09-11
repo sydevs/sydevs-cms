@@ -10,17 +10,9 @@ import React, {
 } from 'react'
 import type { FrameData } from './types'
 import { useFrameDetails } from './hooks/useFrameDetails'
-import {
-  getCurrentFrame,
-  isVideoFile,
-  getMediaUrl,
-} from './utils'
+import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 import { SIZES } from './constants'
-import {
-  AudioPlayerContainer,
-  AudioPreview,
-  EmptyState,
-} from './styled'
+import { AudioPlayerContainer, AudioPreview, EmptyState } from './styled'
 
 interface AudioPlayerProps {
   audioUrl: string | null
@@ -91,7 +83,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
         try {
           const response = await fetch(audioUrl)
           if (!response.ok) throw new Error('Failed to load audio')
-          
+
           const blob = await response.blob()
           const blobUrl = URL.createObjectURL(blob)
           setAudioBlob(blobUrl)
@@ -154,30 +146,33 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const handleEnded = () => setIsPlaying(false)
 
     // Seeking with retry mechanism
-    const seekTo = useCallback(async (newTime: number) => {
-      if (!audioRef.current || !duration) return
+    const seekTo = useCallback(
+      async (newTime: number) => {
+        if (!audioRef.current || !duration) return
 
-      const clampedTime = Math.max(0, Math.min(newTime, duration))
-      
-      try {
-        // Wait for audio to be ready if needed
-        if (audioRef.current.readyState < 2) {
-          await new Promise<void>((resolve) => {
-            const handleCanPlay = () => {
-              audioRef.current?.removeEventListener('canplay', handleCanPlay)
-              resolve()
-            }
-            audioRef.current?.addEventListener('canplay', handleCanPlay)
-          })
+        const clampedTime = Math.max(0, Math.min(newTime, duration))
+
+        try {
+          // Wait for audio to be ready if needed
+          if (audioRef.current.readyState < 2) {
+            await new Promise<void>((resolve) => {
+              const handleCanPlay = () => {
+                audioRef.current?.removeEventListener('canplay', handleCanPlay)
+                resolve()
+              }
+              audioRef.current?.addEventListener('canplay', handleCanPlay)
+            })
+          }
+
+          audioRef.current.currentTime = clampedTime
+          setCurrentTime(clampedTime)
+          onSeek?.(clampedTime)
+        } catch (error) {
+          console.warn('Seek failed:', error)
         }
-
-        audioRef.current.currentTime = clampedTime
-        setCurrentTime(clampedTime)
-        onSeek?.(clampedTime)
-      } catch (error) {
-        console.warn('Seek failed:', error)
-      }
-    }, [duration, onSeek])
+      },
+      [duration, onSeek],
+    )
 
     // Progress bar click handler
     const handleProgressClick = (e: React.MouseEvent) => {
@@ -209,7 +204,9 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const formatTime = (time: number) => {
       if (!isFinite(time)) return '0:00'
       const minutes = Math.floor(time / 60)
-      const seconds = Math.floor(time % 60).toString().padStart(2, '0')
+      const seconds = Math.floor(time % 60)
+        .toString()
+        .padStart(2, '0')
       return `${minutes}:${seconds}`
     }
 
@@ -348,7 +345,14 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
             />
 
             {/* Controls Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                marginBottom: '0.75rem',
+              }}
+            >
               <button
                 type="button"
                 onClick={togglePlayPause}
@@ -433,22 +437,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
             </div>
           </div>
         </AudioPlayerContainer>
-
-        {/* Keyboard shortcuts help */}
-        {size === 'large' && audioUrl && enableHotkeys && (
-          <div
-            style={{
-              fontSize: '0.75rem',
-              color: '#6c757d',
-              marginTop: '0.5rem',
-              fontStyle: 'italic',
-            }}
-          >
-            <strong>Keyboard Shortcuts:</strong>
-            <br />
-            Space: Play/Pause • ←→: ±5s
-          </div>
-        )}
       </>
     )
   },

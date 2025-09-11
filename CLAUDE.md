@@ -166,7 +166,7 @@ The system automatically generates thumbnails for video frames to optimize admin
 #### Key Components
 - **Video Thumbnail Utils** (`src/lib/videoThumbnailUtils.ts`) - Core thumbnail generation logic using FFmpeg
 - **FFmpeg Integration** - Uses `ffmpeg-static` for reliable video processing
-- **Sharp Processing** - Generates 160x160 WebP thumbnails matching existing image sizes
+- **Sharp Processing** - Generates 320x320 WebP thumbnails matching existing image sizes
 - **Automatic Generation** - Thumbnails created at 0.1 seconds into video during upload
 
 #### Implementation Details

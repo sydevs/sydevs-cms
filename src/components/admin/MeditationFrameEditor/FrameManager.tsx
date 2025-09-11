@@ -3,11 +3,11 @@
 import React, { useCallback } from 'react'
 import type { FrameData } from './types'
 import { useFrameDetails } from './hooks/useFrameDetails'
+import FrameItem from './FrameItem'
 import {
   validateTimestamp,
   sortFramesByTimestamp,
   isVideoFile,
-  getMediaUrl,
   createFrameKey,
 } from './utils'
 import { SIZES } from './constants'
@@ -93,20 +93,14 @@ const FrameManager: React.FC<FrameManagerProps> = ({
             >
               {/* Frame Preview */}
               <FrameThumbnail $size={SIZES.FRAME_THUMBNAIL}>
-                {frame?.url ? (
-                  isVideoFile(frame.mimeType || undefined) ? (
-                    <video
-                      src={frame.url || ''}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      muted
-                    />
-                  ) : (
-                    <img
-                      src={getMediaUrl(frame, 'small') || frame.url || ''}
-                      alt={frame.category}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  )
+                {frame ? (
+                  <FrameItem
+                    frame={frame}
+                    size={SIZES.FRAME_THUMBNAIL}
+                    usePreviewUrl={true}
+                    showVideoOnHover={false}
+                    playOnHover={false}
+                  />
                 ) : (
                   <div
                     style={{

@@ -379,7 +379,7 @@ export const FrameMarker = styled.div<{ $left: number }>`
 export const InstructionsPanel = styled.div`
   font-size: 0.75rem;
   color: ${COLORS.ELEVATION_600};
-  text-align: center;
+  text-align: left;
   padding: 1rem;
   background-color: ${COLORS.ELEVATION_50};
   border-radius: var(--style-radius-m);
@@ -392,21 +392,6 @@ export const InstructionsTitle = styled.div`
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: ${COLORS.TEXT};
-`
-
-// Keyboard Shortcuts
-export const KeyboardShortcuts = styled.div`
-  font-size: 0.75rem;
-  color: #6b7280;
-  text-align: center;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
-  line-height: 1.3;
-  font-weight: 500;
-  width: 320px;
 `
 
 // State Components

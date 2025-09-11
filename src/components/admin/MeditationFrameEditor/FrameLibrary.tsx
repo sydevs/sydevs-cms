@@ -158,9 +158,11 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
               frame={frame}
               size={SIZES.FRAME_ITEM}
               overlayValue={
-                (isVideoFile(frame.mimeType || undefined) && frame.duration) || undefined
+                (isVideoFile(frame.mimeType || undefined) && `${frame.duration}s`) || undefined
               }
               playOnHover={true}
+              usePreviewUrl={true}
+              showVideoOnHover={true}
               onClick={() => handleFrameClick(frame)}
               isSelected={clickedFrameId === frame.id}
               disabled={disabled}

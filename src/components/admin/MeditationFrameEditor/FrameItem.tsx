@@ -10,8 +10,10 @@ import { FrameItemContainer, FrameTags } from './styled'
 export interface FrameItemProps {
   frame: Frame
   size?: number
-  overlayValue?: number // Value to show in the overlay (timestamp for selected frames, duration for library)
+  overlayValue?: string // Value to show in the overlay (timestamp for selected frames, duration for library)
   playOnHover?: boolean // Enable video play on hover
+  usePreviewUrl?: boolean // Use previewUrl instead of original media - defaults to true
+  showVideoOnHover?: boolean // Show video element on hover for video frames - defaults to false
   onClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
@@ -25,6 +27,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
   size = 160,
   overlayValue,
   playOnHover = false,
+  usePreviewUrl = true,
+  showVideoOnHover = false,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -33,8 +37,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
   className = '',
 }) => {
   const [isClicked, setIsClicked] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
 
   const imageUrl = getMediaUrl(frame, 'small')
+  const previewUrl = frame.previewUrl || imageUrl
   const isVideo = isVideoFile(frame.mimeType || undefined)
 
   const handleClick = () => {
@@ -59,6 +65,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
       const video = e.currentTarget.querySelector('video')
       video?.play()
     }
+
+    if (showVideoOnHover && isVideo) {
+      setShowVideo(true)
+    }
   }
 
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -74,6 +84,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
       const video = e.currentTarget.querySelector('video')
       video?.pause()
     }
+
+    if (showVideoOnHover && isVideo) {
+      setShowVideo(false)
+    }
   }
 
   const imageContainerStyle: React.CSSProperties = {
@@ -83,7 +97,9 @@ const FrameItem: React.FC<FrameItemProps> = ({
   }
 
   const renderMedia = () => {
-    if (!imageUrl) {
+    const displayUrl = usePreviewUrl ? previewUrl : imageUrl
+
+    if (!displayUrl) {
       return (
         <div
           style={{
@@ -100,69 +116,72 @@ const FrameItem: React.FC<FrameItemProps> = ({
       )
     }
 
-    if (isVideo) {
-      // Check if we have a generated thumbnail in the sizes object
-      const thumbnailUrl = frame.sizes?.small?.url
-      
-      if (thumbnailUrl) {
-        // Display generated thumbnail for video
-        return (
-          <>
-            <Image
-              src={thumbnailUrl}
-              alt={frame.category || 'Video Frame'}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              width={frame.sizes?.small?.width || size}
-              height={frame.sizes?.small?.height || size}
-            />
-            {/* Play button overlay for video indication */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '4px',
-                left: '4px',
-                color: 'white',
-                fontSize: '16px',
-                textShadow: '0 0 4px rgba(0,0,0,0.5)',
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                borderRadius: '50%',
-                width: '24px',
-                height: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              ▶
-            </div>
-          </>
-        )
-      }
-      
-      // Fallback to original video element
+    // For video frames with showVideoOnHover enabled, show video when hovering
+    if (isVideo && showVideoOnHover && showVideo) {
       return (
-        <video
-          src={frame.url || ''}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-          muted
-          loop
-          autoPlay={false}
-        />
+        <>
+          {/* Show preview image as background while video loads */}
+          <Image
+            src={displayUrl}
+            alt={frame.category || 'Video Frame'}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              position: 'absolute',
+            }}
+            width={frame.sizes?.small?.width || size}
+            height={frame.sizes?.small?.height || size}
+          />
+          {/* Video element on top */}
+          <video
+            src={frame.url || ''}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+            }}
+            muted
+            loop
+            autoPlay={playOnHover}
+          />
+        </>
       )
     }
 
+    // Default case: show preview image
     return (
-      <Image
-        src={imageUrl}
-        alt={frame.category || 'Frame'}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        width={frame.sizes?.small?.width || frame.width || size}
-        height={frame.sizes?.small?.height || frame.height || size}
-      />
+      <>
+        <Image
+          src={displayUrl}
+          alt={frame.category || (isVideo ? 'Video Frame' : 'Frame')}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          width={frame.sizes?.small?.width || frame.width || size}
+          height={frame.sizes?.small?.height || frame.height || size}
+        />
+        {/* Play button overlay for video indication when using preview */}
+        {isVideo && usePreviewUrl && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '4px',
+              left: '4px',
+              backgroundColor: 'rgba(0,0,0,0.45)',
+              color: 'white',
+              fontSize: '0.875rem',
+              padding: '4px',
+              borderRadius: '4px',
+              lineHeight: 1,
+              fontWeight: '600',
+            }}
+          >
+            ▶
+          </div>
+        )}
+      </>
     )
   }
 
@@ -181,7 +200,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
       <div style={imageContainerStyle}>
         {renderMedia()}
 
-        {overlayValue !== undefined && (
+        {overlayValue && (
           <div
             style={{
               position: 'absolute',
@@ -196,7 +215,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
               fontWeight: '600',
             }}
           >
-            {overlayValue}s
+            {overlayValue}
           </div>
         )}
       </div>

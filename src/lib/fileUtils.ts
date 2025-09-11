@@ -76,7 +76,7 @@ export const extractVideoThumbnail = async (videoBuffer: Buffer): Promise<Buffer
         .on('end', async () => {
           try {
             const thumbnailBuffer = await sharp(outputFile.name)
-              .resize(160, 160, { fit: 'cover' })
+              .resize(320, 320, { fit: 'cover' })
               .webp({ quality: 95 })
               .toBuffer()
 

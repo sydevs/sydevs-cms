@@ -5,7 +5,7 @@ import AudioPlayer from '../AudioPlayer'
 import FrameItem from '../FrameItem'
 import type { FrameData } from '../types'
 import { useFrameDetails } from '../hooks/useFrameDetails'
-import { sortFramesByTimestamp } from '../utils'
+import { formatTime, sortFramesByTimestamp } from '../utils'
 import {
   CollapsedView as StyledCollapsedView,
   CollapsedRight,
@@ -61,7 +61,10 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
                     key={`${frameData.frame}-${frameData.timestamp}-${index}`}
                     frame={frame}
                     size={120}
-                    overlayValue={frameData.timestamp}
+                    overlayValue={formatTime(frameData.timestamp)}
+                    usePreviewUrl={true}
+                    showVideoOnHover={false}
+                    playOnHover={false}
                   />
                 )
               })}
