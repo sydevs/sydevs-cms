@@ -1,8 +1,13 @@
 import type { CollectionConfig, Validate } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { FrameData } from '@/components/admin/MeditationFrameEditor/types'
-import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import {
+  buildFrameData,
+  convertFile,
+  generateSlug,
+  processFile,
+  sanitizeFilename,
+} from '@/lib/fieldUtils'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -179,62 +184,7 @@ export const Meditations: CollectionConfig = {
         return true
       },
       hooks: {
-        beforeChange: [
-          ({ value }) => {
-            if (!value || !Array.isArray(value)) return value
-
-            // Sort frames by timestamp for consistent ordering
-            return [...value]
-              .map((v) => {
-                return {
-                  ...v,
-                  timestamp: Math.round(v.timestamp),
-                }
-              })
-              .sort((a, b) => a.timestamp - b.timestamp)
-          },
-        ],
-      },
-    },
-    {
-      name: 'frameData',
-      type: 'json',
-      virtual: true,
-      admin: {
-        hidden: true,
-      },
-      hooks: {
-        afterRead: [
-          async ({ data, req }) => {
-            const frames = (data?.frames as FrameData[]) || []
-            if (frames.length === 0) return []
-
-            const frameIds = frames.map((f) => f?.frame).filter(Boolean)
-            if (frameIds.length === 0) return []
-
-            const frameDocs = await req.payload.find({
-              collection: 'frames',
-              where: { id: { in: frameIds } },
-              limit: frameIds.length,
-            })
-
-            const frameMap = Object.fromEntries(frameDocs.docs.map((frame) => [frame.id, frame]))
-
-            return frames
-              .map((item) => {
-                const frameDoc = frameMap[item.frame]
-                if (!frameDoc?.url) {
-                  req.payload.logger.warn(
-                    `Frame ${item.frame} not found for meditation ${data?.id}`,
-                  )
-                  return null
-                }
-                return { url: frameDoc.url, timestamp: item.timestamp }
-              })
-              .filter(Boolean)
-              .sort((a: any, b: any) => a.timestamp - b.timestamp)
-          },
-        ],
+        beforeChange: [buildFrameData],
       },
     },
     {

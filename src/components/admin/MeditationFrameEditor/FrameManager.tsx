@@ -2,14 +2,8 @@
 
 import React, { useCallback } from 'react'
 import type { FrameData } from './types'
-import { useFrameDetails } from './hooks/useFrameDetails'
 import FrameItem from './FrameItem'
-import {
-  validateTimestamp,
-  sortFramesByTimestamp,
-  isVideoFile,
-  createFrameKey,
-} from './utils'
+import { validateTimestamp, sortFramesByTimestamp, isVideoFile, createFrameKey } from './utils'
 import { SIZES } from './constants'
 import {
   ComponentContainer,
@@ -37,9 +31,6 @@ const FrameManager: React.FC<FrameManagerProps> = ({
   onFramesChange,
   readOnly = false,
 }) => {
-  const frameIds = frames.map((f) => f.frame)
-  const { frameDetails, isLoading } = useFrameDetails(frameIds)
-
   const handleTimestampChange = useCallback(
     (index: number, newTimestamp: number) => {
       const updatedFrames = [...frames]
@@ -83,7 +74,6 @@ const FrameManager: React.FC<FrameManagerProps> = ({
 
       <FrameManagerList>
         {frames.map((frameData, index) => {
-          const frame = frameDetails[frameData.frame]
           const timestampError = getTimestampError(frameData.timestamp, index)
 
           return (
@@ -93,36 +83,23 @@ const FrameManager: React.FC<FrameManagerProps> = ({
             >
               {/* Frame Preview */}
               <FrameThumbnail $size={SIZES.FRAME_THUMBNAIL}>
-                {frame ? (
-                  <FrameItem
-                    frame={frame}
-                    size={SIZES.FRAME_THUMBNAIL}
-                    usePreviewUrl={true}
-                    showVideoOnHover={false}
-                    playOnHover={false}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      color: 'var(--theme-elevation-500)',
-                      fontSize: '0.625rem',
-                    }}
-                  >
-                    {isLoading ? '...' : 'N/A'}
-                  </div>
-                )}
+                <FrameItem
+                  frame={frameData}
+                  size={SIZES.FRAME_THUMBNAIL}
+                  usePreviewUrl={true}
+                  showVideoOnHover={false}
+                  playOnHover={false}
+                />
               </FrameThumbnail>
 
               {/* Frame Info */}
               <FrameInfo>
-                <FrameInfoTitle>{frame?.category || `Frame ${frameData.frame}`}</FrameInfoTitle>
-                {frame && isVideoFile(frame.mimeType || undefined) && frame.duration && (
-                  <FrameInfoSubtext>{frame.duration}s video</FrameInfoSubtext>
-                )}
+                <FrameInfoTitle>{frameData.category || `Frame ${frameData.frame}`}</FrameInfoTitle>
+                {frameData &&
+                  isVideoFile(frameData.mimeType || undefined) &&
+                  frameData.duration && (
+                    <FrameInfoSubtext>{frameData.duration}s video</FrameInfoSubtext>
+                  )}
               </FrameInfo>
 
               {/* Timestamp Input */}

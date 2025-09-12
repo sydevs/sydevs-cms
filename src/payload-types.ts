@@ -208,15 +208,6 @@ export interface Meditation {
     | number
     | boolean
     | null;
-  frameData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -866,7 +857,6 @@ export interface MeditationsSelect<T extends boolean = true> {
   tags?: T;
   musicTag?: T;
   frames?: T;
-  frameData?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;

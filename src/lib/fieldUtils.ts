@@ -5,6 +5,7 @@ import {
   CollectionBeforeChangeHook,
   CollectionBeforeOperationHook,
   CollectionBeforeValidateHook,
+  FieldHook,
 } from 'payload'
 import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
@@ -12,6 +13,7 @@ import slugify from 'slugify'
 import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
 import tmp from 'tmp'
 import fs from 'fs'
+import { FrameData } from '@/components/admin/MeditationFrameEditor/types'
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -227,4 +229,50 @@ export const generateSlug: CollectionBeforeChangeHook = async ({
   }
 
   return data
+}
+
+type FrameConfig = { frame: string; timestamp: number }
+
+export const buildFrameData: FieldHook = async ({ value, req }) => {
+  if (!value || !Array.isArray(value)) return []
+  const frames = value as FrameConfig[]
+
+  // Fetch frame data
+  const frameIds = frames.map((f) => f?.frame).filter(Boolean)
+  if (frameIds.length === 0) return []
+
+  const frameDocs = await req.payload.find({
+    collection: 'frames',
+    where: { id: { in: frameIds } },
+    limit: frameIds.length,
+  })
+
+  // Create map of relevant frame data
+  const frameMap = Object.fromEntries(
+    frameDocs.docs.map((frame) => [
+      frame.id,
+      {
+        url: frame.url,
+        duration: frame.duration,
+        previewUrl: frame.previewUrl,
+        category: frame.category,
+        tags: frame.tags,
+        sizes: frame.sizes,
+        width: frame.width,
+        height: frame.height,
+        mimeType: frame.mimeType,
+      } as Omit<FrameData, 'frame' | 'timestamp'>,
+    ]),
+  )
+
+  // Add data to each frame and sort by timestamp
+  return frames
+    .map((v) => {
+      return {
+        ...v,
+        ...frameMap[v.frame],
+        timestamp: Math.round(v.timestamp),
+      } as FrameData
+    })
+    .sort((a, b) => a.timestamp - b.timestamp)
 }

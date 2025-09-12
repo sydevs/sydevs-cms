@@ -1,4 +1,5 @@
 import { LIMITS } from './constants'
+import type { FrameData } from './types'
 
 export const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60)
@@ -45,7 +46,7 @@ export const pauseAllMedia = (): void => {
   })
 }
 
-export const getCurrentFrame = (frames: Array<{timestamp: number, frame: string}>, currentTime: number) => {
+export const getCurrentFrame = (frames: FrameData[], currentTime: number): FrameData | null => {
   if (frames.length === 0) return null
 
   const sortedFrames = [...frames].sort((a, b) => a.timestamp - b.timestamp)
@@ -89,7 +90,7 @@ export const roundToNearestSecond = (time: number): number => {
   return Math.round(time)
 }
 
-export const getNextFrameTimestamp = (frames: Array<{timestamp: number}>, currentTime: number): number | null => {
+export const getNextFrameTimestamp = (frames: FrameData[], currentTime: number): number | null => {
   const futureFrames = frames.filter(f => f.timestamp > currentTime)
   if (futureFrames.length === 0) return null
   

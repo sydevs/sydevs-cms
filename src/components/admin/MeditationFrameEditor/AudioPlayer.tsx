@@ -9,7 +9,6 @@ import React, {
   forwardRef,
 } from 'react'
 import type { FrameData } from './types'
-import { useFrameDetails } from './hooks/useFrameDetails'
 import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 import { SIZES } from './constants'
 import { AudioPlayerContainer, AudioPreview, EmptyState } from './styled'
@@ -52,8 +51,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const [audioBlob, setAudioBlob] = useState<string | null>(null)
     const [loadingBlob, setLoadingBlob] = useState(false)
 
-    const frameIds = frames.map((f) => f.frame)
-    const { frameDetails } = useFrameDetails(frameIds)
 
     // Size configurations
     const config = {
@@ -69,7 +66,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
     // Find current frame
     const currentFrame = getCurrentFrame(frames, currentTime)
-    const currentFrameDetails = currentFrame ? frameDetails[currentFrame.frame] : null
+    const currentFrameDetails = currentFrame ? currentFrame.frameDetails : null
 
     // Load audio as blob to enable proper seeking
     useEffect(() => {
@@ -314,7 +311,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
                     <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                       Frame{' '}
                       {frames.findIndex(
-                        (f) => frameDetails[f.frame]?.id === currentFrameDetails.id,
+                        (f) => f.frameDetails?.id === currentFrameDetails.id,
                       ) + 1}{' '}
                       of {frames.length}
                     </div>

@@ -4,7 +4,6 @@ import React from 'react'
 import AudioPlayer from '../AudioPlayer'
 import FrameItem from '../FrameItem'
 import type { FrameData } from '../types'
-import { useFrameDetails } from '../hooks/useFrameDetails'
 import { formatTime, sortFramesByTimestamp } from '../utils'
 import {
   CollapsedView as StyledCollapsedView,
@@ -30,8 +29,6 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
   onEditClick,
   readOnly = false,
 }) => {
-  const frameIds = frames.map((f) => f.frame)
-  const { frameDetails } = useFrameDetails(frameIds)
   const sortedFrames = sortFramesByTimestamp(frames)
 
   return (
@@ -53,13 +50,10 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
             <SelectedFramesTitle>Selected Frames ({frames.length})</SelectedFramesTitle>
             <SelectedFramesGrid>
               {sortedFrames.map((frameData, index) => {
-                const frame = frameDetails[frameData.frame]
-                if (!frame) return null
-
                 return (
                   <FrameItem
                     key={`${frameData.frame}-${frameData.timestamp}-${index}`}
-                    frame={frame}
+                    frame={frameData}
                     size={120}
                     overlayValue={formatTime(frameData.timestamp)}
                     usePreviewUrl={true}

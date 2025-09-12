@@ -2,7 +2,6 @@
 
 import React, { useMemo } from 'react'
 import type { FrameData } from './types'
-import { useFrameDetails } from './hooks/useFrameDetails'
 import {
   getCurrentFrame,
   getNextFrameTimestamp,
@@ -14,7 +13,6 @@ import { COLORS } from './constants'
 import {
   ComponentHeader,
   ComponentHeaderCount,
-  LoadingState,
   PreviewContainer,
   TimelineTrack,
   TimelineMarker,
@@ -33,12 +31,9 @@ const FramePreview: React.FC<FramePreviewProps> = ({
   width = 300,
   height = 225,
 }) => {
-  const frameIds = frames.map((f) => f.frame)
-  const { frameDetails, isLoading } = useFrameDetails(frameIds)
-
   // Find the current frame based on audio timestamp
   const currentFrame = getCurrentFrame(frames, currentTime)
-  const currentFrameDetails = currentFrame ? frameDetails[currentFrame.frame] : null
+  const currentFrameDetails = currentFrame ? currentFrame.frameDetails : null
   const nextFrameTime = getNextFrameTimestamp(frames, currentTime)
 
   // Timeline visualization
@@ -87,17 +82,6 @@ const FramePreview: React.FC<FramePreviewProps> = ({
     )
   }
 
-  // Loading frame details
-  if (isLoading && Object.keys(frameDetails).length === 0) {
-    return (
-      <div>
-        <ComponentHeader>Live Preview</ComponentHeader>
-        <LoadingState style={{ width: `${width}px`, height: `${height}px` }}>
-          Loading frames...
-        </LoadingState>
-      </div>
-    )
-  }
 
   // No current frame at this timestamp
   if (!currentFrame) {
@@ -179,7 +163,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
               fontSize: '0.875rem',
             }}
           >
-            {isLoading ? 'Loading...' : 'Frame not available'}
+            Frame not available
           </div>
         )}
 
@@ -224,7 +208,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
               key={createFrameKey(frame.frame, frame.timestamp)}
               $left={position}
               $isActive={isActive}
-              title={`Frame ${index + 1}: ${frame.timestamp}s - ${frameDetails[frame.frame]?.category || 'Unknown'}`}
+              title={`Frame ${index + 1}: ${frame.timestamp}s - ${frame.frameDetails?.category || 'Unknown'}`}
             />
           ))}
 
