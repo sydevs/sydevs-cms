@@ -44,13 +44,13 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
   ) => {
     const audioRef = useRef<HTMLAudioElement>(null)
     const progressRef = useRef<HTMLDivElement>(null)
+    const currentBlobRef = useRef<string | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
     const [isLoaded, setIsLoaded] = useState(false)
     const [audioBlob, setAudioBlob] = useState<string | null>(null)
     const [loadingBlob, setLoadingBlob] = useState(false)
-
 
     // Size configurations
     const config = {
@@ -66,14 +66,19 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
     // Find current frame
     const currentFrame = getCurrentFrame(frames, currentTime)
-    const currentFrameDetails = currentFrame ? currentFrame.frameDetails : null
 
     // Load audio as blob to enable proper seeking
     useEffect(() => {
-      if (!audioUrl) return
-
-      // Don't reload if already loading the same URL
-      if (loadingBlob) return
+      if (!audioUrl) {
+        // Clean up previous blob URL if it exists
+        if (currentBlobRef.current && currentBlobRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(currentBlobRef.current)
+        }
+        currentBlobRef.current = null
+        setAudioBlob(null)
+        setLoadingBlob(false)
+        return
+      }
 
       const loadAudioBlob = async () => {
         setLoadingBlob(true)
@@ -83,9 +88,17 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
           const blob = await response.blob()
           const blobUrl = URL.createObjectURL(blob)
+
+          // Clean up previous blob URL if it exists
+          if (currentBlobRef.current && currentBlobRef.current.startsWith('blob:')) {
+            URL.revokeObjectURL(currentBlobRef.current)
+          }
+
+          currentBlobRef.current = blobUrl
           setAudioBlob(blobUrl)
         } catch (error) {
           console.warn('Failed to load audio as blob, using direct URL:', error)
+          currentBlobRef.current = audioUrl
           setAudioBlob(audioUrl) // Fallback to direct URL
         } finally {
           setLoadingBlob(false)
@@ -93,21 +106,16 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       }
 
       loadAudioBlob()
-
-      // Cleanup blob URL on unmount or URL change
-      return () => {
-        // We'll clean up the previous blob URL when setting a new one
-      }
-    }, [audioUrl, loadingBlob])
+    }, [audioUrl])
 
     // Cleanup blob URL when component unmounts
     useEffect(() => {
       return () => {
-        if (audioBlob && audioBlob.startsWith('blob:')) {
-          URL.revokeObjectURL(audioBlob)
+        if (currentBlobRef.current && currentBlobRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(currentBlobRef.current)
         }
       }
-    }, [audioBlob])
+    }, [])
 
     // Expose pause function via ref
     useImperativeHandle(
@@ -254,10 +262,10 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           {/* Preview Area */}
           {showPreview && (
             <AudioPreview $width={config.preview} $height={config.preview}>
-              {currentFrameDetails ? (
-                isVideoFile(currentFrameDetails.mimeType || undefined) ? (
+              {currentFrame ? (
+                isVideoFile(currentFrame.mimeType || undefined) ? (
                   <video
-                    src={currentFrameDetails.url || ''}
+                    src={currentFrame.url || ''}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -270,8 +278,8 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
                   />
                 ) : (
                   <img
-                    src={getMediaUrl(currentFrameDetails, 'medium') || undefined}
-                    alt={currentFrameDetails.category}
+                    src={getMediaUrl(currentFrame, 'medium') || undefined}
+                    alt={currentFrame.category}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -293,7 +301,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               )}
 
               {/* Frame info overlay */}
-              {currentFrameDetails && (
+              {currentFrame && (
                 <div
                   style={{
                     position: 'absolute',
@@ -306,14 +314,11 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
                     fontSize: config.fontSize,
                   }}
                 >
-                  <div style={{ fontWeight: '500' }}>{currentFrameDetails.category}</div>
+                  <div style={{ fontWeight: '500' }}>{currentFrame.category}</div>
                   {frames.length > 1 && (
                     <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
-                      Frame{' '}
-                      {frames.findIndex(
-                        (f) => f.frameDetails?.id === currentFrameDetails.id,
-                      ) + 1}{' '}
-                      of {frames.length}
+                      Frame {frames.findIndex((f) => f.id === currentFrame.id) + 1} of{' '}
+                      {frames.length}
                     </div>
                   )}
                 </div>

@@ -38,6 +38,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
 }) => {
   const [isClicked, setIsClicked] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   const imageUrl = getMediaUrl(frame, 'small')
   const previewUrl = frame.previewUrl || imageUrl
@@ -99,19 +100,27 @@ const FrameItem: React.FC<FrameItemProps> = ({
   const renderMedia = () => {
     const displayUrl = usePreviewUrl ? previewUrl : imageUrl
 
-    if (!displayUrl) {
+    if (!displayUrl || imageError) {
       return (
         <div
           style={{
             position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            backgroundColor: '#f3f4f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
             color: '#6b7280',
             fontSize: '0.75rem',
+            textAlign: 'center',
           }}
         >
-          No preview
+          <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🧘</div>
+          <div>{frame.category}</div>
         </div>
       )
     }
@@ -132,6 +141,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
             }}
             width={frame.sizes?.small?.width || size}
             height={frame.sizes?.small?.height || size}
+            onError={() => setImageError(true)}
           />
           {/* Loading spinner */}
           <svg
@@ -184,9 +194,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
         <Image
           src={displayUrl}
           alt={frame.category || (isVideo ? 'Video Frame' : 'Frame')}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }}
           width={frame.sizes?.small?.width || frame.width || size}
           height={frame.sizes?.small?.height || frame.height || size}
+          onError={() => setImageError(true)}
         />
         {/* Play button overlay for video indication when using preview */}
         {isVideo && usePreviewUrl && (

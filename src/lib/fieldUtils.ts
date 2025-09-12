@@ -252,6 +252,7 @@ export const buildFrameData: FieldHook = async ({ value, req }) => {
     frameDocs.docs.map((frame) => [
       frame.id,
       {
+        id: frame.id,
         url: frame.url,
         duration: frame.duration,
         previewUrl: frame.previewUrl,

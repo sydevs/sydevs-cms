@@ -6,6 +6,7 @@ export type FrameData = {
   timestamp: number // Time in seconds
 } & Pick<
   Frame,
+  | 'id'
   | 'url'
   | 'duration'
   | 'previewUrl'
