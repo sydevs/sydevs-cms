@@ -3,7 +3,7 @@
 import React from 'react'
 import AudioPlayer from '../AudioPlayer'
 import FrameItem from '../FrameItem'
-import type { FrameData } from '../types'
+import type { KeyframeData } from '../types'
 import { formatTime, sortFramesByTimestamp } from '../utils'
 import {
   CollapsedView as StyledCollapsedView,
@@ -17,7 +17,7 @@ import {
 } from '../styled'
 
 interface CollapsedViewProps {
-  frames: FrameData[]
+  frames: KeyframeData[]
   audioUrl: string | null
   onEditClick: () => void
   readOnly?: boolean
@@ -52,7 +52,7 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
               {sortedFrames.map((frameData, index) => {
                 return (
                   <FrameItem
-                    key={`${frameData.frame}-${frameData.timestamp}-${index}`}
+                    key={`${frameData.id}-${frameData.timestamp}-${index}`}
                     frame={frameData}
                     size={120}
                     overlayValue={formatTime(frameData.timestamp)}

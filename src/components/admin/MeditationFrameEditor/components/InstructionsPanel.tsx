@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { FrameData } from '../types'
+import type { KeyframeData } from '../types'
 import type { Narrator } from '@/payload-types'
 import { InstructionsPanel as StyledInstructionsPanel, InstructionsTitle } from '../styled'
 import { formatTime } from '../utils'
@@ -9,7 +9,7 @@ import { formatTime } from '../utils'
 interface InstructionsPanelProps {
   narrator: Narrator | null
   currentTime: number
-  frames: FrameData[]
+  frames: KeyframeData[]
 }
 
 const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ narrator, currentTime, frames }) => {

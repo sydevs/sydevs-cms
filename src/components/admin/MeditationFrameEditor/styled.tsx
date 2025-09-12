@@ -453,6 +453,7 @@ export const FramesGrid = styled.div<{ $columns: string; $gap: string }>`
   border-radius: var(--style-radius-m);
   border: 1px solid ${COLORS.BORDER};
   min-height: 0;
+  justify-items: center;
 `
 
 export const FrameManagerList = styled.div`
@@ -467,7 +468,7 @@ export const FrameManagerList = styled.div`
 export const FrameManagerItem = styled.div<{ $isLast?: boolean }>`
   display: flex;
   align-items: center;
-  padding: 0.75rem;
+  padding: 0.1rem;
   border-bottom: ${(props) => (props.$isLast ? 'none' : `1px solid ${COLORS.BORDER}`)};
   gap: 0.5rem;
 `
@@ -475,6 +476,7 @@ export const FrameManagerItem = styled.div<{ $isLast?: boolean }>`
 export const FrameInfo = styled.div`
   flex: 1;
   min-width: 0;
+  line-height: 1em;
 `
 
 export const FrameInfoTitle = styled.div`

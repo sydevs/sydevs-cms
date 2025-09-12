@@ -1,22 +1,9 @@
 import type { Frame } from '@/payload-types'
 
 // Types that are not defined in payload-types.ts
-export type FrameData = {
-  frame: string // Relationship ID to frames collection
-  timestamp: number // Time in seconds
-} & Pick<
-  Frame,
-  | 'id'
-  | 'url'
-  | 'duration'
-  | 'previewUrl'
-  | 'sizes'
-  | 'category'
-  | 'mimeType'
-  | 'width'
-  | 'height'
-  | 'tags'
->
+export type KeyframeData = {
+  timestamp: number
+} & Partial<Frame>
 
 export interface AudioPlayerState {
   isPlaying: boolean

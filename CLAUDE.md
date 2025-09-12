@@ -241,7 +241,7 @@ The **Audio-Synchronized Frame Editor** is a sophisticated custom field componen
 #### Component Structure
 - `src/components/admin/MeditationFrameEditor/`
   - `index.tsx` - Main component integrating with Payload's field system using `useField` hook
-  - `types.ts` - TypeScript interfaces for FrameData and component props
+  - `types.ts` - TypeScript interfaces for KeyframeData and component props
   - `MeditationFrameEditorModal.tsx` - Modal wrapper with collapsed/expanded states
   - `AudioPlayer.tsx` - HTML5 audio player with timeline and frame markers
   - `FrameLibrary.tsx` - Grid display of available frames with filtering
@@ -260,7 +260,7 @@ The **Audio-Synchronized Frame Editor** is a sophisticated custom field componen
 - **First-Frame Rule**: Automatically sets first frame to 0 seconds
 
 #### Data Integration
-- **Field Integration**: Uses `useField<FrameData[]>` hook for Payload compatibility
+- **Field Integration**: Uses `useField<KeyframeData[]>` hook for Payload compatibility
 - **Dynamic Loading**: Loads audio URL and narrator data from sibling fields
 - **API Integration**: Fetches frames and narrator data via Payload's REST API
 - **State Management**: Temporary state for modal with save/cancel functionality

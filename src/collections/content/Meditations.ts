@@ -2,7 +2,7 @@ import type { CollectionConfig, Validate } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import {
-  buildFrameData,
+  buildKeyframeData,
   convertFile,
   generateSlug,
   processFile,
@@ -161,7 +161,7 @@ export const Meditations: CollectionConfig = {
             return `Frame ${i + 1} must be an object`
           }
 
-          if (!frame.frame || typeof frame.frame !== 'string') {
+          if (!frame.id || typeof frame.id !== 'string') {
             return `Frame ${i + 1} must have a valid frame relationship ID`
           }
 
@@ -184,7 +184,7 @@ export const Meditations: CollectionConfig = {
         return true
       },
       hooks: {
-        beforeChange: [buildFrameData],
+        beforeChange: [buildKeyframeData],
       },
     },
     {

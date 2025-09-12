@@ -5,10 +5,10 @@ import Image from 'next/image'
 import { isVideoFile, getMediaUrl } from './utils'
 import { LIMITS } from './constants'
 import { FrameItemContainer, FrameTags } from './styled'
-import { FrameData } from './types'
+import { KeyframeData } from './types'
 
 export interface FrameItemProps {
-  frame: Omit<FrameData, 'frame' | 'timestamp'> & Partial<Pick<FrameData, 'frame' | 'timestamp'>>
+  frame: Omit<KeyframeData, 'timestamp'> & Partial<Pick<KeyframeData, 'timestamp'>>
   size?: number
   overlayValue?: string // Value to show in the overlay (timestamp for selected frames, duration for library)
   playOnHover?: boolean // Enable video play on hover

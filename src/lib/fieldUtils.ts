@@ -13,7 +13,7 @@ import slugify from 'slugify'
 import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
 import tmp from 'tmp'
 import fs from 'fs'
-import { FrameData } from '@/components/admin/MeditationFrameEditor/types'
+import { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -231,14 +231,12 @@ export const generateSlug: CollectionBeforeChangeHook = async ({
   return data
 }
 
-type FrameConfig = { frame: string; timestamp: number }
-
-export const buildFrameData: FieldHook = async ({ value, req }) => {
+export const buildKeyframeData: FieldHook = async ({ value, req }) => {
   if (!value || !Array.isArray(value)) return []
-  const frames = value as FrameConfig[]
+  const frames = value as KeyframeData[]
 
   // Fetch frame data
-  const frameIds = frames.map((f) => f?.frame).filter(Boolean)
+  const frameIds = frames.map((f) => f?.id).filter(Boolean)
   if (frameIds.length === 0) return []
 
   const frameDocs = await req.payload.find({
@@ -262,18 +260,21 @@ export const buildFrameData: FieldHook = async ({ value, req }) => {
         width: frame.width,
         height: frame.height,
         mimeType: frame.mimeType,
-      } as Omit<FrameData, 'frame' | 'timestamp'>,
+      } as KeyframeData,
     ]),
   )
 
   // Add data to each frame and sort by timestamp
   return frames
     .map((v) => {
+      if (!v.id) return null
+
       return {
         ...v,
-        ...frameMap[v.frame],
+        ...frameMap[v.id],
         timestamp: Math.round(v.timestamp),
-      } as FrameData
+      } as KeyframeData
     })
+    .filter((v) => v != null)
     .sort((a, b) => a.timestamp - b.timestamp)
 }

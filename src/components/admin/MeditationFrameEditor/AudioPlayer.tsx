@@ -8,14 +8,14 @@ import React, {
   useCallback,
   forwardRef,
 } from 'react'
-import type { FrameData } from './types'
+import type { KeyframeData } from './types'
 import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 import { SIZES } from './constants'
 import { AudioPlayerContainer, AudioPreview, EmptyState } from './styled'
 
 interface AudioPlayerProps {
   audioUrl: string | null
-  frames: FrameData[]
+  frames: KeyframeData[]
   onTimeChange?: (time: number) => void
   onSeek?: (time: number) => void
   size?: 'small' | 'large'
@@ -408,7 +408,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               {duration > 0 &&
                 frames.map((frame, index) => (
                   <div
-                    key={`${frame.frame}-${frame.timestamp}-${index}`}
+                    key={`${frame.id}-${frame.timestamp}-${index}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleMarkerClick(frame.timestamp)
