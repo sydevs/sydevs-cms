@@ -77,11 +77,72 @@ If necessary, you should also run `pnpm run generate:types`
 - **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
+- **Articles** (`src/collections/content/Articles.ts`) - **Block-based content collection** with flexible, modular article creation using predefined content blocks, categories, tags, and publish scheduling (NOT accessible via client API)
 - **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships (title field is localized)
 - **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata (title and credit fields are localized)
 - **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 - **MeditationFrames** (`src/collections/MeditationFrames.ts`) - Join table for meditation-frame relationships with timestamps (hidden from admin UI)
 - **Clients** (`src/collections/Clients.ts`) - API client management with authentication keys, usage tracking, granular collection/locale-based permissions, and high-usage alerts
+
+### Articles Collection & Block System Architecture
+
+The **Articles Collection** implements a flexible, modular content creation system using Payload's blocks field type. This enables editors to build rich article layouts using predefined content blocks while maintaining consistency and reusability.
+
+#### Articles Collection Structure
+- **Location**: `src/collections/content/Articles.ts`
+- **Core Fields**:
+  - `title` (text, required, localized) - Article title with auto-generated slug
+  - `thumbnail` (upload relationship to Media, required) - Article thumbnail image
+  - `slug` (text, unique, auto-generated) - URL-friendly identifier generated from title
+  - `publishAt` (date, optional) - Schedule publishing date (uses PublishStateCell component)
+  - `category` (select, required) - Article category: technique, artwork, event, knowledge
+  - `tags` (select, hasMany, optional) - Article tags: living, creativity, wisdom, stories, events
+  - `content` (blocks) - Main content area using block-based system
+
+#### Block System Components (`src/blocks/`)
+The system provides 5 distinct block types for flexible content creation:
+
+1. **ContentBlock** (`ContentBlock.ts`) - General purpose content block:
+   - `title` (text, optional, localized) - Block title
+   - `text` (richText, required, localized) - Main content with 250-character limit validation
+   - `image` (upload relationship to Media, optional) - Accompanying image
+   - `link` (text, optional) - URL field for external links
+   - `actionText` (text, optional, localized) - Call-to-action text for links
+
+2. **ImageBlock** (`ImageBlock.ts`) - Image display block:
+   - `image` (upload relationship to Media, required) - Image to display
+   - `caption` (text, optional, localized) - Image caption
+   - `display` (select) - Display style: normal, full, floatLeft, floatRight
+
+3. **TextBlock** (`TextBlock.ts`) - Rich text content block:
+   - `title` (text, optional, localized) - Block title
+   - `text` (richText, required, localized) - Rich text content
+
+4. **LayoutBlock** (`LayoutBlock.ts`) - Multi-item layout block:
+   - `style` (select, required) - Layout style: grid, columns, accordion
+   - `items` (array) - Collection of items, each containing:
+     - `image` (upload relationship to Media, optional)
+     - `title` (text, optional, localized)
+     - `text` (richText, optional, localized)
+     - `link` (text, optional) - URL field
+
+5. **ShowcaseBlock** (`ShowcaseBlock.ts`) - Content showcase block:
+   - `title` (text, optional, localized) - Block title
+   - `collectionType` (select, required) - Target collection: media, meditations, articles
+   - `items` (relationship, hasMany, max: 10) - Related content items with dynamic collection filtering
+
+#### Key Features
+- **Lexical Editor Integration**: Global configuration with limited features (bold, italic, paragraph, lists, links, blockquote, inline toolbar)
+- **Character Count Validation**: ContentBlock text field enforces 250-character limit with HTML stripping
+- **Showcase Block Validation**: Maximum 10 items per showcase with conditional relationship filtering
+- **Localization Support**: All text content fields support English/Czech localization
+- **API Restrictions**: Articles collection is NOT accessible via client API (excluded from accessControl.ts)
+- **Admin Integration**: Uses existing PublishStateCell, ThumbnailCell, and slug generation utilities
+
+#### Testing Coverage
+- **Integration Tests**: `tests/int/articles.int.spec.ts` with 13 comprehensive test cases
+- **Test Data Factories**: Enhanced `testData.ts` with `createArticle()` helper function
+- **Block Validation**: Tests for character limits, item counts, and block structure validation
 
 ### Localization Architecture
 
