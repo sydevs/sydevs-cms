@@ -40,7 +40,24 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       autoLogin: !isProduction ? { email: 'contact@sydevelopers.com' } : false,
     },
     collections,
-    editor: lexicalEditor(),
+    editor: lexicalEditor({
+      features: ({ defaultFeatures }) => {
+        const allowedFeatures = [
+          'bold',
+          'italic',
+          'paragraph',
+          'unorderedList',
+          'orderedList',
+          'link',
+          'blockquote',
+          'inlineToolbar',
+        ]
+        
+        return defaultFeatures.filter((feature) => 
+          feature && feature.key && allowedFeatures.includes(feature.key)
+        )
+      },
+    }),
     secret: process.env.PAYLOAD_SECRET || '',
     jobs: {
       tasks,

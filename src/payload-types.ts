@@ -70,6 +70,7 @@ export interface Config {
   collections: {
     meditations: Meditation;
     music: Music;
+    articles: Article;
     frames: Frame;
     media: Media;
     narrators: Narrator;
@@ -97,6 +98,7 @@ export interface Config {
   collectionsSelect: {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
+    articles: ArticlesSelect<false> | ArticlesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
@@ -396,6 +398,191 @@ export interface Music {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "articles".
+ */
+export interface Article {
+  id: string;
+  title: string;
+  thumbnail: string | Media;
+  slug?: string | null;
+  publishAt?: string | null;
+  category: 'technique' | 'artwork' | 'event' | 'knowledge';
+  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
+  /**
+   * Build your article content using blocks
+   */
+  content?:
+    | (
+        | {
+            /**
+             * Optional title for this content block
+             */
+            title?: string | null;
+            /**
+             * Main content text (max 250 characters)
+             */
+            text: {
+              root: {
+                type: string;
+                children: {
+                  type: string;
+                  version: number;
+                  [k: string]: unknown;
+                }[];
+                direction: ('ltr' | 'rtl') | null;
+                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                indent: number;
+                version: number;
+              };
+              [k: string]: unknown;
+            };
+            /**
+             * Optional image to accompany the content
+             */
+            image?: (string | null) | Media;
+            /**
+             * Optional link URL
+             */
+            link?: string | null;
+            /**
+             * Call-to-action text for the link
+             */
+            actionText?: string | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'content';
+          }
+        | {
+            /**
+             * Image to display
+             */
+            image: string | Media;
+            /**
+             * Optional caption for the image
+             */
+            caption?: string | null;
+            /**
+             * Display style for the image
+             */
+            display?: ('normal' | 'full' | 'floatLeft' | 'floatRight') | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'image';
+          }
+        | {
+            /**
+             * Optional title for this text block
+             */
+            title?: string | null;
+            /**
+             * Rich text content
+             */
+            text: {
+              root: {
+                type: string;
+                children: {
+                  type: string;
+                  version: number;
+                  [k: string]: unknown;
+                }[];
+                direction: ('ltr' | 'rtl') | null;
+                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                indent: number;
+                version: number;
+              };
+              [k: string]: unknown;
+            };
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'text';
+          }
+        | {
+            /**
+             * Layout style for the items
+             */
+            style: 'grid' | 'columns' | 'accordion';
+            /**
+             * Items to display in the layout
+             */
+            items?:
+              | {
+                  /**
+                   * Optional image for this item
+                   */
+                  image?: (string | null) | Media;
+                  /**
+                   * Optional title for this item
+                   */
+                  title?: string | null;
+                  /**
+                   * Optional text content for this item
+                   */
+                  text?: {
+                    root: {
+                      type: string;
+                      children: {
+                        type: string;
+                        version: number;
+                        [k: string]: unknown;
+                      }[];
+                      direction: ('ltr' | 'rtl') | null;
+                      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                      indent: number;
+                      version: number;
+                    };
+                    [k: string]: unknown;
+                  } | null;
+                  /**
+                   * Optional link URL for this item
+                   */
+                  link?: string | null;
+                  id?: string | null;
+                }[]
+              | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'layout';
+          }
+        | {
+            /**
+             * Optional title for this showcase
+             */
+            title?: string | null;
+            /**
+             * Type of collection to showcase
+             */
+            collectionType: 'media' | 'meditations' | 'articles';
+            /**
+             * Select items to showcase (max 10)
+             */
+            items?:
+              | (
+                  | {
+                      relationTo: 'media';
+                      value: string | Media;
+                    }
+                  | {
+                      relationTo: 'meditations';
+                      value: string | Meditation;
+                    }
+                  | {
+                      relationTo: 'articles';
+                      value: string | Article;
+                    }
+                )[]
+              | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'showcase';
+          }
+      )[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -747,6 +934,10 @@ export interface PayloadLockedDocument {
         value: string | Music;
       } | null)
     | ({
+        relationTo: 'articles';
+        value: string | Article;
+      } | null)
+    | ({
         relationTo: 'frames';
         value: string | Frame;
       } | null)
@@ -885,6 +1076,78 @@ export interface MusicSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "articles_select".
+ */
+export interface ArticlesSelect<T extends boolean = true> {
+  title?: T;
+  thumbnail?: T;
+  slug?: T;
+  publishAt?: T;
+  category?: T;
+  tags?: T;
+  content?:
+    | T
+    | {
+        content?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              image?: T;
+              link?: T;
+              actionText?: T;
+              id?: T;
+              blockName?: T;
+            };
+        image?:
+          | T
+          | {
+              image?: T;
+              caption?: T;
+              display?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              id?: T;
+              blockName?: T;
+            };
+        layout?:
+          | T
+          | {
+              style?: T;
+              items?:
+                | T
+                | {
+                    image?: T;
+                    title?: T;
+                    text?: T;
+                    link?: T;
+                    id?: T;
+                  };
+              id?: T;
+              blockName?: T;
+            };
+        showcase?:
+          | T
+          | {
+              title?: T;
+              collectionType?: T;
+              items?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
