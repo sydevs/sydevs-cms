@@ -1,6 +1,16 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { 
+  lexicalEditor,
+  BoldFeature,
+  ItalicFeature,
+  ParagraphFeature,
+  UnorderedListFeature,
+  OrderedListFeature,
+  LinkFeature,
+  BlockquoteFeature,
+  InlineToolbarFeature,
+} from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig, Config } from 'payload'
 import { fileURLToPath } from 'url'
@@ -41,22 +51,16 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     collections,
     editor: lexicalEditor({
-      features: ({ defaultFeatures }) => {
-        const allowedFeatures = [
-          'bold',
-          'italic',
-          'paragraph',
-          'unorderedList',
-          'orderedList',
-          'link',
-          'blockquote',
-          'inlineToolbar',
-        ]
-        
-        return defaultFeatures.filter((feature) => 
-          feature && feature.key && allowedFeatures.includes(feature.key)
-        )
-      },
+      features: () => [
+        BoldFeature(),
+        ItalicFeature(),
+        ParagraphFeature(),
+        UnorderedListFeature(),
+        OrderedListFeature(),
+        LinkFeature(),
+        BlockquoteFeature(),
+        InlineToolbarFeature(),
+      ],
     }),
     secret: process.env.PAYLOAD_SECRET || '',
     jobs: {
