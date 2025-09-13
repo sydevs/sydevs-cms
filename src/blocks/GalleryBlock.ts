@@ -1,10 +1,10 @@
 import { Block, Validate } from 'payload'
 
-export const ShowcaseBlock: Block = {
-  slug: 'showcase',
+export const GalleryBlock: Block = {
+  slug: 'gallery',
   labels: {
-    singular: 'Showcase Block',
-    plural: 'Showcase Blocks',
+    singular: 'Gallery',
+    plural: 'Galleries',
   },
   fields: [
     {
@@ -12,7 +12,7 @@ export const ShowcaseBlock: Block = {
       type: 'text',
       localized: true,
       admin: {
-        description: 'Optional title for this showcase',
+        description: 'Optional title for this gallery',
       },
     },
     {
@@ -34,7 +34,7 @@ export const ShowcaseBlock: Block = {
         },
       ],
       admin: {
-        description: 'Type of collection to showcase',
+        description: 'Type of collection to display in gallery',
       },
     },
     {
@@ -53,7 +53,7 @@ export const ShowcaseBlock: Block = {
         return true
       }) as Validate,
       admin: {
-        description: 'Select items to showcase (max 10)',
+        description: 'Select items to display in gallery (max 10)',
         condition: (_, siblingData) => Boolean(siblingData?.collectionType),
       },
     },

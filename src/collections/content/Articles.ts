@@ -1,13 +1,8 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { generateSlug } from '@/lib/fieldUtils'
-import {
-  ContentBlock,
-  ImageBlock,
-  TextBlock,
-  LayoutBlock,
-  ShowcaseBlock,
-} from '@/blocks'
+import { fullRichTextEditor } from '@/lib/richEditor'
+import { TextBoxBlock, LayoutBlock, GalleryBlock } from '@/blocks'
 
 export const Articles: CollectionConfig = {
   slug: 'articles',
@@ -57,6 +52,7 @@ export const Articles: CollectionConfig = {
     {
       name: 'publishAt',
       type: 'date',
+      localized: true,
       admin: {
         position: 'sidebar',
         date: {
@@ -127,17 +123,9 @@ export const Articles: CollectionConfig = {
     },
     {
       name: 'content',
-      type: 'blocks',
-      blocks: [
-        ContentBlock,
-        ImageBlock,
-        TextBlock,
-        LayoutBlock,
-        ShowcaseBlock,
-      ],
-      admin: {
-        description: 'Build your article content using blocks',
-      },
+      type: 'richText',
+      localized: true,
+      editor: fullRichTextEditor([TextBoxBlock, LayoutBlock, GalleryBlock]),
     },
   ],
 }

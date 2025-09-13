@@ -1,19 +1,46 @@
 import { Block } from 'payload'
 import { validateCharacterCount } from '@/lib/validators/characterCount'
 
-export const ContentBlock: Block = {
-  slug: 'content',
+export const TextBoxBlock: Block = {
+  slug: 'textbox',
   labels: {
-    singular: 'Content Block',
-    plural: 'Content Blocks',
+    singular: 'Text Box',
+    plural: 'Text Boxes',
   },
   fields: [
+    {
+      name: 'style',
+      type: 'select',
+      required: true,
+      defaultValue: 'splash',
+      options: [
+        {
+          label: 'Splash',
+          value: 'splash',
+        },
+        {
+          label: 'Left Aligned',
+          value: 'leftAligned',
+        },
+        {
+          label: 'Right Aligned',
+          value: 'rightAligned',
+        },
+        {
+          label: 'Overlay',
+          value: 'overlay',
+        },
+      ],
+      admin: {
+        description: 'Display style for the text box',
+      },
+    },
     {
       name: 'title',
       type: 'text',
       localized: true,
       admin: {
-        description: 'Optional title for this content block',
+        description: 'Optional title for this text box',
       },
     },
     {

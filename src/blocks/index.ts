@@ -1,5 +1,3 @@
-export { ContentBlock } from './ContentBlock'
-export { ImageBlock } from './ImageBlock'
-export { TextBlock } from './TextBlock'
+export { TextBoxBlock } from './TextBoxBlock'
 export { LayoutBlock } from './LayoutBlock'
-export { ShowcaseBlock } from './ShowcaseBlock'
+export { GalleryBlock } from './GalleryBlock'

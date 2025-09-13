@@ -3,8 +3,8 @@ import { Block } from 'payload'
 export const LayoutBlock: Block = {
   slug: 'layout',
   labels: {
-    singular: 'Layout Block',
-    plural: 'Layout Blocks',
+    singular: 'Layout',
+    plural: 'Layouts',
   },
   fields: [
     {

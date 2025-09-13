@@ -1,16 +1,6 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-import { 
-  lexicalEditor,
-  BoldFeature,
-  ItalicFeature,
-  ParagraphFeature,
-  UnorderedListFeature,
-  OrderedListFeature,
-  LinkFeature,
-  BlockquoteFeature,
-  InlineToolbarFeature,
-} from '@payloadcms/richtext-lexical'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig, Config } from 'payload'
 import { fileURLToPath } from 'url'
@@ -50,18 +40,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       autoLogin: !isProduction ? { email: 'contact@sydevelopers.com' } : false,
     },
     collections,
-    editor: lexicalEditor({
-      features: () => [
-        BoldFeature(),
-        ItalicFeature(),
-        ParagraphFeature(),
-        UnorderedListFeature(),
-        OrderedListFeature(),
-        LinkFeature(),
-        BlockquoteFeature(),
-        InlineToolbarFeature(),
-      ],
-    }),
+    editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || '',
     jobs: {
       tasks,
