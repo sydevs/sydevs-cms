@@ -55,16 +55,6 @@ export const ShowcaseBlock: Block = {
       admin: {
         description: 'Select items to showcase (max 10)',
         condition: (_, siblingData) => Boolean(siblingData?.collectionType),
-        filterOptions: ({ siblingData }) => {
-          if (!siblingData?.collectionType) return false
-          
-          // Filter to only show relationships from the selected collection type
-          return {
-            relationTo: {
-              equals: siblingData.collectionType,
-            },
-          }
-        },
       },
     },
   ],
