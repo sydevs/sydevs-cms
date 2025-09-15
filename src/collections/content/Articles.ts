@@ -17,6 +17,10 @@ export const Articles: CollectionConfig = {
   hooks: {
     beforeChange: [generateSlug],
   },
+  versions: {
+    maxPerDoc: 50,
+    drafts: true,
+  },
   fields: [
     {
       type: 'tabs',
