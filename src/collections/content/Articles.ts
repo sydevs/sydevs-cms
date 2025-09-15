@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { generateSlug } from '@/lib/fieldUtils'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import { TextBoxBlock, LayoutBlock, GalleryBlock } from '@/blocks'
+import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock } from '@/blocks'
 
 export const Articles: CollectionConfig = {
   slug: 'articles',
@@ -125,7 +125,7 @@ export const Articles: CollectionConfig = {
       name: 'content',
       type: 'richText',
       localized: true,
-      editor: fullRichTextEditor([TextBoxBlock, LayoutBlock, GalleryBlock]),
+      editor: fullRichTextEditor([TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock]),
     },
   ],
 }
