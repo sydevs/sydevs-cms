@@ -3,6 +3,7 @@ import { permissionBasedAccess } from '@/lib/accessControl'
 import { generateSlug } from '@/lib/fieldUtils'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock } from '@/blocks'
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 export const Articles: CollectionConfig = {
   slug: 'articles',
@@ -39,15 +40,7 @@ export const Articles: CollectionConfig = {
         },
       ],
     },
-    {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
+    ...SlugField('title'),
     {
       name: 'publishAt',
       type: 'date',

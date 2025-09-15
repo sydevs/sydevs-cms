@@ -434,6 +434,7 @@ export interface Article {
     image?: (string | null) | Media;
   };
   slug?: string | null;
+  slugLock?: boolean | null;
   publishAt?: string | null;
   category: 'technique' | 'artwork' | 'event' | 'knowledge';
   tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
@@ -1148,6 +1149,7 @@ export interface ArticlesSelect<T extends boolean = true> {
         image?: T;
       };
   slug?: T;
+  slugLock?: T;
   publishAt?: T;
   category?: T;
   tags?: T;
