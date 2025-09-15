@@ -1,15 +1,18 @@
+import { buildConfig, Config } from 'payload'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { storagePlugin } from './lib/storage'
+import { seoPlugin } from '@payloadcms/plugin-seo'
+import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
+
 import path from 'path'
-import { buildConfig, Config } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
-import { adminOnlyAccess } from '@/lib/accessControl'
-import { seoPlugin } from '@payloadcms/plugin-seo'
+
+import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
 import { collections, Users } from './collections'
 import { tasks } from './jobs'
-import { storagePlugin } from './lib/storage'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -102,6 +105,20 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,
+      }),
+      formBuilderPlugin({
+        defaultToEmail: 'contact@sydevelopers.com',
+        formOverrides: {
+          access: permissionBasedAccess('forms'),
+          admin: {
+            group: 'Resources',
+          },
+        },
+        formSubmissionOverrides: {
+          admin: {
+            group: 'System',
+          },
+        },
       }),
     ],
     upload: {

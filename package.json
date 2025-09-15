@@ -24,6 +24,7 @@
     "@payloadcms/email-nodemailer": "^3.55.1",
     "@payloadcms/next": "^3.55.1",
     "@payloadcms/payload-cloud": "^3.55.1",
+    "@payloadcms/plugin-form-builder": "^3.55.1",
     "@payloadcms/plugin-seo": "^3.55.1",
     "@payloadcms/richtext-lexical": "^3.55.1",
     "@payloadcms/storage-s3": "^3.55.1",
