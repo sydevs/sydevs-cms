@@ -6,7 +6,7 @@ import { buildConfig, Config } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { adminOnlyAccess } from '@/lib/accessControl'
-
+import { seoPlugin } from '@payloadcms/plugin-seo'
 import { collections, Users } from './collections'
 import { tasks } from './jobs'
 import { storagePlugin } from './lib/storage'
@@ -96,6 +96,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     sharp,
     plugins: [
       storagePlugin(), // Handles file storage
+      seoPlugin({
+        collections: ['articles'],
+        uploadsCollection: 'media',
+        generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
+        generateDescription: ({ doc }) => doc.content,
+        tabbedUI: true,
+      }),
     ],
     upload: {
       limits: {

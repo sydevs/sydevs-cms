@@ -11,34 +11,33 @@ export const Articles: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['thumbnail', 'title', 'category', 'publishAt'],
+    defaultColumns: ['title', 'category', 'publishAt'],
   },
   hooks: {
     beforeChange: [generateSlug],
   },
   fields: [
     {
-      name: 'title',
-      type: 'text',
-      required: true,
-      localized: true,
-    },
-    {
-      name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'media',
-      required: true,
-      admin: {
-        components: {
-          Cell: {
-            path: '@/components/admin/ThumbnailCell#default',
-            clientProps: {
-              aspectRatio: '16:9',
-              size: 'large',
+      type: 'tabs',
+      tabs: [
+        {
+          label: 'Content',
+          fields: [
+            {
+              name: 'title',
+              type: 'text',
+              required: true,
+              localized: true,
             },
-          },
+            {
+              name: 'content',
+              type: 'richText',
+              localized: true,
+              editor: fullRichTextEditor([TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock]),
+            },
+          ],
         },
-      },
+      ],
     },
     {
       name: 'slug',
@@ -120,12 +119,6 @@ export const Articles: CollectionConfig = {
       admin: {
         position: 'sidebar',
       },
-    },
-    {
-      name: 'content',
-      type: 'richText',
-      localized: true,
-      editor: fullRichTextEditor([TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock]),
     },
   ],
 }

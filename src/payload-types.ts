@@ -406,11 +406,6 @@ export interface Music {
 export interface Article {
   id: string;
   title: string;
-  thumbnail: string | Media;
-  slug?: string | null;
-  publishAt?: string | null;
-  category: 'technique' | 'artwork' | 'event' | 'knowledge';
-  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
   content?: {
     root: {
       type: string;
@@ -426,6 +421,18 @@ export interface Article {
     };
     [k: string]: unknown;
   } | null;
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (string | null) | Media;
+  };
+  slug?: string | null;
+  publishAt?: string | null;
+  category: 'technique' | 'artwork' | 'event' | 'knowledge';
+  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -929,12 +936,18 @@ export interface MusicSelect<T extends boolean = true> {
  */
 export interface ArticlesSelect<T extends boolean = true> {
   title?: T;
-  thumbnail?: T;
+  content?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   slug?: T;
   publishAt?: T;
   category?: T;
   tags?: T;
-  content?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
