@@ -1,66 +1,16 @@
 import styled, { css } from 'styled-components'
-import { COLORS, GRID_CONFIG, MODAL_CONFIG } from './constants'
+import { COLORS, GRID_CONFIG } from './constants'
 
-// Modal Components
-export const ModalHeader = styled.div`
-  padding: 1.5rem 1.5rem 1rem 1.5rem;
-  border-bottom: 1px solid ${COLORS.BORDER};
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: ${COLORS.BG};
-`
-
-export const ModalTitle = styled.h2`
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: ${COLORS.TEXT};
-`
-
-export const ModalActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-`
-
-export const ModalContent = styled.div`
-  flex: 1;
+// Inline Content Container
+export const InlineContent = styled.div`
   display: flex;
   gap: 1.5rem;
   padding: 1.5rem;
   overflow: hidden;
   background-color: ${COLORS.BG};
-  height: calc(100vh - 120px);
   min-height: 600px;
-
-  @media (max-width: ${MODAL_CONFIG.MOBILE_BREAKPOINT}px) {
-    display: none !important;
-  }
-`
-
-export const MobileWarning = styled.div`
-  display: none;
-  padding: 2rem;
-  text-align: center;
-  background-color: var(--theme-warning-50);
-  border: 1px solid var(--theme-warning-300);
+  border: 1px solid ${COLORS.BORDER};
   border-radius: var(--style-radius-l);
-  margin: 1.5rem;
-  color: var(--theme-warning-950);
-
-  @media (max-width: ${MODAL_CONFIG.MOBILE_BREAKPOINT}px) {
-    display: block !important;
-  }
-`
-
-export const MobileWarningTitle = styled.div`
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-`
-
-export const MobileWarningText = styled.div`
-  font-size: 0.875rem;
 `
 
 // Layout Columns
@@ -89,54 +39,8 @@ export const RightColumn = styled.div`
   height: 100%;
 `
 
-// Collapsed View
-export const CollapsedView = styled.div`
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  padding: 1rem;
-  border: 1px solid ${COLORS.BORDER};
-  border-radius: var(--style-radius-l);
-  background-color: ${COLORS.ELEVATION_50};
-`
 
-export const CollapsedRight = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-`
-
-export const SelectedFramesContainer = styled.div`
-  padding: 0.75rem;
-  background-color: ${COLORS.BG};
-  border: 1px solid ${COLORS.BORDER};
-  border-radius: var(--style-radius-m);
-`
-
-export const SelectedFramesTitle = styled.div`
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: ${COLORS.TEXT};
-  margin-bottom: 0.5rem;
-`
-
-export const SelectedFramesGrid = styled.div`
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 4px;
-`
-
-export const EditButtonContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-`
-
-// Button Styles
+// Button Styles (kept for FrameManager delete functionality)
 const buttonBase = css`
   border: none;
   border-radius: var(--style-radius-m);
@@ -151,7 +55,7 @@ const buttonBase = css`
 `
 
 export const Button = styled.button<{
-  variant?: 'primary' | 'secondary' | 'error' | 'cancel' | 'save' | 'disabled'
+  variant?: 'primary' | 'secondary' | 'error'
 }>`
   ${buttonBase}
   padding: 0.5rem 1rem;
@@ -173,23 +77,6 @@ export const Button = styled.button<{
           background-color: ${COLORS.ERROR};
           color: white;
         `
-      case 'cancel':
-        return css`
-          background-color: ${COLORS.ELEVATION_300};
-          color: ${COLORS.TEXT};
-        `
-      case 'save':
-        return css`
-          background-color: ${COLORS.SUCCESS};
-          color: white;
-        `
-      case 'disabled':
-        return css`
-          background-color: ${COLORS.ELEVATION_200};
-          color: ${COLORS.ELEVATION_600};
-          cursor: not-allowed;
-          opacity: 0.6;
-        `
       default:
         return css`
           background-color: ${COLORS.ELEVATION_200};
@@ -197,28 +84,6 @@ export const Button = styled.button<{
         `
     }
   }}
-`
-
-export const EditButton = styled.button<{ disabled?: boolean }>`
-  ${buttonBase}
-  padding: 0.75rem 1.5rem;
-  width: 100%;
-
-  ${(props) =>
-    props.disabled
-      ? css`
-          background-color: ${COLORS.ELEVATION_200};
-          color: ${COLORS.ELEVATION_600};
-        `
-      : css`
-          background-color: ${COLORS.SUCCESS};
-          color: white;
-        `}
-`
-
-export const EditButtonMessage = styled.div`
-  font-size: 0.75rem;
-  color: ${COLORS.ELEVATION_600};
 `
 
 // Audio Player Components

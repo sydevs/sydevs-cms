@@ -29,18 +29,6 @@ export const Meditations: CollectionConfig = {
   },
   fields: [
     {
-      name: 'title',
-      type: 'text',
-      label: 'Public Title',
-      required: true,
-    },
-    {
-      name: 'label',
-      type: 'text',
-      label: 'Internal Name',
-      required: true,
-    },
-    {
       name: 'locale',
       type: 'select',
       options: [
@@ -76,118 +64,6 @@ export const Meditations: CollectionConfig = {
         },
       },
     }),
-    MediaField({
-      name: 'thumbnail',
-      required: true,
-      orientation: 'landscape',
-    }),
-    {
-      name: 'narrator',
-      type: 'relationship',
-      relationTo: 'narrators',
-      required: true,
-    },
-    {
-      name: 'tags',
-      type: 'relationship',
-      relationTo: 'meditation-tags',
-      hasMany: true,
-    },
-    {
-      name: 'musicTag',
-      type: 'relationship',
-      relationTo: 'music-tags',
-      admin: {
-        description: 'Music with this tag will be offered to the seeker',
-      },
-    },
-    {
-      name: 'frames',
-      type: 'json',
-      admin: {
-        description: 'Frames associated with this meditation with audio-synchronized editing',
-        components: {
-          Field: '@/components/admin/MeditationFrameEditor/index.tsx#default',
-        },
-      },
-      validate: (value) => {
-        // Validate that value is an array of frame objects
-        if (!value) return true // Allow empty/null values
-
-        if (!Array.isArray(value)) {
-          return 'Frames must be an array'
-        }
-
-        for (let i = 0; i < value.length; i++) {
-          const frame = value[i]
-
-          if (!frame || typeof frame !== 'object') {
-            return `Frame ${i + 1} must be an object`
-          }
-
-          if (!frame.id || typeof frame.id !== 'string') {
-            return `Frame ${i + 1} must have a valid frame relationship ID`
-          }
-
-          if (
-            typeof frame.timestamp !== 'number' ||
-            frame.timestamp < 0 ||
-            isNaN(frame.timestamp)
-          ) {
-            return `Frame ${i + 1} must have a valid timestamp (number >= 0)`
-          }
-        }
-
-        // Check for duplicate timestamps
-        const timestamps = value.map((f: { timestamp: number }) => f.timestamp)
-        const uniqueTimestamps = new Set(timestamps)
-        if (timestamps.length !== uniqueTimestamps.size) {
-          return 'Duplicate timestamps are not allowed. Each frame must have a unique timestamp.'
-        }
-
-        return true
-      },
-      hooks: {
-        beforeChange: [
-          async ({ value }) => {
-            if (!value || !Array.isArray(value)) return []
-
-            return value
-              .map((v) => {
-                return { id: v.id, timestamp: v.timestamp } as KeyframeDefinition
-              })
-              .sort((a, b) => a.timestamp - b.timestamp)
-          },
-        ],
-        afterRead: [
-          async ({ value, req }) => {
-            if (!value || !Array.isArray(value)) return []
-            const frames = value as KeyframeData[]
-
-            const frameIds = frames.map((f) => f.id)
-            if (frameIds.length === 0) return []
-
-            const frameDocs = await req.payload.find({
-              collection: 'frames',
-              where: { id: { in: frameIds } },
-              limit: frameIds.length,
-            })
-
-            // Create map of relevant frame data
-            const frameMap = Object.fromEntries(frameDocs.docs.map((frame) => [frame.id, frame]))
-
-            // Add data to each frame and sort by timestamp
-            return frames.map((v) => {
-              return {
-                ...v,
-                ...frameMap[v.id],
-                timestamp: Math.round(v.timestamp),
-              } as KeyframeData
-            })
-          },
-        ],
-      },
-    },
     {
       name: 'fileMetadata',
       type: 'json',
@@ -195,6 +71,148 @@ export const Meditations: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
       },
+    },
+    {
+      type: 'tabs',
+      tabs: [
+        {
+          label: 'Details',
+          fields: [
+            {
+              name: 'title',
+              type: 'text',
+              label: 'Public Title',
+              required: true,
+            },
+            {
+              name: 'label',
+              type: 'text',
+              label: 'Internal Name',
+              required: true,
+            },
+            MediaField({
+              name: 'thumbnail',
+              required: true,
+              orientation: 'landscape',
+            }),
+            {
+              name: 'narrator',
+              type: 'relationship',
+              relationTo: 'narrators',
+              required: true,
+            },
+            {
+              name: 'tags',
+              type: 'relationship',
+              relationTo: 'meditation-tags',
+              hasMany: true,
+            },
+            {
+              name: 'musicTag',
+              type: 'relationship',
+              relationTo: 'music-tags',
+              admin: {
+                description: 'Music with this tag will be offered to the seeker',
+              },
+            },
+          ],
+        },
+        {
+          label: 'Meditation Video',
+          fields: [
+            {
+              name: 'frames',
+              type: 'json',
+              admin: {
+                description:
+                  'Frames associated with this meditation with audio-synchronized editing',
+                components: {
+                  Field: '@/components/admin/MeditationFrameEditor/index.tsx#default',
+                },
+              },
+              validate: (value) => {
+                // Validate that value is an array of frame objects
+                if (!value) return true // Allow empty/null values
+
+                if (!Array.isArray(value)) {
+                  return 'Frames must be an array'
+                }
+
+                for (let i = 0; i < value.length; i++) {
+                  const frame = value[i]
+
+                  if (!frame || typeof frame !== 'object') {
+                    return `Frame ${i + 1} must be an object`
+                  }
+
+                  if (!frame.id || typeof frame.id !== 'string') {
+                    return `Frame ${i + 1} must have a valid frame relationship ID`
+                  }
+
+                  if (
+                    typeof frame.timestamp !== 'number' ||
+                    frame.timestamp < 0 ||
+                    isNaN(frame.timestamp)
+                  ) {
+                    return `Frame ${i + 1} must have a valid timestamp (number >= 0)`
+                  }
+                }
+
+                // Check for duplicate timestamps
+                const timestamps = value.map((f: { timestamp: number }) => f.timestamp)
+                const uniqueTimestamps = new Set(timestamps)
+                if (timestamps.length !== uniqueTimestamps.size) {
+                  return 'Duplicate timestamps are not allowed. Each frame must have a unique timestamp.'
+                }
+
+                return true
+              },
+              hooks: {
+                beforeChange: [
+                  async ({ value }) => {
+                    if (!value || !Array.isArray(value)) return []
+
+                    return value
+                      .map((v) => {
+                        return { id: v.id, timestamp: v.timestamp } as KeyframeDefinition
+                      })
+                      .sort((a, b) => a.timestamp - b.timestamp)
+                  },
+                ],
+                afterRead: [
+                  async ({ value, req }) => {
+                    if (!value || !Array.isArray(value)) return []
+                    const frames = value as KeyframeData[]
+
+                    const frameIds = frames.map((f) => f.id)
+                    if (frameIds.length === 0) return []
+
+                    const frameDocs = await req.payload.find({
+                      collection: 'frames',
+                      where: { id: { in: frameIds } },
+                      limit: frameIds.length,
+                    })
+
+                    // Create map of relevant frame data
+                    const frameMap = Object.fromEntries(
+                      frameDocs.docs.map((frame) => [frame.id, frame]),
+                    )
+
+                    // Add data to each frame and sort by timestamp
+                    return frames.map((v) => {
+                      return {
+                        ...v,
+                        ...frameMap[v.id],
+                        timestamp: Math.round(v.timestamp),
+                      } as KeyframeData
+                    })
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
     },
   ],
 }

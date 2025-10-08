@@ -315,12 +315,21 @@ export interface MediaTag {
  */
 export interface Meditation {
   id: string;
-  title: string;
-  label: string;
   locale: 'en' | 'cs';
   publishAt?: string | null;
   slug?: string | null;
   slugLock?: boolean | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  title: string;
+  label: string;
   thumbnail: string | Media;
   narrator: string | Narrator;
   tags?: (string | MeditationTag)[] | null;
@@ -332,15 +341,6 @@ export interface Meditation {
    * Frames associated with this meditation with audio-synchronized editing
    */
   frames?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  fileMetadata?:
     | {
         [k: string]: unknown;
       }
@@ -1249,18 +1249,18 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
-  title?: T;
-  label?: T;
   locale?: T;
   publishAt?: T;
   slug?: T;
   slugLock?: T;
+  fileMetadata?: T;
+  title?: T;
+  label?: T;
   thumbnail?: T;
   narrator?: T;
   tags?: T;
   musicTag?: T;
   frames?: T;
-  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;

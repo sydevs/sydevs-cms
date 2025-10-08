@@ -15,12 +15,6 @@ export const LIMITS = {
   CLICK_ANIMATION_DURATION: 300,
   SEEK_STEP_SMALL: 5,
   SEEK_STEP_LARGE: 10,
-  MIN_MODAL_HEIGHT: 600,
-} as const
-
-export const MODAL_CONFIG = {
-  SLUG: 'meditation-frame-editor',
-  MOBILE_BREAKPOINT: 1024,
 } as const
 
 export const KEYBOARD_SHORTCUTS = {
