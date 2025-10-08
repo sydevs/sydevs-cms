@@ -8,7 +8,7 @@ import React from 'react'
  *
  * The icon uses CSS to adapt to Payload's dark/light theme via data-theme attribute
  */
-export const Icon = () => {
+const Icon = () => {
   return (
     <svg
       height="35"
@@ -40,3 +40,5 @@ export const Icon = () => {
     </svg>
   )
 }
+
+export default Icon

@@ -15,7 +15,7 @@ export default async function HomePage() {
       <div className="splash-content">
         <div className="logo-container">
           <Image
-            src="https://raw.githubusercontent.com/sydevs/WeMeditate/refs/heads/master/app/frontend/images/metadata/favicon-square.png"
+            src="/images/we-meditate-logo.png"
             alt="We Meditate"
             width={150}
             height={150}

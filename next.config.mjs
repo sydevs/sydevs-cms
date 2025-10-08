@@ -14,20 +14,14 @@ const nextConfig = {
     return webpackConfig
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'raw.githubusercontent.com',
-      },
-      ...(process.env.S3_PUBLIC_ENDPOINT
-        ? [
-            {
-              protocol: 'https',
-              hostname: process.env.S3_PUBLIC_ENDPOINT,
-            },
-          ]
-        : []),
-    ],
+    remotePatterns: process.env.S3_PUBLIC_ENDPOINT
+      ? [
+          {
+            protocol: 'https',
+            hostname: process.env.S3_PUBLIC_ENDPOINT,
+          },
+        ]
+      : [],
     unoptimized: true, // TODO: Undo this and try to get the benefit of next images
   },
 }
