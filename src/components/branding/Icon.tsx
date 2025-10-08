@@ -26,10 +26,12 @@ const Icon = () => {
       <style>{`
         .we-meditate-icon path {
           fill: #ffffff;
+          stroke: #ffffff;
         }
 
         [data-theme="light"] .we-meditate-icon path {
           fill: #1a1a1a;
+          stroke: #1a1a1a;
         }
       `}</style>
       <g fillRule="evenodd" transform="translate(-1 -1)">
