@@ -13,6 +13,23 @@ const nextConfig = {
 
     return webpackConfig
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com',
+      },
+      ...(process.env.S3_PUBLIC_ENDPOINT
+        ? [
+            {
+              protocol: 'https',
+              hostname: process.env.S3_PUBLIC_ENDPOINT,
+            },
+          ]
+        : []),
+    ],
+    unoptimized: true, // TODO: Undo this and try to get the benefit of next images
+  },
 }
 
 // First apply Payload config, then Sentry config
@@ -57,23 +74,4 @@ export default withSentryConfig(configWithPayload, {
   // https://docs.sentry.io/product/crons/
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/crons/
   automaticVercelMonitors: false,
-
-  images: {
-    // Allow images to be loaded from our asset server
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'raw.githubusercontent.com',
-      },
-      ...(process.env.S3_PUBLIC_ENDPOINT
-        ? [
-            {
-              protocol: 'https',
-              hostname: process.env.S3_PUBLIC_ENDPOINT,
-            },
-          ]
-        : []),
-    ],
-    unoptimized: true, // TODO: Undo this and try to get the benefit of next images
-  },
 })
