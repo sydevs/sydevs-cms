@@ -13,6 +13,8 @@ import sharp from 'sharp'
 import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
 import { collections, Managers } from './collections'
 import { tasks } from './jobs'
+import { Logo } from '@/components/branding/Logo'
+import { Icon } from '@/components/branding/Icon'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -37,6 +39,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             path: '@/components/AdminProvider.tsx',
           },
         ],
+        graphics: {
+          Logo,
+          Icon,
+        },
       },
       // Disable admin UI in test environment
       disable: isTestEnvironment,
