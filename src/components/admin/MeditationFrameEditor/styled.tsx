@@ -4,37 +4,27 @@ import { COLORS, GRID_CONFIG } from './constants'
 // Inline Content Container
 export const InlineContent = styled.div`
   display: flex;
-  gap: 1.5rem;
-  padding: 1.5rem;
+  gap: 1rem;
+  padding: 0;
   overflow: hidden;
-  background-color: ${COLORS.BG};
   min-height: 600px;
-  border: 1px solid ${COLORS.BORDER};
-  border-radius: var(--style-radius-l);
 `
 
-// Layout Columns
+// Layout Columns (Two-column layout)
 export const LeftColumn = styled.div`
   flex: 0 0 350px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
   overflow: hidden;
-  height: 100%;
-`
-
-export const MiddleColumn = styled.div`
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
   height: 100%;
 `
 
 export const RightColumn = styled.div`
-  flex: 0 0 280px;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   overflow: hidden;
   height: 100%;
 `
@@ -242,14 +232,13 @@ export const FrameMarker = styled.div<{ $left: number }>`
 
 // Instructions Panel
 export const InstructionsPanel = styled.div`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: ${COLORS.ELEVATION_600};
   text-align: left;
-  padding: 1rem;
+  padding: 0.75rem;
   background-color: ${COLORS.ELEVATION_50};
   border-radius: var(--style-radius-m);
   border: 1px solid ${COLORS.BORDER};
-  width: 320px;
   flex-shrink: 0;
 `
 

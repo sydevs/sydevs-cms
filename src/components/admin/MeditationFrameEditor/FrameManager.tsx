@@ -148,7 +148,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 type="button"
                 onClick={() => handleRemoveFrame(index)}
                 disabled={readOnly}
-                variant={readOnly ? 'disabled' : 'error'}
+                variant="error"
                 style={{
                   padding: '0.25rem',
                   flexShrink: 0,
@@ -158,6 +158,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: '0.75rem',
+                  opacity: readOnly ? 0.6 : 1,
                 }}
                 title="Remove frame"
               >

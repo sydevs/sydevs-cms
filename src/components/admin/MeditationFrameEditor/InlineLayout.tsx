@@ -8,7 +8,7 @@ import InstructionsPanel from './components/InstructionsPanel'
 import type { KeyframeData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
 import { pauseAllMedia, roundToNearestSecond } from './utils'
-import { InlineContent, LeftColumn, MiddleColumn, RightColumn } from './styled'
+import { InlineContent, LeftColumn, RightColumn } from './styled'
 
 interface InlineLayoutProps {
   audioUrl: string | null
@@ -56,7 +56,7 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
 
   return (
     <InlineContent>
-      {/* Left Column - Audio Preview */}
+      {/* Left Column - Audio Player and Frame Manager */}
       <LeftColumn>
         <AudioPlayer
           ref={audioPlayerRef}
@@ -64,25 +64,19 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
           frames={frames}
           onTimeChange={handleTimeChange}
           onSeek={setCurrentTime}
-          size="large"
+          size="small"
           enableHotkeys={true}
           showPreview={true}
         />
 
-        <InstructionsPanel narrator={narrator} currentTime={currentTime} frames={frames} />
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
+        <FrameManager frames={frames} onFramesChange={onFramesChange} readOnly={readOnly} />
       </LeftColumn>
 
-      {/* Middle Column - Frame Library */}
-      <MiddleColumn>
-        <FrameLibrary narrator={narrator} onFrameSelect={handleFrameSelect} disabled={readOnly} />
-      </MiddleColumn>
-
-      {/* Right Column - Current Frames */}
+      {/* Right Column - Instructions and Frame Library */}
       <RightColumn>
-        <FrameManager frames={frames} onFramesChange={onFramesChange} readOnly={readOnly} />
+        <InstructionsPanel narrator={narrator} currentTime={currentTime} frames={frames} />
+
+        <FrameLibrary narrator={narrator} onFrameSelect={handleFrameSelect} disabled={readOnly} />
       </RightColumn>
     </InlineContent>
   )

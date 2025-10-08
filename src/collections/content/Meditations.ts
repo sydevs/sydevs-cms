@@ -29,50 +29,6 @@ export const Meditations: CollectionConfig = {
   },
   fields: [
     {
-      name: 'locale',
-      type: 'select',
-      options: [
-        { label: 'English', value: 'en' },
-        { label: 'Czech', value: 'cs' },
-      ],
-      required: true,
-      defaultValue: 'en',
-      admin: {
-        position: 'sidebar',
-      },
-    },
-    {
-      name: 'publishAt',
-      type: 'date',
-      admin: {
-        position: 'sidebar',
-        date: {
-          pickerAppearance: 'dayOnly',
-          minDate: new Date(),
-        },
-        components: {
-          Cell: '@/components/admin/PublishStateCell',
-          afterInput: ['@/components/admin/PublishAtAfterInput'],
-        },
-      },
-    },
-    ...SlugField('title', {
-      slugOverrides: {
-        unique: true,
-        admin: {
-          position: 'sidebar',
-        },
-      },
-    }),
-    {
-      name: 'fileMetadata',
-      type: 'json',
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
-    {
       type: 'tabs',
       tabs: [
         {
@@ -90,6 +46,35 @@ export const Meditations: CollectionConfig = {
               label: 'Internal Name',
               required: true,
             },
+            {
+              name: 'locale',
+              type: 'select',
+              options: [
+                { label: 'English', value: 'en' },
+                { label: 'Czech', value: 'cs' },
+              ],
+              required: true,
+              defaultValue: 'en',
+            },
+            {
+              name: 'publishAt',
+              type: 'date',
+              admin: {
+                date: {
+                  pickerAppearance: 'dayOnly',
+                  minDate: new Date(),
+                },
+                components: {
+                  Cell: '@/components/admin/PublishStateCell',
+                  afterInput: ['@/components/admin/PublishAtAfterInput'],
+                },
+              },
+            },
+            ...SlugField('title', {
+              slugOverrides: {
+                unique: true,
+              },
+            }),
             MediaField({
               name: 'thumbnail',
               required: true,
@@ -113,6 +98,13 @@ export const Meditations: CollectionConfig = {
               relationTo: 'music-tags',
               admin: {
                 description: 'Music with this tag will be offered to the seeker',
+              },
+            },
+            {
+              name: 'fileMetadata',
+              type: 'json',
+              admin: {
+                readOnly: true,
               },
             },
           ],
