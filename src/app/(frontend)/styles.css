@@ -1,8 +1,10 @@
 :root {
   --font-mono: 'Roboto Mono', monospace;
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --tertiary-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --we-meditate-coral: #F07855;
+  --we-meditate-coral-light: #FF9477;
+  --we-meditate-coral-dark: #D86545;
+  --primary-gradient: linear-gradient(135deg, #F07855 0%, #FF9477 100%);
+  --secondary-gradient: linear-gradient(135deg, #FF9477 0%, #F07855 100%);
 }
 
 * {
@@ -76,17 +78,7 @@ body {
   background: var(--secondary-gradient);
   bottom: -150px;
   right: -150px;
-  animation-delay: 7s;
-}
-
-.orb-3 {
-  width: 400px;
-  height: 400px;
-  background: var(--tertiary-gradient);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  animation-delay: 14s;
+  animation-delay: 10s;
 }
 
 @keyframes float {
@@ -124,28 +116,22 @@ body {
   margin-bottom: 2rem;
   display: flex;
   justify-content: center;
-  animation: logoRotate 20s linear infinite;
+  animation: logoFloat 3s ease-in-out infinite;
 }
 
-@keyframes logoRotate {
-  from {
-    transform: rotate(0deg);
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0);
   }
-  to {
-    transform: rotate(360deg);
+  50% {
+    transform: translateY(-10px);
   }
 }
 
-.logo-shape {
-  width: 100px;
-  height: 100px;
-  color: rgba(255, 255, 255, 0.9);
-  filter: drop-shadow(0 0 30px rgba(102, 126, 234, 0.5));
-}
-
-.logo-shape svg {
-  width: 100%;
-  height: 100%;
+.logo-image {
+  width: 150px;
+  height: 150px;
+  filter: drop-shadow(0 0 30px rgba(240, 120, 85, 0.4));
 }
 
 .splash-title {
@@ -188,7 +174,7 @@ body {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-gradient);
   color: white;
   text-decoration: none;
   border-radius: 50px;
@@ -208,14 +194,14 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #764ba2 0%, #f5576c 100%);
+  background: var(--secondary-gradient);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .admin-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 40px rgba(240, 120, 85, 0.5);
 }
 
 .admin-button:hover::before {
@@ -270,10 +256,10 @@ body {
   .logo-container {
     margin-bottom: 1.5rem;
   }
-  
-  .logo-shape {
-    width: 80px;
-    height: 80px;
+
+  .logo-image {
+    width: 120px;
+    height: 120px;
   }
   
   .admin-button {
