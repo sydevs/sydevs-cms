@@ -19,7 +19,7 @@ export const Meditations: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'label',
-    defaultColumns: ['thumbnail', 'label', 'publishAt', 'tags', 'fileMetadata'],
+    defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'fileMetadata'],
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
