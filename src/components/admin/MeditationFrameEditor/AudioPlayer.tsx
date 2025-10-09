@@ -39,6 +39,7 @@ interface AudioPlayerProps {
 
 export interface AudioPlayerRef {
   pause: () => void
+  seek: (time: number) => void
 }
 
 const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
@@ -134,19 +135,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       }
     }, [])
 
-    // Expose pause function via ref
-    useImperativeHandle(
-      ref,
-      () => ({
-        pause: () => {
-          if (audioRef.current && isPlaying) {
-            audioRef.current.pause()
-          }
-        },
-      }),
-      [isPlaying],
-    )
-
     // Audio event handlers
     const handleLoadedMetadata = () => {
       if (audioRef.current) {
@@ -194,6 +182,20 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
         }
       },
       [duration, onSeek],
+    )
+
+    // Expose pause and seek functions via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        pause: () => {
+          if (audioRef.current && isPlaying) {
+            audioRef.current.pause()
+          }
+        },
+        seek: seekTo,
+      }),
+      [isPlaying, seekTo],
     )
 
     // Progress bar click handler
@@ -342,6 +344,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               onClick={togglePlayPause}
               disabled={!isLoaded || loadingBlob}
               $isHovered={isHovered}
+              $isPlaying={isPlaying}
             >
               {loadingBlob ? '...' : isPlaying ? '⏸' : '▶'}
             </AudioPlayPauseButton>

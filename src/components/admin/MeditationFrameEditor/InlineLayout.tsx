@@ -37,6 +37,10 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
     setCurrentTime(time)
   }, [])
 
+  const handleSeekToFrame = useCallback((timestamp: number) => {
+    audioPlayerRef.current?.seek(timestamp)
+  }, [])
+
   const handleFrameSelect = useCallback(
     (frame: Frame) => {
       const roundedTime = roundToNearestSecond(currentTime)
@@ -77,7 +81,13 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
         </AudioPlayerSection>
 
         <FrameManagerSection>
-          <FrameManager frames={frames} onFramesChange={onFramesChange} readOnly={readOnly} />
+          <FrameManager
+            frames={frames}
+            onFramesChange={onFramesChange}
+            readOnly={readOnly}
+            currentTime={currentTime}
+            onSeekToFrame={handleSeekToFrame}
+          />
         </FrameManagerSection>
       </LeftColumn>
 

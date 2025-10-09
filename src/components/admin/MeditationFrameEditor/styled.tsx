@@ -124,7 +124,7 @@ export const AudioPlayerOverlay = styled.div<{ $isHovered: boolean }>`
   }
 `
 
-export const AudioPlayPauseButton = styled.button<{ $isHovered: boolean }>`
+export const AudioPlayPauseButton = styled.button<{ $isHovered: boolean; $isPlaying: boolean }>`
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -137,8 +137,9 @@ export const AudioPlayPauseButton = styled.button<{ $isHovered: boolean }>`
   justify-content: center;
   font-size: 1.25rem;
   transition: all 0.2s ease;
-  opacity: ${(props) => (props.$isHovered ? 1 : 0)};
-  transform: ${(props) => (props.$isHovered ? 'scale(1)' : 'scale(0.8)')};
+  opacity: ${(props) => (props.$isPlaying ? (props.$isHovered ? 1 : 0) : 1)};
+  transform: ${(props) =>
+    props.$isPlaying ? (props.$isHovered ? 'scale(1)' : 'scale(0.8)') : 'scale(1)'};
   pointer-events: auto;
 
   &:hover {
@@ -217,148 +218,13 @@ export const AudioInfoRight = styled.div`
   font-family: monospace;
   opacity: 0.8;
 `
-
-export const AudioControls = styled.div`
-  background-color: #ffffff;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  gap: 1em;
-  border-top: 1px solid #e0e0e0;
-`
-
-export const AudioControlsRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-`
-
-export const PlayButton = styled.button<{ $size: number; $fontSize: string }>`
-  width: ${(props) => props.$size}px;
-  height: ${(props) => props.$size}px;
-  font-size: ${(props) => props.$fontSize};
-  border-radius: 50%;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #0056b3;
-  }
-
-  &:disabled {
-    background-color: ${COLORS.ELEVATION_200};
-    color: ${COLORS.ELEVATION_600};
-    cursor: not-allowed;
-  }
-`
-
-export const TimeDisplay = styled.div<{ $fontSize: string }>`
-  color: #495057;
-  font-size: ${(props) => props.$fontSize};
-  font-family: monospace;
-`
-
-export const ProgressBar = styled.div<{ $height: number }>`
-  position: relative;
-  width: 100%;
-  height: ${(props) => props.$height}px;
-  background-color: #e9ecef;
-  border-radius: 3px;
-  cursor: pointer;
-  margin: 1em 0;
-  overflow: visible;
-`
-
-export const ProgressFill = styled.div<{ $width: number; $transition?: boolean }>`
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: ${(props) => props.$width}%;
-  transition: ${(props) => (props.$transition ? 'width 0.1s' : 'none')};
-  background-color: #007bff;
-  border-radius: 3px;
-`
-
-export const ProgressPlayhead = styled.div<{ $left: number; $size: number; $transition?: boolean }>`
-  position: absolute;
-  left: ${(props) => props.$left}%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: ${(props) => props.$size}px;
-  height: ${(props) => props.$size}px;
-  transition: ${(props) => (props.$transition ? 'left 0.1s' : 'none')};
-  border-radius: 50%;
-  background-color: #ffffff;
-  border: 2px solid #007bff;
-  pointer-events: none;
-  // transition handled by the $transition prop above
-`
-
-export const AudioPlayerWrapper = styled.div`
-  position: relative;
-  width: 100%;
-`
-
-export const FrameMarkersOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-
-  /* Target the progress bar area of react-h5-audio-player */
-  & > div {
-    pointer-events: auto;
-  }
-`
-
-export const FrameMarker = styled.div<{ $left: number }>`
-  position: absolute;
-  left: ${(props) => props.$left}%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 16px;
-  background-color: #f97316;
-  opacity: 0.85;
-  cursor: pointer;
-  pointer-events: auto;
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
-
-  &:hover {
-    opacity: 1;
-    transform: translateY(-50%) scale(1.2);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 16px;
-    height: 32px;
-    cursor: pointer;
-  }
-`
-
 // Instructions Panel
 export const InstructionsPanel = styled.div`
   font-size: 0.7rem;
   color: ${COLORS.ELEVATION_600};
   text-align: left;
   padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
   background-color: ${COLORS.ELEVATION_50};
   border-radius: var(--style-radius-m);
   border: 1px solid ${COLORS.BORDER};
@@ -427,59 +293,118 @@ export const FramesGrid = styled.div<{ $columns: string; $gap: string }>`
 `
 
 export const FrameManagerList = styled.div`
-  background-color: ${COLORS.ELEVATION_50};
-  border: 1px solid ${COLORS.BORDER};
-  border-radius: var(--style-radius-m);
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.25rem;
 `
 
-export const FrameManagerItem = styled.div<{ $isLast?: boolean }>`
+export const FrameManagerItem = styled.div<{
+  $isLast?: boolean
+  $isActive?: boolean
+  $isClickable?: boolean
+}>`
+  display: flex;
+  align-items: stretch;
+  background-color: ${(props) =>
+    props.$isActive ? 'rgba(59, 130, 246, 0.15)' : COLORS.ELEVATION_100};
+  border-radius: 20px;
+  overflow: hidden;
+  height: 40px;
+  transition: all 0.2s ease;
+  border: 1px solid ${(props) => (props.$isActive ? 'rgba(59, 130, 246, 0.5)' : COLORS.BORDER)};
+  cursor: ${(props) => (props.$isClickable ? 'pointer' : 'default')};
+
+  &:hover {
+    background-color: ${(props) =>
+      props.$isActive ? 'rgba(59, 130, 246, 0.2)' : COLORS.ELEVATION_200};
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+`
+
+export const FrameManagerPillIcon = styled.div`
+  padding: 1px 4px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0.1rem;
-  border-bottom: ${(props) => (props.$isLast ? 'none' : `1px solid ${COLORS.BORDER}`)};
-  gap: 0.5rem;
-`
-
-export const FrameInfo = styled.div`
-  flex: 1;
-  min-width: 0;
-  line-height: 1em;
-`
-
-export const FrameInfoTitle = styled.div`
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  color: ${COLORS.TEXT};
-`
-
-export const FrameInfoSubtext = styled.div`
-  font-size: 0.7rem;
+  justify-content: center;
   color: ${COLORS.ELEVATION_600};
 `
 
-export const TimestampInput = styled.input<{ $hasError?: boolean }>`
-  width: 40px;
-  height: 28px;
-  padding: 0.4rem 0.2rem;
-  border: ${(props) =>
-    props.$hasError ? `1px solid ${COLORS.ERROR}` : `1px solid ${COLORS.BORDER}`};
-  border-radius: var(--style-radius-s);
-  font-size: 0.75rem;
-  text-align: center;
-  background-color: ${COLORS.BG};
+export const FrameManagerPillTitle = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
   color: ${COLORS.TEXT};
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
-export const TimestampError = styled.div`
-  font-size: 0.6rem;
-  color: ${COLORS.ERROR};
-  max-width: 100px;
-  text-align: right;
-  line-height: 1.2;
+export const FrameManagerPillTimestamp = styled.input`
+  width: 48px;
+  height: 100%;
+  padding: 0 0.5rem;
+  border: none;
+  background-color: transparent;
+  font-size: 0.75rem;
+  font-family: monospace;
+  text-align: center;
+  color: ${COLORS.TEXT};
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    background-color: ${COLORS.ELEVATION_200};
+  }
+
+  &:hover:not(:disabled) {
+    background-color: ${COLORS.ELEVATION_50};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Remove number input arrows */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  -moz-appearance: textfield;
+`
+
+export const FrameManagerPillRemove = styled.button`
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background-color: transparent;
+  color: ${COLORS.ELEVATION_600};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background-color: ${COLORS.ERROR};
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `
 
 // Category Filters
@@ -527,89 +452,6 @@ export const ClearFiltersButton = styled.button<{ $disabled?: boolean }>`
   margin-left: 4px;
 `
 
-// Frame Manager Components
-export const FramesList = styled.div`
-  background-color: ${COLORS.ELEVATION_50};
-  border: 1px solid ${COLORS.BORDER};
-  border-radius: var(--style-radius-m);
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-`
-
-export const FrameItemRow = styled.div<{ isLast?: boolean }>`
-  display: flex;
-  align-items: center;
-  padding: 0.75rem;
-  border-bottom: ${(props) => (props.isLast ? 'none' : `1px solid ${COLORS.BORDER}`)};
-  gap: 0.5rem;
-`
-
-export const FrameThumbnail = styled.div<{ $size: number }>`
-  width: ${(props) => props.$size}px;
-  height: ${(props) => props.$size}px;
-  background-color: ${COLORS.ELEVATION_100};
-  border-radius: var(--style-radius-m);
-  overflow: hidden;
-  flex-shrink: 0;
-  position: relative;
-  border: 1px solid ${COLORS.BORDER};
-`
-
-// Frame Preview Components
-export const PreviewContainer = styled.div<{ $width: number; $height: number }>`
-  width: ${(props) => props.$width}px;
-  height: ${(props) => props.$height}px;
-  background-color: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid #dee2e6;
-`
-
-export const TimelineContainer = styled.div`
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-  color: #666;
-`
-
-export const TimelineHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-`
-
-export const TimelineTrack = styled.div`
-  width: 100%;
-  height: 4px;
-  background-color: #e9ecef;
-  border-radius: 2px;
-  position: relative;
-`
-
-export const TimelineMarker = styled.div<{ $left: number; $isActive?: boolean }>`
-  position: absolute;
-  left: ${(props) => props.$left}%;
-  top: 0;
-  width: 4px;
-  height: 4px;
-  background-color: ${(props) => (props.$isActive ? '#007bff' : '#6c757d')};
-  border-radius: 2px;
-  transform: translateX(-2px);
-  z-index: ${(props) => (props.$isActive ? 2 : 1)};
-`
-
-export const TimelineIndicator = styled.div<{ $left: number }>`
-  position: absolute;
-  left: ${(props) => props.$left}%;
-  top: -2px;
-  width: 2px;
-  height: 8px;
-  background-color: #dc3545;
-  transform: translateX(-1px);
-  z-index: 3;
-`
-
 // Frame Item Components
 export const FrameItemContainer = styled.div<{
   $size: number
@@ -646,24 +488,4 @@ export const ComponentContainer = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
-`
-
-// Media overlay
-export const MediaOverlay = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  color: #fff;
-  padding: 1rem 0.75rem 0.5rem;
-  font-size: 0.75rem;
-`
-
-export const OverlayTitle = styled.div`
-  font-weight: 500;
-`
-
-export const OverlaySubtitle = styled.div`
-  opacity: 0.8;
 `
