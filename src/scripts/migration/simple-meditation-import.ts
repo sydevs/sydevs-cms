@@ -1636,7 +1636,7 @@ class SimpleImporter {
           }
 
           return {
-            frame: frameId,
+            id: frameId,
             timestamp: timestamp,
           }
         })
@@ -1647,9 +1647,9 @@ class SimpleImporter {
 
       // Validate frames array structure and filter out invalid entries
       const validFrames = frames.filter((frame) => {
-        if (!frame.frame || typeof frame.frame !== 'string') {
+        if (!frame.id || typeof frame.id !== 'string') {
           this.addWarning(
-            `Removing invalid frame ID for meditation ${meditation.title}: ${frame.frame}`,
+            `Removing invalid frame ID for meditation ${meditation.title}: ${frame.id}`,
           )
           return false
         }
