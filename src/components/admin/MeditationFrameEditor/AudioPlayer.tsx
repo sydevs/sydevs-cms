@@ -33,7 +33,6 @@ interface AudioPlayerProps {
   onSeek?: (time: number) => void
   size?: 'small' | 'large'
   className?: string
-  enableHotkeys?: boolean
   showPreview?: boolean
 }
 
@@ -51,7 +50,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       onSeek,
       size = 'large',
       className = '',
-      enableHotkeys = false,
       showPreview = false,
     },
     ref,
@@ -237,8 +235,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
     // Keyboard shortcuts
     useEffect(() => {
-      if (size === 'small' || !enableHotkeys) return
-
       const handleKeyDown = (event: KeyboardEvent) => {
         if (!audioRef.current || !duration) return
 
@@ -264,7 +260,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
       document.addEventListener('keydown', handleKeyDown)
       return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [currentTime, duration, enableHotkeys, size, seekTo, togglePlayPause])
+    }, [currentTime, duration, seekTo, togglePlayPause])
 
     if (!audioUrl) {
       return (

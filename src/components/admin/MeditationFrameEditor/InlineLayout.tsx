@@ -75,7 +75,6 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
             onTimeChange={handleTimeChange}
             onSeek={setCurrentTime}
             size="small"
-            enableHotkeys={true}
             showPreview={true}
           />
         </AudioPlayerSection>

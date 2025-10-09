@@ -69,6 +69,18 @@ export const Meditations: CollectionConfig = {
                   afterInput: ['@/components/admin/PublishAtAfterInput'],
                 },
               },
+              validate: (value, { data }) => {
+                // If publishAt is set, frames must be configured
+                if (value) {
+                  const meditationData = data as { frames?: KeyframeDefinition[] }
+                  const frames = meditationData?.frames
+
+                  if (!frames || !Array.isArray(frames) || frames.length === 0) {
+                    return 'Cannot set publish date without configuring frames. Please add frames in the Meditation Video tab first.'
+                  }
+                }
+                return true
+              },
             },
             ...SlugField('title', {
               slugOverrides: {
@@ -122,10 +134,25 @@ export const Meditations: CollectionConfig = {
                   Field: '@/components/admin/MeditationFrameEditor/index.tsx#default',
                 },
               },
-              validate: (value) => {
-                // Validate that value is an array of frame objects
-                if (!value) return true // Allow empty/null values
+              validate: (value, { data, operation, id }) => {
+                // Check if audio file has been uploaded
+                const meditationData = data as { filename?: string; url?: string }
+                const hasAudio = meditationData?.filename || meditationData?.url
 
+                // Allow first save (create) without frames, only require on updates
+                const isUpdate = operation === 'update' || !!id
+
+                // If audio exists and this is an update, frames are required
+                if (hasAudio && isUpdate && (!value || !Array.isArray(value) || value.length === 0)) {
+                  return 'At least one frame is required. Please add frames in the Meditation Video tab.'
+                }
+
+                // If no audio, or this is a create operation, frames are optional
+                if (!value || !Array.isArray(value)) {
+                  return true
+                }
+
+                // Validate array structure if frames exist
                 if (!Array.isArray(value)) {
                   return 'Frames must be an array'
                 }
