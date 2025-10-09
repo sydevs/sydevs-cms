@@ -7,12 +7,13 @@ export const InlineContent = styled.div`
   gap: 1rem;
   padding: 0;
   overflow: hidden;
-  min-height: 600px;
+  height: 700px;
+  max-height: 700px;
 `
 
 // Layout Columns (Two-column layout)
 export const LeftColumn = styled.div`
-  flex: 0 0 350px;
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -29,6 +30,17 @@ export const RightColumn = styled.div`
   height: 100%;
 `
 
+export const AudioPlayerSection = styled.div`
+  flex-shrink: 0;
+`
+
+export const FrameManagerSection = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+`
 
 // Button Styles (kept for FrameManager delete functionality)
 const buttonBase = css`
@@ -78,11 +90,8 @@ export const Button = styled.button<{
 
 // Audio Player Components
 export const AudioPlayerContainer = styled.div<{ $width: number }>`
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  overflow: hidden;
   width: ${(props) => props.$width}px;
-  border: 1px solid #e0e0e0;
+  position: relative;
 `
 
 export const AudioPreview = styled.div<{ $width: number; $height: number }>`
@@ -93,6 +102,120 @@ export const AudioPreview = styled.div<{ $width: number; $height: number }>`
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+`
+
+export const AudioPlayerOverlay = styled.div<{ $isHovered: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  /* Allow clicks on progress bar */
+  & > * {
+    pointer-events: auto;
+  }
+`
+
+export const AudioPlayPauseButton = styled.button<{ $isHovered: boolean }>`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgba(59, 130, 246, 0.7);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.2s ease;
+  opacity: ${(props) => (props.$isHovered ? 1 : 0)};
+  transform: ${(props) => (props.$isHovered ? 'scale(1)' : 'scale(0.8)')};
+  pointer-events: auto;
+
+  &:hover {
+    background-color: rgba(59, 130, 246, 0.85);
+    transform: scale(1.1);
+  }
+
+  &:disabled {
+    background-color: rgba(156, 163, 175, 0.7);
+    cursor: not-allowed;
+  }
+`
+
+export const AudioProgressOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  pointer-events: auto;
+`
+
+export const AudioProgressBar = styled.div`
+  position: relative;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  overflow: visible;
+`
+
+export const AudioProgressFill = styled.div<{ $percentage: number }>`
+  width: ${(props) => props.$percentage}%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  transition: width 0.1s ease;
+`
+
+export const AudioFrameMarker = styled.div<{ $left: number }>`
+  position: absolute;
+  left: ${(props) => props.$left}%;
+  top: -4px;
+  width: 3px;
+  height: 14px;
+  background-color: #f97316;
+  cursor: pointer;
+  transform: translateX(-50%);
+  opacity: 0.85;
+  transition: all 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.2);
+  }
+`
+
+export const AudioInfoText = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: ${COLORS.ELEVATION_600};
+  line-height: 1;
+`
+
+export const AudioInfoLeft = styled.div`
+  flex: 1;
+  font-weight: 500;
+`
+
+export const AudioInfoRight = styled.div`
+  flex-shrink: 0;
+  font-family: monospace;
+  opacity: 0.8;
 `
 
 export const AudioControls = styled.div`
@@ -235,17 +358,13 @@ export const InstructionsPanel = styled.div`
   font-size: 0.7rem;
   color: ${COLORS.ELEVATION_600};
   text-align: left;
-  padding: 0.75rem;
+  padding: 0.5rem 0.75rem;
   background-color: ${COLORS.ELEVATION_50};
   border-radius: var(--style-radius-m);
   border: 1px solid ${COLORS.BORDER};
   flex-shrink: 0;
-`
-
-export const InstructionsTitle = styled.div`
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: ${COLORS.TEXT};
+  height: auto;
+  line-height: 1.4;
 `
 
 // State Components
@@ -302,10 +421,7 @@ export const FramesGrid = styled.div<{ $columns: string; $gap: string }>`
   gap: ${(props) => props.$gap};
   flex: 1;
   overflow-y: auto;
-  padding: ${GRID_CONFIG.GAP};
-  background-color: ${COLORS.ELEVATION_50};
-  border-radius: var(--style-radius-m);
-  border: 1px solid ${COLORS.BORDER};
+  padding: 0;
   min-height: 0;
   justify-items: center;
 `

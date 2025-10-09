@@ -4,11 +4,16 @@ import React, { useState, useRef, useCallback } from 'react'
 import AudioPlayer, { type AudioPlayerRef } from './AudioPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
-import InstructionsPanel from './components/InstructionsPanel'
 import type { KeyframeData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
 import { pauseAllMedia, roundToNearestSecond } from './utils'
-import { InlineContent, LeftColumn, RightColumn } from './styled'
+import {
+  InlineContent,
+  LeftColumn,
+  RightColumn,
+  AudioPlayerSection,
+  FrameManagerSection,
+} from './styled'
 
 interface InlineLayoutProps {
   audioUrl: string | null
@@ -58,25 +63,33 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
     <InlineContent>
       {/* Left Column - Audio Player and Frame Manager */}
       <LeftColumn>
-        <AudioPlayer
-          ref={audioPlayerRef}
-          audioUrl={audioUrl}
-          frames={frames}
-          onTimeChange={handleTimeChange}
-          onSeek={setCurrentTime}
-          size="small"
-          enableHotkeys={true}
-          showPreview={true}
-        />
+        <AudioPlayerSection>
+          <AudioPlayer
+            ref={audioPlayerRef}
+            audioUrl={audioUrl}
+            frames={frames}
+            onTimeChange={handleTimeChange}
+            onSeek={setCurrentTime}
+            size="small"
+            enableHotkeys={true}
+            showPreview={true}
+          />
+        </AudioPlayerSection>
 
-        <FrameManager frames={frames} onFramesChange={onFramesChange} readOnly={readOnly} />
+        <FrameManagerSection>
+          <FrameManager frames={frames} onFramesChange={onFramesChange} readOnly={readOnly} />
+        </FrameManagerSection>
       </LeftColumn>
 
-      {/* Right Column - Instructions and Frame Library */}
+      {/* Right Column - Frame Library */}
       <RightColumn>
-        <InstructionsPanel narrator={narrator} currentTime={currentTime} frames={frames} />
-
-        <FrameLibrary narrator={narrator} onFrameSelect={handleFrameSelect} disabled={readOnly} />
+        <FrameLibrary
+          narrator={narrator}
+          onFrameSelect={handleFrameSelect}
+          disabled={readOnly}
+          currentTime={currentTime}
+          frames={frames}
+        />
       </RightColumn>
     </InlineContent>
   )
