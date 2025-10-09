@@ -46,6 +46,7 @@ const InlineLayout: React.FC<InlineLayoutProps> = ({
       const roundedTime = roundToNearestSecond(currentTime)
 
       const newKeyframeData: KeyframeData = {
+        ...frame,
         id: frame.id,
         timestamp: frames.length === 0 ? 0 : roundedTime,
       }

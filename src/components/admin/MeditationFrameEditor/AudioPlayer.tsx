@@ -56,6 +56,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
   ) => {
     const audioRef = useRef<HTMLAudioElement>(null)
     const progressRef = useRef<HTMLDivElement>(null)
+    const videoRef = useRef<HTMLVideoElement>(null)
     const currentBlobRef = useRef<string | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
@@ -233,6 +234,19 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       return `${minutes}:${seconds}`
     }
 
+    // Sync video playback with audio player state and when frame changes
+    useEffect(() => {
+      if (!videoRef.current) return
+
+      if (isPlaying) {
+        videoRef.current.play().catch(() => {
+          // Video might not be ready yet, that's ok
+        })
+      } else {
+        videoRef.current.pause()
+      }
+    }, [isPlaying, currentFrame])
+
     // Keyboard shortcuts
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -296,18 +310,63 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           {/* Frame Image/Video */}
           {showPreview && currentFrame ? (
             isVideoFile(currentFrame.mimeType || undefined) ? (
-              <video
-                src={currentFrame.url || ''}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-                loop
-                muted
-                autoPlay
-                playsInline
-              />
+              <>
+                {/* Show preview image as background while video loads */}
+                <img
+                  src={currentFrame.previewUrl || getMediaUrl(currentFrame, 'small') || undefined}
+                  alt={currentFrame.category}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    position: 'absolute',
+                  }}
+                />
+                {/* Loading spinner - behind video so it disappears when video renders */}
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 0,
+                  }}
+                >
+                  <path
+                    d="M2,12A11.2,11.2,0,0,1,13,1.05C12.67,1,12.34,1,12,1a11,11,0,0,0,0,22c.34,0,.67,0,1-.05C6,23,2,17.74,2,12Z"
+                    fill="white"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      dur="0.6s"
+                      values="0 12 12;360 12 12"
+                      repeatCount="indefinite"
+                    />
+                  </path>
+                </svg>
+                {/* Video element on top - will naturally cover preview + spinner once loaded */}
+                <video
+                  ref={videoRef}
+                  src={currentFrame.url || ''}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    zIndex: 1,
+                  }}
+                  loop
+                  muted
+                  playsInline
+                />
+              </>
             ) : (
               <img
                 src={getMediaUrl(currentFrame, 'medium') || undefined}
