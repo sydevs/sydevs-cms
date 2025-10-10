@@ -1858,24 +1858,51 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface WeMeditateWebSetting {
   id: string;
+  /**
+   * Select the page content for the home page
+   */
   homePage: string | Page;
-  musicPage: string | Page;
-  classesPage: string | Page;
-  subtleSystemPage: string | Page;
-  techniquesPage: string | Page;
-  inspirationPage: string | Page;
   /**
    * Select 3-7 pages to feature in the website menu. Drag to reorder.
    */
   featuredPages: (string | Page)[];
   /**
-   * Select 3-5 page tags to display on the Inspiration page
+   * Select 3-5 pages to display in the website footer
    */
-  inspirationPageTags: (string | PageTag)[];
+  footerPages: (string | Page)[];
+  musicPage: string | Page;
   /**
    * Select 3-5 music tags to display on the Music page
    */
   musicPageTags: (string | MusicTag)[];
+  subtleSystemPage: string | Page;
+  mooladhara: string | Page;
+  kundalini: string | Page;
+  swadhistan: string | Page;
+  nabhi: string | Page;
+  void: string | Page;
+  anahat: string | Page;
+  vishuddhi: string | Page;
+  agnya: string | Page;
+  sahasrara: string | Page;
+  left: string | Page;
+  right: string | Page;
+  center: string | Page;
+  techniquesPage: string | Page;
+  /**
+   * Select the page tag that represents all technique pages
+   */
+  techniquePageTag: string | PageTag;
+  inspirationPage: string | Page;
+  /**
+   * Select 3-5 page tags to display on the Inspiration page
+   */
+  inspirationPageTags: (string | PageTag)[];
+  classesPage: string | Page;
+  /**
+   * Select the page for live meditation classes
+   */
+  liveMeditationsPage: string | Page;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -1903,14 +1930,29 @@ export interface PayloadJobsStat {
  */
 export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   homePage?: T;
-  musicPage?: T;
-  classesPage?: T;
-  subtleSystemPage?: T;
-  techniquesPage?: T;
-  inspirationPage?: T;
   featuredPages?: T;
-  inspirationPageTags?: T;
+  footerPages?: T;
+  musicPage?: T;
   musicPageTags?: T;
+  subtleSystemPage?: T;
+  mooladhara?: T;
+  kundalini?: T;
+  swadhistan?: T;
+  nabhi?: T;
+  void?: T;
+  anahat?: T;
+  vishuddhi?: T;
+  agnya?: T;
+  sahasrara?: T;
+  left?: T;
+  right?: T;
+  center?: T;
+  techniquesPage?: T;
+  techniquePageTag?: T;
+  inspirationPage?: T;
+  inspirationPageTags?: T;
+  classesPage?: T;
+  liveMeditationsPage?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
