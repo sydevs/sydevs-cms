@@ -81,7 +81,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     // Find current frame
     const currentFrame = getCurrentFrame(frames, currentTime)
     const currentFrameIndex = currentFrame
-      ? frames.findIndex((f) => f.id === currentFrame.id)
+      ? frames.findIndex((f) => f.id === currentFrame.id && f.timestamp === currentFrame.timestamp)
       : -1
 
     // Load audio as blob to enable proper seeking

@@ -107,6 +107,45 @@ export const AudioPreview = styled.div<{ $width: number; $height: number }>`
   border: 1px solid #e0e0e0;
 `
 
+export const PreviewContainer = styled.div<{ $width: number; $height: number }>`
+  width: ${(props) => props.$width}px;
+  height: ${(props) => props.$height}px;
+  background-color: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+`
+
+export const TimelineTrack = styled.div`
+  position: relative;
+  height: 4px;
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  margin-top: 0.25rem;
+`
+
+export const TimelineMarker = styled.div<{ $left: number; $isActive?: boolean }>`
+  position: absolute;
+  left: ${(props) => props.$left}%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background-color: ${(props) => (props.$isActive ? '#4CAF50' : '#2196F3')};
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+`
+
 export const AudioPlayerOverlay = styled.div<{ $isHovered: boolean }>`
   position: absolute;
   top: 0;
