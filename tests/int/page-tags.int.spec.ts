@@ -49,10 +49,11 @@ describe('PageTags Collection', () => {
 
     expect(tagWithPages.pages).toBeDefined()
     expect(tagWithPages.pages?.docs).toBeDefined()
-    expect(tagWithPages.pages?.docs.length).toBeGreaterThan(0)
+    expect(tagWithPages.pages?.docs?.length).toBeGreaterThan(0)
 
     // Verify the page is in the join relationship
-    const pageIds = tagWithPages.pages?.docs.map((p) => (typeof p === 'object' ? p.id : p)) || []
+    const pageIds =
+      tagWithPages.pages?.docs?.map((p) => (typeof p === 'object' ? p.id : p)) || []
     expect(pageIds).toContain(testPage.id)
   })
 
