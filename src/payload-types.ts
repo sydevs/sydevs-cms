@@ -1858,9 +1858,6 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface WeMeditateWebSetting {
   id: string;
-  /**
-   * Select the page content for the home page
-   */
   homePage: string | Page;
   musicPage: string | Page;
   classesPage: string | Page;

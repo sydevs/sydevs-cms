@@ -14,6 +14,9 @@ export const WeMeditateWebSettings: GlobalConfig = {
       tabs: [
         {
           label: 'Static Pages',
+          admin: {
+            description: 'Select the page content for each static page.',
+          },
           fields: [
             {
               name: 'homePage',
@@ -21,9 +24,6 @@ export const WeMeditateWebSettings: GlobalConfig = {
               type: 'relationship',
               relationTo: 'pages',
               required: true,
-              admin: {
-                description: 'Select the page content for the home page',
-              },
             },
             {
               name: 'musicPage',
