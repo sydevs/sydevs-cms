@@ -35,12 +35,6 @@ export const Meditations: CollectionConfig = {
           label: 'Details',
           fields: [
             {
-              name: 'title',
-              type: 'text',
-              label: 'Public Title',
-              required: true,
-            },
-            {
               name: 'label',
               type: 'text',
               label: 'Internal Name',
@@ -53,9 +47,52 @@ export const Meditations: CollectionConfig = {
                 { label: 'English', value: 'en' },
                 { label: 'Czech', value: 'cs' },
               ],
-              required: true,
               defaultValue: 'en',
+              required: true,
             },
+            {
+              name: 'narrator',
+              type: 'relationship',
+              relationTo: 'narrators',
+              required: true,
+              admin: {
+                description:
+                  'This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.',
+              },
+              validate: (value: unknown, options: any) => {
+                // Only required during update
+                const isUpdate = options.operation === 'update' || !!options.id
+                if (isUpdate && !value) {
+                  return 'Narrator is required'
+                }
+                return true
+              },
+            },
+            {
+              name: 'musicTag',
+              type: 'relationship',
+              relationTo: 'music-tags',
+              admin: {
+                condition: ({ id }) => !!id,
+                description: 'Music with this tag will be offered to the seeker',
+              },
+            },
+            {
+              name: 'fileMetadata',
+              type: 'json',
+              admin: {
+                condition: ({ id }) => !!id,
+                readOnly: true,
+              },
+            },
+          ],
+        },
+        {
+          label: 'Publishing',
+          admin: {
+            condition: ({ id }) => !!id,
+          },
+          fields: [
             {
               name: 'publishAt',
               type: 'date',
@@ -82,47 +119,55 @@ export const Meditations: CollectionConfig = {
                 return true
               },
             },
+            {
+              name: 'title',
+              type: 'text',
+              label: 'Public Title',
+              validate: (value: unknown, options: any) => {
+                // Only required during update
+                const isUpdate = options.operation === 'update' || !!options.id
+                if (isUpdate && !value) {
+                  return 'Public Title is required'
+                }
+                return true
+              },
+            },
             ...SlugField('title', {
               slugOverrides: {
                 unique: true,
               },
             }),
-            MediaField({
-              name: 'thumbnail',
-              required: true,
-              tagName: 'meditation-thumbnail',
-            }),
             {
-              name: 'narrator',
-              type: 'relationship',
-              relationTo: 'narrators',
-              required: true,
+              ...MediaField({
+                name: 'thumbnail',
+                required: false, // Conditionally required via validation
+                tagName: 'meditation-thumbnail',
+              }),
+              validate: (value: unknown, options: any) => {
+                // Only required during update
+                const isUpdate = options.operation === 'update' || !!options.id
+                if (isUpdate && !value) {
+                  return 'Thumbnail is required'
+                }
+                return true
+              },
             },
             {
               name: 'tags',
               type: 'relationship',
               relationTo: 'meditation-tags',
               hasMany: true,
-            },
-            {
-              name: 'musicTag',
-              type: 'relationship',
-              relationTo: 'music-tags',
               admin: {
-                description: 'Music with this tag will be offered to the seeker',
-              },
-            },
-            {
-              name: 'fileMetadata',
-              type: 'json',
-              admin: {
-                readOnly: true,
+                description: 'Categorize this meditation for seekers to find it',
               },
             },
           ],
         },
         {
           label: 'Meditation Video',
+          admin: {
+            condition: ({ id }) => !!id,
+          },
           fields: [
             {
               name: 'frames',
@@ -143,7 +188,11 @@ export const Meditations: CollectionConfig = {
                 const isUpdate = operation === 'update' || !!id
 
                 // If audio exists and this is an update, frames are required
-                if (hasAudio && isUpdate && (!value || !Array.isArray(value) || value.length === 0)) {
+                if (
+                  hasAudio &&
+                  isUpdate &&
+                  (!value || !Array.isArray(value) || value.length === 0)
+                ) {
                   return 'At least one frame is required. Please add frames in the Meditation Video tab.'
                 }
 

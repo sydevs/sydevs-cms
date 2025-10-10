@@ -132,8 +132,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
       <ComponentContainer>
         <ComponentHeader>Current Frames (0)</ComponentHeader>
         <EmptyState>
-          No frames added yet. Select frames from the library below to add them at the current audio
-          timestamp.
+          No frames added yet. Select your first frame from the library on the right.
         </EmptyState>
       </ComponentContainer>
     )
