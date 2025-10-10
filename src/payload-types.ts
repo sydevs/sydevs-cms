@@ -1876,6 +1876,9 @@ export interface WeMeditateWebSetting {
    */
   musicPageTags: (string | MusicTag)[];
   subtleSystemPage: string | Page;
+  left: string | Page;
+  right: string | Page;
+  center: string | Page;
   mooladhara: string | Page;
   kundalini: string | Page;
   swadhistan: string | Page;
@@ -1885,9 +1888,6 @@ export interface WeMeditateWebSetting {
   vishuddhi: string | Page;
   agnya: string | Page;
   sahasrara: string | Page;
-  left: string | Page;
-  right: string | Page;
-  center: string | Page;
   techniquesPage: string | Page;
   /**
    * Select the page tag that represents all technique pages
@@ -1935,6 +1935,9 @@ export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   musicPage?: T;
   musicPageTags?: T;
   subtleSystemPage?: T;
+  left?: T;
+  right?: T;
+  center?: T;
   mooladhara?: T;
   kundalini?: T;
   swadhistan?: T;
@@ -1944,9 +1947,6 @@ export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   vishuddhi?: T;
   agnya?: T;
   sahasrara?: T;
-  left?: T;
-  right?: T;
-  center?: T;
   techniquesPage?: T;
   techniquePageTag?: T;
   inspirationPage?: T;
