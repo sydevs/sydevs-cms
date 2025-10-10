@@ -90,7 +90,7 @@ export const Meditations: CollectionConfig = {
             MediaField({
               name: 'thumbnail',
               required: true,
-              orientation: 'landscape',
+              tagName: 'meditation-thumbnail',
             }),
             {
               name: 'narrator',
