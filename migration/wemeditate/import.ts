@@ -1191,8 +1191,14 @@ class WeMeditateImporter {
 
     await this.logger.log(`Updating ${pagesResult.rows.length} pages with content`)
 
-    // Get the map for this table
-    const mapKey = tableName.replace(/_/g, '').replace(/s$/, '') + 's'
+    // Get the map for this table - convert snake_case to camelCase
+    const mapKeyMap: Record<string, string> = {
+      static_pages: 'staticPages',
+      articles: 'articles',
+      subtle_system_nodes: 'subtleSystemNodes',
+      treatments: 'treatments',
+    }
+    const mapKey = mapKeyMap[tableName]
     const pageIdMap = (this.idMaps as unknown as Record<string, Map<number, string>>)[mapKey]
 
     for (const page of pagesResult.rows) {
