@@ -140,7 +140,7 @@ export interface Config {
     'we-meditate-web-settings': WeMeditateWebSettingsSelect<false> | WeMeditateWebSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
-  locale: 'en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk';
+  locale: 'en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk' | 'el' | 'hy' | 'pl' | 'pt-br';
   user:
     | (Manager & {
         collection: 'managers';

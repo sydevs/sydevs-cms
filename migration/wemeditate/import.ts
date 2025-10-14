@@ -43,7 +43,7 @@ const CONTENT_TYPE_TAGS: Record<string, string> = {
   treatments: 'treatment',
 }
 
-const LOCALES = ['en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk']
+const LOCALES = ['en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk', 'el', 'hy', 'pl', 'pt-br']
 const DB_NAME = 'temp_wemeditate_import'
 
 // ============================================================================
