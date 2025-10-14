@@ -455,56 +455,9 @@ import-cache/storyblok/
 
 **Location**: `migration/wemeditate/import.ts`
 
-A comprehensive import script that migrates content from the Rails-based WeMediate PostgreSQL database into Payload CMS across 9 locales.
+Imports content from the Rails-based WeMediate PostgreSQL database into Payload CMS across 9 locales, including authors, categories, and pages (~160+ pages across multiple content types).
 
-**Key Features**:
-- **PostgreSQL Integration**: Automatic database setup, restore from backup, and cleanup
-- **Multi-Locale Support**: Imports content across all 9 supported locales (en, es, de, it, fr, ru, ro, cs, uk)
-- **Resumable Import**: State tracking and ID mapping for safe interruption and resumption
-- **Tag-Based Tracking**: All imported documents tagged with `import-wemeditate` for easy identification
-- **Collection Reset**: `--reset` flag for destructive cleanup before re-importing
-
-**Usage Examples**:
-```bash
-# Dry run validation (skips Payload initialization)
-npx tsx migration/wemeditate/import.ts --dry-run
-
-# Full import
-npx tsx migration/wemeditate/import.ts
-
-# Reset and re-import
-npx tsx migration/wemeditate/import.ts --reset
-
-# Resume interrupted import
-npx tsx migration/wemeditate/import.ts --resume
-
-# Clear cache and start fresh
-npx tsx migration/wemeditate/import.ts --clear-cache --reset
-```
-
-**Data Transformation**:
-- **Authors** → **Authors Collection**: Name, title, description, country code, years meditating, profile image (all localized)
-- **Categories** → **PageTags**: Category names converted to page tags with localized titles
-- **Content Type Tags**: Automatic creation of tags for static-page, article, promo, subtle-system, treatment
-- **Static Pages, Articles, Promo Pages, Subtle System Nodes, Treatments** → **Pages Collection**: Title, slug, author relationships, tags, publish dates (all localized)
-
-**Source Database**:
-- **File**: `migration/wemeditate/data.bin` (PostgreSQL dump, ~2.4MB)
-- **Tables**: authors (25), categories (5), static_pages (31), articles (55), promo_pages (29), subtle_system_nodes (12), treatments (8)
-- **Locales**: 9 locales with translation tables for each content type
-
-**Future Enhancements**:
-- **EditorJS to Lexical Conversion**: Complex content block transformation (paragraph, textbox, layout, media, action, vimeo, catalog blocks)
-- **Media File Migration**: Automatic download and upload of images from Google Cloud Storage
-- **Form Creation**: Infer and create forms from action blocks in content
-- **External Video Integration**: Create ExternalVideo documents from vimeo blocks
-- **Rich Content Blocks**: Full support for all TextBoxBlock styles (splash, leftAligned, rightAligned, overlay, overlayDark)
-
-**Requirements**:
-- PostgreSQL installed locally
-- `DATABASE_URI` and `PAYLOAD_SECRET` environment variables
-- Source file: `migration/wemeditate/data.bin`
-- Target collections: `authors`, `pages`, `page-tags`, `media`, `forms`, `external-videos`
+**Documentation**: See [migration/wemeditate/README.md](migration/wemeditate/README.md) for detailed information on usage, data transformations, and future enhancements.
 
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation

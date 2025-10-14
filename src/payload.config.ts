@@ -26,7 +26,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     localization: {
       locales: ['en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk'],
       defaultLocale: 'en',
-      fallback: true,
     },
     admin: {
       user: Managers.slug,
