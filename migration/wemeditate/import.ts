@@ -590,9 +590,15 @@ class WeMeditateImporter {
           },
         })
 
-        // Store in appropriate id map
-        const mapKey = tableName.replace(/_/g, '').replace(/s$/, '') + 's'
-        if (mapKey in this.idMaps) {
+        // Store in appropriate id map - convert snake_case to camelCase
+        const mapKeyMap: Record<string, string> = {
+          static_pages: 'staticPages',
+          articles: 'articles',
+          subtle_system_nodes: 'subtleSystemNodes',
+          treatments: 'treatments',
+        }
+        const mapKey = mapKeyMap[tableName]
+        if (mapKey && mapKey in this.idMaps) {
           (this.idMaps as any)[mapKey].set(page.id, pageDoc.id)
         }
 
