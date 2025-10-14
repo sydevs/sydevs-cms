@@ -603,6 +603,147 @@ class WeMeditateImporter {
     await this.saveIdMappings()
   }
 
+  async importPromoPages() {
+    await this.logger.log('\n=== Importing promo_pages ===')
+    this.state.phase = 'importing-promo_pages'
+    await this.saveState()
+
+    // promo_pages has a different structure - no translations table, locale on main table
+    const pagesResult = await this.dbClient.query(`
+      SELECT
+        id,
+        name,
+        slug,
+        content,
+        published_at,
+        state,
+        locale
+      FROM promo_pages
+      WHERE state = 1
+      ORDER BY id
+    `)
+
+    await this.logger.log(`Found ${pagesResult.rows.length} published promo_pages to import`)
+
+    for (const page of pagesResult.rows) {
+      const itemKey = `promo_pages-${page.id}`
+
+      if (this.state.itemsCreated[itemKey]) {
+        await this.logger.log(`Skipping promo_pages ${page.id}, already created`)
+        continue
+      }
+
+      try {
+        // Get tags
+        const tags: string[] = []
+
+        // Add content type tag
+        const contentTypeTag = CONTENT_TYPE_TAGS['promo_pages']
+        if (contentTypeTag && this.state.itemsCreated[`content-type-tag-${contentTypeTag}`]) {
+          tags.push(this.state.itemsCreated[`content-type-tag-${contentTypeTag}`])
+        }
+
+        // Create page document
+        const pageDoc = await this.payload.create({
+          collection: 'pages',
+          data: {
+            title: page.name,
+            slug: page.slug,
+            publishAt: page.published_at || undefined,
+            tags,
+          },
+          locale: page.locale as any,
+        })
+
+        // Store mapping
+        const mapKey = `promoPages`
+        if (!this.idMaps[mapKey as keyof typeof this.idMaps]) {
+          ;(this.idMaps as any)[mapKey] = new Map()
+        }
+        ;(this.idMaps as unknown as Record<string, Map<number, string>>)[mapKey].set(
+          page.id,
+          pageDoc.id as string
+        )
+
+        this.state.itemsCreated[itemKey] = pageDoc.id as string
+        await this.logger.log(`✓ Created page from promo_pages: ${page.id} -> ${pageDoc.id}`)
+      } catch (error: any) {
+        await this.logger.log(`Error importing promo_pages ${page.id}: ${error.message}`, true)
+      }
+    }
+
+    await this.saveState()
+    await this.saveIdMappings()
+  }
+
+  async importPromoPagesWithContent() {
+    await this.logger.log('\n=== Updating promo_pages with Content ===')
+    this.state.phase = 'updating-promo_pages-content'
+    await this.saveState()
+
+    // promo_pages has content directly on the table
+    const pagesResult = await this.dbClient.query(`
+      SELECT
+        id,
+        locale,
+        content
+      FROM promo_pages
+      WHERE state = 1 AND content IS NOT NULL
+      ORDER BY id
+    `)
+
+    await this.logger.log(`Updating ${pagesResult.rows.length} promo_pages with content`)
+
+    for (const page of pagesResult.rows) {
+      const pageId = this.idMaps.promoPages.get(page.id)
+      if (!pageId) {
+        await this.logger.log(`Warning: Promo page ${page.id} not found in ID map`, true)
+        continue
+      }
+
+      try {
+        const locale = page.locale
+        const content = page.content as EditorJSContent
+
+        // Build conversion context
+        const context: ConversionContext = {
+          payload: this.payload,
+          logger: this.logger,
+          pageId: page.id,
+          locale,
+          mediaMap: this.idMaps.media,
+          formMap: this.idMaps.forms,
+          externalVideoMap: this.idMaps.externalVideos,
+          treatmentMap: this.idMaps.treatments,
+          meditationTitleMap: this.meditationTitleMap,
+        }
+
+        // Convert EditorJS to Lexical
+        const lexicalContent = await convertEditorJSToLexical(content, context)
+
+        // Update page with content
+        await this.payload.update({
+          collection: 'pages',
+          id: pageId,
+          data: {
+            content: lexicalContent as any,
+          },
+          locale: locale as any,
+        })
+
+        await this.logger.log(`✓ Updated promo_page ${page.id} -> ${pageId} with content`)
+      } catch (error: any) {
+        await this.logger.log(
+          `Error updating promo_page ${page.id} with content: ${error.message}`,
+          true
+        )
+        throw error // Fail on content conversion error
+      }
+    }
+
+    await this.saveState()
+  }
+
   async importForms() {
     await this.logger.log('\n=== Creating Shared Forms ===')
     this.state.phase = 'creating-forms'
@@ -760,8 +901,6 @@ class WeMeditateImporter {
     for (const [_tableName, translationsTable] of [
       ['static_pages', 'static_page_translations'],
       ['articles', 'article_translations'],
-      // TODO: promo_pages has different structure
-      // ['promo_pages', 'promo_page_translations'],
       ['subtle_system_nodes', 'subtle_system_node_translations'],
       ['treatments', 'treatment_translations'],
     ]) {
@@ -786,6 +925,32 @@ class WeMeditateImporter {
                 youtubeId: block.data.youtube_id,
               })
             }
+          }
+        }
+      }
+    }
+
+    // Scan promo_pages (different structure)
+    const promoResult = await this.dbClient.query(`
+      SELECT content
+      FROM promo_pages
+      WHERE content IS NOT NULL AND state = 1
+    `)
+
+    for (const row of promoResult.rows) {
+      if (!row.content || !row.content.blocks) continue
+
+      for (const block of row.content.blocks) {
+        if (block.type === 'vimeo' && block.data) {
+          const videoId = block.data.vimeo_id || block.data.youtube_id
+          if (videoId) {
+            videoIds.add(videoId)
+            videoMetadata.set(videoId, {
+              title: block.data.title || '',
+              thumbnail: block.data.preview || '',
+              vimeoId: block.data.vimeo_id,
+              youtubeId: block.data.youtube_id,
+            })
           }
         }
       }
@@ -867,12 +1032,10 @@ class WeMeditateImporter {
     const mediaUrls = new Set<string>()
     const mediaMetadata = new Map<string, { alt: string; credit: string; caption: string }>()
 
-    // Scan all page content
+    // Scan all page content with translations
     for (const [_tableName, translationsTable] of [
       ['static_pages', 'static_page_translations'],
       ['articles', 'article_translations'],
-      // TODO: promo_pages has different structure
-      // ['promo_pages', 'promo_page_translations'],
       ['subtle_system_nodes', 'subtle_system_node_translations'],
       ['treatments', 'treatment_translations'],
     ]) {
@@ -901,6 +1064,38 @@ class WeMeditateImporter {
                     caption: item.caption || '',
                   })
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Scan promo_pages (different structure - no translations table)
+    const promoResult = await this.dbClient.query(`
+      SELECT content, locale
+      FROM promo_pages
+      WHERE content IS NOT NULL AND state = 1
+    `)
+
+    for (const row of promoResult.rows) {
+      if (!row.content) continue
+
+      const urls = extractMediaUrls(row.content, STORAGE_BASE_URL)
+      urls.forEach((url) => mediaUrls.add(url))
+
+      // Extract metadata from blocks
+      if (row.content.blocks) {
+        for (const block of row.content.blocks) {
+          if (block.type === 'media' && block.data.items) {
+            for (const item of block.data.items) {
+              if (item.image?.preview) {
+                const url = item.image.preview
+                mediaMetadata.set(url, {
+                  alt: item.alt || '',
+                  credit: item.credit || '',
+                  caption: item.caption || '',
+                })
               }
             }
           }
@@ -1137,8 +1332,7 @@ class WeMeditateImporter {
       // Import pages metadata only (no content conversion yet)
       await this.importPages('static_pages', 'static_page_translations')
       await this.importPages('articles', 'article_translations')
-      // TODO: promo_pages has different structure (no translations table, locale on main table)
-      // await this.importPages('promo_pages', 'promo_page_translations')
+      await this.importPromoPages() // Different structure - no translations table
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPages('treatments', 'treatment_translations')
 
@@ -1155,8 +1349,7 @@ class WeMeditateImporter {
       // Update pages with converted Lexical content
       await this.importPagesWithContent('static_pages', 'static_page_translations')
       await this.importPagesWithContent('articles', 'article_translations')
-      // TODO: promo_pages has different structure
-      // await this.importPagesWithContent('promo_pages', 'promo_page_translations')
+      await this.importPromoPagesWithContent() // Different structure - no translations table
       await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPagesWithContent('treatments', 'treatment_translations')
 
