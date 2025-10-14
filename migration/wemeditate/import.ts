@@ -260,7 +260,6 @@ class WeMeditateImporter {
     const authorsResult = await this.dbClient.query(`
       SELECT
         a.id,
-        a.slug,
         a.country_code,
         a.years_meditating,
         json_agg(
@@ -273,7 +272,7 @@ class WeMeditateImporter {
         ) as translations
       FROM authors a
       LEFT JOIN author_translations at ON a.id = at.author_id
-      GROUP BY a.id, a.slug, a.country_code, a.years_meditating
+      GROUP BY a.id, a.country_code, a.years_meditating
     `)
 
     await this.logger.log(`Found ${authorsResult.rows.length} authors to import`)
@@ -564,7 +563,7 @@ class WeMeditateImporter {
       await fs.mkdir(path.join(CACHE_DIR, 'assets'), { recursive: true })
 
       // 2. Initialize utilities
-      this.logger = new Logger(LOG_FILE)
+      this.logger = new Logger(CACHE_DIR)
       this.fileUtils = new FileUtils(CACHE_DIR, this.logger)
       this.payloadHelpers = new PayloadHelpers(this.logger)
 
