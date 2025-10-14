@@ -83,8 +83,9 @@ If necessary, you should also run `pnpm run generate:types`
 - **Managers** (`src/collections/access/Managers.ts`) - Authentication-enabled admin users with email/password authentication, admin toggle for complete access bypass, and granular collection/locale-based permissions array
 - **Media** (`src/collections/resources/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
 - **Narrators** (`src/collections/resources/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
+- **Authors** (`src/collections/resources/Authors.ts`) - Article author profiles with localized name, title, description, countryCode, yearsMeditating, and profile image
 - **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
-- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, categories, tags, auto-generated slugs, and publish scheduling
+- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, and publish scheduling
 - **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata (title and credit fields are localized)
 - **Frames** (`src/collections/system/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 - **MediaTags** (`src/collections/tags/MediaTags.ts`) - Tag system for media files with slug-based identification
@@ -149,7 +150,7 @@ The system provides 5 block types that can be embedded within the rich text edit
 - **Lexical Editor Integration**: Full-featured editor with formatting options and embedded blocks
 - **Character Count Validation**: TextBoxBlock text field enforces 250-character limit with HTML stripping
 - **Gallery Block Validation**: Maximum 10 items per gallery with conditional relationship filtering
-- **Localization Support**: All text content fields support English/Czech localization
+- **Localization Support**: All text content fields support 13 locales (en, es, de, it, fr, ru, ro, cs, uk, el, hy, pl, pt-br)
 - **Slug Generation**: Uses Better Fields plugin for automatic slug generation from title
 - **Admin Integration**: Uses PublishStateCell component and slug generation utilities
 
@@ -160,11 +161,12 @@ The system provides 5 block types that can be embedded within the rich text edit
 
 ### Localization Architecture
 
-The application supports comprehensive localization for English (`en`) and Czech (`cs`) locales.
+The application supports comprehensive localization for 13 locales: English (`en`), Spanish (`es`), German (`de`), Italian (`it`), French (`fr`), Russian (`ru`), Romanian (`ro`), Czech (`cs`), Ukrainian (`uk`), Greek (`el`), Armenian (`hy`), Polish (`pl`), and Brazilian Portuguese (`pt-br`).
 
 #### Global Configuration
-- Configured in `src/payload.config.ts` with `locales: ['en', 'cs']` and `defaultLocale: 'en'`
+- Configured in `src/payload.config.ts` with all 13 locales and `defaultLocale: 'en'`
 - Payload CMS automatically handles locale switching in the admin UI
+- Fallback enabled to provide content in default locale when translations are missing
 
 #### Field-Level Localization
 Collections with localized fields:
@@ -448,6 +450,14 @@ import-cache/storyblok/
 - `STORYBLOK_ACCESS_TOKEN` environment variable
 - Sharp library for image processing
 - Target collections: `lessons`, `file-attachments`, `external-videos`, `media`
+
+#### WeMediate Rails Database Import
+
+**Location**: `migration/wemeditate/import.ts`
+
+Imports content from the Rails-based WeMediate PostgreSQL database into Payload CMS across 9 locales, including authors, categories, and pages (~160+ pages across multiple content types).
+
+**Documentation**: See [migration/wemeditate/README.md](migration/wemeditate/README.md) for detailed information on usage, data transformations, and future enhancements.
 
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation
