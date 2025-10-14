@@ -547,8 +547,6 @@ class WeMeditateImporter {
           continue
         }
 
-        const firstLocale = Object.keys(localizedData)[0]
-
         // Get author relationship
         let authorId: string | undefined
         if (page.author_id && this.idMaps.authors.has(page.author_id)) {
@@ -578,7 +576,10 @@ class WeMeditateImporter {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
-        // For now, create with minimal content (we'll add full EditorJS conversion in next phase)
+        // Create page with first locale
+        const locales = Object.keys(localizedData)
+        const firstLocale = locales[0] as any
+
         const pageDoc = await this.payload.create({
           collection: 'pages',
           data: {
@@ -588,7 +589,23 @@ class WeMeditateImporter {
             author: authorId,
             tags: tags.length > 0 ? tags : undefined,
           },
+          locale: firstLocale,
         })
+
+        // Update with other locales
+        for (let i = 1; i < locales.length; i++) {
+          const locale = locales[i] as any
+          await this.payload.update({
+            collection: 'pages',
+            id: pageDoc.id,
+            data: {
+              title: localizedData[locale].title,
+              slug: localizedData[locale].slug,
+              publishAt: localizedData[locale].publishAt || undefined,
+            },
+            locale,
+          })
+        }
 
         // Store in appropriate id map - convert snake_case to camelCase
         const mapKeyMap: Record<string, string> = {
@@ -713,6 +730,12 @@ class WeMeditateImporter {
 
       try {
         const locale = page.locale
+
+        // Skip unsupported locales
+        if (!LOCALES.includes(locale)) {
+          continue
+        }
+
         const content = page.content as EditorJSContent
 
         // Build conversion context
@@ -1222,6 +1245,11 @@ class WeMeditateImporter {
         // Convert content for each locale
         for (const translation of page.translations) {
           if (!translation.locale || !translation.content) continue
+
+          // Skip unsupported locales
+          if (!LOCALES.includes(translation.locale)) {
+            continue
+          }
 
           const locale = translation.locale
           const content = translation.content as EditorJSContent
