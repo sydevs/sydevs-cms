@@ -1135,7 +1135,8 @@ class WeMeditateImporter {
       // Import pages metadata only (no content conversion yet)
       await this.importPages('static_pages', 'static_page_translations')
       await this.importPages('articles', 'article_translations')
-      await this.importPages('promo_pages', 'promo_page_translations')
+      // TODO: promo_pages has different structure (no translations table, locale on main table)
+      // await this.importPages('promo_pages', 'promo_page_translations')
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPages('treatments', 'treatment_translations')
 
@@ -1152,7 +1153,8 @@ class WeMeditateImporter {
       // Update pages with converted Lexical content
       await this.importPagesWithContent('static_pages', 'static_page_translations')
       await this.importPagesWithContent('articles', 'article_translations')
-      await this.importPagesWithContent('promo_pages', 'promo_page_translations')
+      // TODO: promo_pages has different structure
+      // await this.importPagesWithContent('promo_pages', 'promo_page_translations')
       await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPagesWithContent('treatments', 'treatment_translations')
 
