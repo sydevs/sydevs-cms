@@ -281,7 +281,7 @@ class WeMeditateImporter {
             'locale', at.locale,
             'name', at.name,
             'title', at.title,
-            'text', at.text
+            'description', at.description
           )
         ) as translations
       FROM authors a
@@ -307,7 +307,7 @@ class WeMeditateImporter {
             localizedData[translation.locale] = {
               name: translation.name,
               title: translation.title || '',
-              description: translation.text || '',
+              description: translation.description || '',
             }
           }
         }
@@ -317,22 +317,40 @@ class WeMeditateImporter {
           continue
         }
 
-        // Create author document
+        // Create author document with first locale
+        const locales = Object.keys(localizedData)
+        const firstLocale = locales[0] as any
+
         const authorDoc = await this.payload.create({
           collection: 'authors',
           data: {
-            name: localizedData[Object.keys(localizedData)[0]].name,
-            title: localizedData[Object.keys(localizedData)[0]].title,
-            description: localizedData[Object.keys(localizedData)[0]].description,
+            name: localizedData[firstLocale].name,
+            title: localizedData[firstLocale].title,
+            description: localizedData[firstLocale].description,
             countryCode: author.country_code || undefined,
             yearsMeditating: author.years_meditating || undefined,
           },
-          locale: 'all' as any,
+          locale: firstLocale,
         })
+
+        // Update with other locales
+        for (let i = 1; i < locales.length; i++) {
+          const locale = locales[i] as any
+          await this.payload.update({
+            collection: 'authors',
+            id: authorDoc.id,
+            data: {
+              name: localizedData[locale].name,
+              title: localizedData[locale].title,
+              description: localizedData[locale].description,
+            },
+            locale,
+          })
+        }
 
         this.idMaps.authors.set(author.id, authorDoc.id as string)
         this.state.itemsCreated[itemKey] = authorDoc.id as string
-        await this.logger.log(`✓ Created author: ${author.id} -> ${authorDoc.id}`)
+        await this.logger.log(`✓ Created author: ${author.id} -> ${authorDoc.id} (${locales.length} locales)`)
       } catch (error: any) {
         await this.logger.log(`Error importing author ${author.id}: ${error.message}`, true)
       }
@@ -389,21 +407,35 @@ class WeMeditateImporter {
           continue
         }
 
-        const firstLocale = Object.keys(localizedData)[0]
+        const locales = Object.keys(localizedData)
+        const firstLocale = locales[0] as any
 
-        // Create page tag
+        // Create page tag with first locale
         const tagDoc = await this.payload.create({
           collection: 'page-tags',
           data: {
             name: localizedData[firstLocale].name,
             title: localizedData[firstLocale].title,
           },
-          locale: 'all' as any,
+          locale: firstLocale,
         })
+
+        // Update with other locales
+        for (let i = 1; i < locales.length; i++) {
+          const locale = locales[i] as any
+          await this.payload.update({
+            collection: 'page-tags',
+            id: tagDoc.id,
+            data: {
+              title: localizedData[locale].title,
+            },
+            locale,
+          })
+        }
 
         this.idMaps.categories.set(category.id, tagDoc.id as string)
         this.state.itemsCreated[itemKey] = tagDoc.id as string
-        await this.logger.log(`✓ Created category tag: ${category.id} -> ${tagDoc.id}`)
+        await this.logger.log(`✓ Created category tag: ${category.id} -> ${tagDoc.id} (${locales.length} locales)`)
       } catch (error: any) {
         await this.logger.log(`Error importing category ${category.id}: ${error.message}`, true)
       }
@@ -454,12 +486,26 @@ class WeMeditateImporter {
     this.state.phase = `importing-${tableName}`
     await this.saveState()
 
+    // Build SQL query based on table type
+    const isArticles = tableName === 'articles'
+    const authorField = isArticles ? 'p.author_id,' : ''
+    const articleTypeField = isArticles ? 'p.article_type,' : ''
+    const categoryField = 'p.category_id,'
+    const groupByFields = [
+      'p.id',
+      isArticles ? 'p.author_id' : null,
+      isArticles ? 'p.article_type' : null,
+      'p.category_id',
+    ]
+      .filter(Boolean)
+      .join(', ')
+
     const pagesResult = await this.dbClient.query(`
       SELECT
         p.id,
-        p.author_id,
-        p.article_type,
-        p.category_id,
+        ${authorField}
+        ${articleTypeField}
+        ${categoryField}
         json_agg(
           json_build_object(
             'locale', pt.locale,
@@ -472,7 +518,7 @@ class WeMeditateImporter {
         ) as translations
       FROM ${tableName} p
       LEFT JOIN ${translationsTable} pt ON p.id = pt.${tableName.slice(0, -1)}_id
-      GROUP BY p.id, p.author_id, p.article_type, p.category_id
+      GROUP BY ${groupByFields}
     `)
 
     await this.logger.log(`Found ${pagesResult.rows.length} pages to import from ${tableName}`)
@@ -1058,6 +1104,13 @@ class WeMeditateImporter {
 
       // 5. Setup PostgreSQL database
       await this.setupDatabase()
+
+      // Stop here if dry run
+      if (this.options.dryRun) {
+        await this.logger.log('\n✓ Dry run completed successfully')
+        await this.logger.log('Database connection and schema validated')
+        return
+      }
 
       // 6. Run two-phase import
       await this.logger.log('\n=== PHASE 1: Metadata Import ===\n')
