@@ -8,6 +8,12 @@ import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 import { Logger, FileUtils, TagManager, PayloadHelpers } from '../lib'
+import { MediaDownloader, extractMediaUrls, extractAuthorImageUrl } from '../lib/mediaDownloader'
+import {
+  convertEditorJSToLexical,
+  type ConversionContext,
+  type EditorJSContent,
+} from '../lib/lexicalConverter'
 
 // ============================================================================
 // CONFIGURATION
@@ -81,6 +87,7 @@ class WeMeditateImporter {
   private fileUtils!: FileUtils
   private tagManager!: TagManager
   private payloadHelpers!: PayloadHelpers
+  private mediaDownloader!: MediaDownloader
 
   private dbClient!: Client
   private state: ImportState
@@ -97,6 +104,7 @@ class WeMeditateImporter {
     forms: new Map(),
     externalVideos: new Map(),
   }
+  private meditationTitleMap: Map<string, string> = new Map()
 
   constructor(options: ScriptOptions) {
     this.options = options
@@ -140,7 +148,13 @@ class WeMeditateImporter {
       const data = await fs.readFile(ID_MAPS_FILE, 'utf-8')
       const cached = JSON.parse(data)
       for (const [key, value] of Object.entries(cached)) {
-        this.idMaps[key as keyof IdMaps] = new Map(Object.entries(value))
+        const entries = Object.entries(value as Record<string, string>)
+        // Convert string keys to numbers for numeric ID maps
+        if (key === 'media' || key === 'forms' || key === 'externalVideos') {
+          this.idMaps[key as keyof IdMaps] = new Map(entries) as any
+        } else {
+          this.idMaps[key as keyof IdMaps] = new Map(entries.map(([k, v]) => [Number(k), v])) as any
+        }
       }
       await this.logger.log('Loaded ID mappings from cache')
     } catch {
@@ -550,6 +564,456 @@ class WeMeditateImporter {
     await this.saveIdMappings()
   }
 
+  async importForms() {
+    await this.logger.log('\n=== Creating Shared Forms ===')
+    this.state.phase = 'creating-forms'
+    await this.saveState()
+
+    const formConfigs = {
+      contact: {
+        title: 'Contact Form',
+        fields: [
+          {
+            name: 'name',
+            label: 'Name',
+            blockType: 'text' as const,
+            required: true,
+          },
+          {
+            name: 'email',
+            label: 'Email',
+            blockType: 'email' as const,
+            required: true,
+          },
+          {
+            name: 'message',
+            label: 'Message',
+            blockType: 'textarea' as const,
+            required: true,
+          },
+        ],
+      },
+      signup: {
+        title: 'Signup Form',
+        fields: [
+          {
+            name: 'email',
+            label: 'Email',
+            blockType: 'email' as const,
+            required: true,
+          },
+        ],
+      },
+    }
+
+    for (const [formType, config] of Object.entries(formConfigs)) {
+      const itemKey = `form-${formType}`
+
+      if (this.state.itemsCreated[itemKey]) {
+        this.idMaps.forms.set(formType, this.state.itemsCreated[itemKey])
+        await this.logger.log(`Skipping form ${formType}, already created`)
+        continue
+      }
+
+      try {
+        // Check if form already exists
+        const existing = await this.payload.find({
+          collection: 'forms',
+          where: {
+            title: { equals: config.title },
+          },
+        })
+
+        if (existing.docs.length > 0) {
+          this.idMaps.forms.set(formType, existing.docs[0].id as string)
+          this.state.itemsCreated[itemKey] = existing.docs[0].id as string
+          await this.logger.log(`✓ Reusing existing form: ${config.title}`)
+          continue
+        }
+
+        // Create new form
+        const form = await this.payload.create({
+          collection: 'forms',
+          data: {
+            title: config.title,
+            fields: config.fields,
+            submitButtonLabel: 'Submit',
+            confirmationType: 'message' as const,
+            confirmationMessage: {
+              root: {
+                type: 'root',
+                version: 1,
+                children: [
+                  {
+                    type: 'paragraph',
+                    version: 1,
+                    children: [
+                      {
+                        type: 'text',
+                        version: 1,
+                        text: 'Thank you for your submission!',
+                        format: 0,
+                        style: '',
+                        mode: 'normal',
+                        detail: 0,
+                      },
+                    ],
+                    direction: null,
+                    format: '',
+                    indent: 0,
+                    textFormat: 0,
+                  },
+                ],
+                direction: null,
+                format: '',
+                indent: 0,
+              },
+            },
+          },
+        })
+
+        this.idMaps.forms.set(formType, form.id as string)
+        this.state.itemsCreated[itemKey] = form.id as string
+        await this.logger.log(`✓ Created form: ${config.title}`)
+      } catch (error: any) {
+        await this.logger.log(`Error creating form ${formType}: ${error.message}`, true)
+      }
+    }
+
+    await this.saveState()
+    await this.saveIdMappings()
+  }
+
+  async buildMeditationTitleMap() {
+    await this.logger.log('\n=== Building Meditation Title Map ===')
+
+    try {
+      const meditations = await this.payload.find({
+        collection: 'meditations',
+        limit: 1000,
+      })
+
+      for (const meditation of meditations.docs) {
+        if (meditation.title) {
+          const title = meditation.title.toLowerCase().trim()
+          this.meditationTitleMap.set(title, meditation.id as string)
+        }
+      }
+
+      await this.logger.log(`✓ Built map with ${this.meditationTitleMap.size} meditations`)
+    } catch (error: any) {
+      await this.logger.log(`Error building meditation map: ${error.message}`, true)
+    }
+  }
+
+  async importExternalVideos() {
+    await this.logger.log('\n=== Scanning for External Videos ===')
+    this.state.phase = 'importing-external-videos'
+    await this.saveState()
+
+    // Collect all vimeo/youtube IDs from content
+    const videoIds = new Set<string>()
+    const videoMetadata = new Map<
+      string,
+      { title: string; thumbnail: string; vimeoId?: string; youtubeId?: string }
+    >()
+
+    for (const [_tableName, translationsTable] of [
+      ['static_pages', 'static_page_translations'],
+      ['articles', 'article_translations'],
+      ['promo_pages', 'promo_page_translations'],
+      ['subtle_system_nodes', 'subtle_system_node_translations'],
+      ['treatments', 'treatment_translations'],
+    ]) {
+      const result = await this.dbClient.query(`
+        SELECT content
+        FROM ${translationsTable}
+        WHERE content IS NOT NULL AND state = 1
+      `)
+
+      for (const row of result.rows) {
+        if (!row.content || !row.content.blocks) continue
+
+        for (const block of row.content.blocks) {
+          if (block.type === 'vimeo' && block.data) {
+            const videoId = block.data.vimeo_id || block.data.youtube_id
+            if (videoId) {
+              videoIds.add(videoId)
+              videoMetadata.set(videoId, {
+                title: block.data.title || '',
+                thumbnail: block.data.thumbnail || '',
+                vimeoId: block.data.vimeo_id,
+                youtubeId: block.data.youtube_id,
+              })
+            }
+          }
+        }
+      }
+    }
+
+    await this.logger.log(`Found ${videoIds.size} unique external videos`)
+
+    // Create ExternalVideo documents
+    for (const videoId of videoIds) {
+      const itemKey = `external-video-${videoId}`
+
+      if (this.state.itemsCreated[itemKey]) {
+        this.idMaps.externalVideos.set(videoId, this.state.itemsCreated[itemKey])
+        continue
+      }
+
+      try {
+        const metadata = videoMetadata.get(videoId)!
+
+        // Build video URL
+        const videoUrl = metadata.vimeoId
+          ? `https://vimeo.com/${metadata.vimeoId}`
+          : `https://youtube.com/watch?v=${metadata.youtubeId}`
+
+        // Thumbnail is required - skip if we don't have one or can't create it
+        if (!metadata.thumbnail) {
+          await this.logger.log(
+            `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`,
+            true
+          )
+          continue
+        }
+
+        // Try to get thumbnail from media map
+        const thumbnailUrl = metadata.thumbnail.startsWith('http')
+          ? metadata.thumbnail
+          : STORAGE_BASE_URL + metadata.thumbnail
+        const thumbnailId = this.idMaps.media.get(thumbnailUrl)
+
+        if (!thumbnailId) {
+          await this.logger.log(
+            `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`,
+            true
+          )
+          continue
+        }
+
+        const externalVideo = await this.payload.create({
+          collection: 'external-videos',
+          data: {
+            title: metadata.title || `Video ${videoId}`,
+            videoUrl,
+            thumbnail: thumbnailId,
+          },
+        })
+
+        this.idMaps.externalVideos.set(videoId, externalVideo.id as string)
+        this.state.itemsCreated[itemKey] = externalVideo.id as string
+        await this.logger.log(`✓ Created ExternalVideo: ${videoId}`)
+      } catch (error: any) {
+        await this.logger.log(`Error creating ExternalVideo ${videoId}: ${error.message}`, true)
+      }
+    }
+
+    await this.saveState()
+    await this.saveIdMappings()
+  }
+
+  async importMedia() {
+    await this.logger.log('\n=== Importing Media Files ===')
+    this.state.phase = 'importing-media'
+    await this.saveState()
+
+    // Initialize media downloader
+    this.mediaDownloader = new MediaDownloader(CACHE_DIR, this.logger)
+    await this.mediaDownloader.initialize()
+
+    // Collect all media URLs from content
+    const mediaUrls = new Set<string>()
+    const mediaMetadata = new Map<string, { alt: string; credit: string; caption: string }>()
+
+    // Scan all page content
+    for (const [_tableName, translationsTable] of [
+      ['static_pages', 'static_page_translations'],
+      ['articles', 'article_translations'],
+      ['promo_pages', 'promo_page_translations'],
+      ['subtle_system_nodes', 'subtle_system_node_translations'],
+      ['treatments', 'treatment_translations'],
+    ]) {
+      const result = await this.dbClient.query(`
+        SELECT content, locale
+        FROM ${translationsTable}
+        WHERE content IS NOT NULL AND state = 1
+      `)
+
+      for (const row of result.rows) {
+        if (!row.content) continue
+
+        const urls = extractMediaUrls(row.content, STORAGE_BASE_URL)
+        urls.forEach((url) => mediaUrls.add(url))
+
+        // Extract metadata from blocks
+        if (row.content.blocks) {
+          for (const block of row.content.blocks) {
+            if (block.type === 'media' && block.data.items) {
+              for (const item of block.data.items) {
+                if (item.image?.preview) {
+                  const url = item.image.preview
+                  mediaMetadata.set(url, {
+                    alt: item.alt || '',
+                    credit: item.credit || '',
+                    caption: item.caption || '',
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Also scan author images
+    const authorsResult = await this.dbClient.query(`
+      SELECT id, image
+      FROM authors
+      WHERE image IS NOT NULL
+    `)
+
+    for (const author of authorsResult.rows) {
+      const imageUrl = extractAuthorImageUrl(author.image, STORAGE_BASE_URL)
+      if (imageUrl) {
+        mediaUrls.add(imageUrl)
+        mediaMetadata.set(imageUrl, {
+          alt: 'Author profile image',
+          credit: '',
+          caption: '',
+        })
+      }
+    }
+
+    await this.logger.log(`Found ${mediaUrls.size} unique media files to download`)
+
+    // Download and create Media documents
+    let downloadedCount = 0
+    for (const url of mediaUrls) {
+      const itemKey = `media-${url}`
+
+      if (this.state.itemsCreated[itemKey]) {
+        this.idMaps.media.set(url, this.state.itemsCreated[itemKey])
+        downloadedCount++
+        continue
+      }
+
+      try {
+        // Download and convert
+        const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
+
+        // Get metadata
+        const metadata = mediaMetadata.get(url) || {
+          alt: '',
+          credit: '',
+          caption: '',
+        }
+
+        // Create Media document
+        const mediaId = await this.mediaDownloader.createMediaDocument(
+          this.payload,
+          downloadResult,
+          metadata,
+          'all'
+        )
+
+        this.idMaps.media.set(url, mediaId)
+        this.state.itemsCreated[itemKey] = mediaId
+        downloadedCount++
+
+        await this.logger.log(`✓ Imported media: ${downloadedCount}/${mediaUrls.size}`)
+      } catch (error: any) {
+        await this.logger.log(`Error importing media ${url}: ${error.message}`, true)
+        throw error // Fail on media import error
+      }
+    }
+
+    await this.saveState()
+    await this.saveIdMappings()
+  }
+
+  async importPagesWithContent(tableName: string, translationsTable: string) {
+    await this.logger.log(`\n=== Updating ${tableName} with Content ===`)
+    this.state.phase = `updating-${tableName}-content`
+    await this.saveState()
+
+    const pagesResult = await this.dbClient.query(`
+      SELECT
+        p.id,
+        json_agg(
+          json_build_object(
+            'locale', pt.locale,
+            'content', pt.content
+          ) ORDER BY pt.locale
+        ) as translations
+      FROM ${tableName} p
+      LEFT JOIN ${translationsTable} pt ON p.id = pt.${tableName.slice(0, -1)}_id
+      WHERE pt.state = 1 AND pt.content IS NOT NULL
+      GROUP BY p.id
+    `)
+
+    await this.logger.log(`Updating ${pagesResult.rows.length} pages with content`)
+
+    // Get the map for this table
+    const mapKey = tableName.replace(/_/g, '').replace(/s$/, '') + 's'
+    const pageIdMap = (this.idMaps as unknown as Record<string, Map<number, string>>)[mapKey]
+
+    for (const page of pagesResult.rows) {
+      const pageId = pageIdMap.get(page.id)
+      if (!pageId) {
+        await this.logger.log(`Warning: Page ${page.id} not found in ID map`, true)
+        continue
+      }
+
+      try {
+        // Convert content for each locale
+        for (const translation of page.translations) {
+          if (!translation.locale || !translation.content) continue
+
+          const locale = translation.locale
+          const content = translation.content as EditorJSContent
+
+          // Build conversion context
+          const context: ConversionContext = {
+            payload: this.payload,
+            logger: this.logger,
+            pageId: page.id,
+            locale,
+            mediaMap: this.idMaps.media,
+            formMap: this.idMaps.forms,
+            externalVideoMap: this.idMaps.externalVideos,
+            treatmentMap: this.idMaps.treatments,
+            meditationTitleMap: this.meditationTitleMap,
+          }
+
+          // Convert EditorJS to Lexical
+          const lexicalContent = await convertEditorJSToLexical(content, context)
+
+          // Update page with content
+          await this.payload.update({
+            collection: 'pages',
+            id: pageId,
+            data: {
+              content: lexicalContent as any,
+            },
+            locale,
+          })
+        }
+
+        await this.logger.log(`✓ Updated page ${page.id} -> ${pageId} with content`)
+      } catch (error: any) {
+        await this.logger.log(
+          `Error updating page ${page.id} with content: ${error.message}`,
+          true
+        )
+        throw error // Fail on content conversion error
+      }
+    }
+
+    await this.saveState()
+  }
+
   // ============================================================================
   // MAIN RUN METHOD
   // ============================================================================
@@ -564,15 +1028,14 @@ class WeMeditateImporter {
 
       // 2. Initialize utilities
       this.logger = new Logger(CACHE_DIR)
-      this.fileUtils = new FileUtils(CACHE_DIR, this.logger)
-      this.payloadHelpers = new PayloadHelpers(this.logger)
+      this.fileUtils = new FileUtils(this.logger)
 
       // 3. Initialize Payload (skip in dry run)
       if (!this.options.dryRun) {
         const payloadConfig = await configPromise
         this.payload = await getPayload({ config: payloadConfig })
         this.tagManager = new TagManager(this.payload, this.logger)
-        this.payloadHelpers.setPayload(this.payload)
+        this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
         await this.logger.log('✓ Payload CMS initialized')
       }
 
@@ -596,7 +1059,10 @@ class WeMeditateImporter {
       // 5. Setup PostgreSQL database
       await this.setupDatabase()
 
-      // 6. Run import steps
+      // 6. Run two-phase import
+      await this.logger.log('\n=== PHASE 1: Metadata Import ===\n')
+
+      // Phase 1: Import metadata without content
       await this.importAuthors()
       await this.importCategories()
       await this.importContentTypeTags()
@@ -620,11 +1086,29 @@ class WeMeditateImporter {
         }
       }
 
+      // Import pages metadata only (no content conversion yet)
       await this.importPages('static_pages', 'static_page_translations')
       await this.importPages('articles', 'article_translations')
       await this.importPages('promo_pages', 'promo_page_translations')
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPages('treatments', 'treatment_translations')
+
+      await this.saveIdMappings()
+
+      await this.logger.log('\n=== PHASE 2: Content Import ===\n')
+
+      // Phase 2: Import content with full conversion
+      await this.buildMeditationTitleMap()
+      await this.importForms()
+      await this.importMedia()
+      await this.importExternalVideos()
+
+      // Update pages with converted Lexical content
+      await this.importPagesWithContent('static_pages', 'static_page_translations')
+      await this.importPagesWithContent('articles', 'article_translations')
+      await this.importPagesWithContent('promo_pages', 'promo_page_translations')
+      await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
+      await this.importPagesWithContent('treatments', 'treatment_translations')
 
       await this.saveIdMappings()
 
