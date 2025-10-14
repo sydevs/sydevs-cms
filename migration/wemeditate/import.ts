@@ -300,10 +300,11 @@ class WeMeditateImporter {
       }
 
       try {
-        // Build localized data
+        // Build localized data - only include supported locales
         const localizedData: any = {}
         for (const translation of author.translations) {
-          if (translation.locale && translation.name) {
+          // Filter to only supported locales and require at least a name
+          if (translation.locale && translation.name && LOCALES.includes(translation.locale)) {
             localizedData[translation.locale] = {
               name: translation.name,
               title: translation.title || '',
@@ -313,7 +314,10 @@ class WeMeditateImporter {
         }
 
         if (Object.keys(localizedData).length === 0) {
-          await this.logger.log(`Skipping author ${author.id}: no valid translations`, true)
+          await this.logger.log(
+            `Skipping author ${author.id}: no translations in supported locales`,
+            false
+          )
           continue
         }
 
