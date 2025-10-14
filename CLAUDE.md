@@ -83,8 +83,9 @@ If necessary, you should also run `pnpm run generate:types`
 - **Managers** (`src/collections/access/Managers.ts`) - Authentication-enabled admin users with email/password authentication, admin toggle for complete access bypass, and granular collection/locale-based permissions array
 - **Media** (`src/collections/resources/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
 - **Narrators** (`src/collections/resources/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
+- **Authors** (`src/collections/resources/Authors.ts`) - Article author profiles with localized name, title, description, country code, years of meditation experience, and profile image
 - **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
-- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, categories, tags, auto-generated slugs, and publish scheduling
+- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, and publish scheduling
 - **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata (title and credit fields are localized)
 - **Frames** (`src/collections/system/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 - **MediaTags** (`src/collections/tags/MediaTags.ts`) - Tag system for media files with slug-based identification
@@ -160,11 +161,12 @@ The system provides 5 block types that can be embedded within the rich text edit
 
 ### Localization Architecture
 
-The application supports comprehensive localization for English (`en`) and Czech (`cs`) locales.
+The application supports comprehensive localization for 9 locales: English (`en`), Spanish (`es`), German (`de`), Italian (`it`), French (`fr`), Russian (`ru`), Romanian (`ro`), Czech (`cs`), and Ukrainian (`uk`).
 
 #### Global Configuration
-- Configured in `src/payload.config.ts` with `locales: ['en', 'cs']` and `defaultLocale: 'en'`
+- Configured in `src/payload.config.ts` with all 9 locales and `defaultLocale: 'en'`
 - Payload CMS automatically handles locale switching in the admin UI
+- Fallback enabled to provide content in default locale when translations are missing
 
 #### Field-Level Localization
 Collections with localized fields:
@@ -448,6 +450,61 @@ import-cache/storyblok/
 - `STORYBLOK_ACCESS_TOKEN` environment variable
 - Sharp library for image processing
 - Target collections: `lessons`, `file-attachments`, `external-videos`, `media`
+
+#### WeMediate Rails Database Import
+
+**Location**: `migration/wemeditate/import.ts`
+
+A comprehensive import script that migrates content from the Rails-based WeMediate PostgreSQL database into Payload CMS across 9 locales.
+
+**Key Features**:
+- **PostgreSQL Integration**: Automatic database setup, restore from backup, and cleanup
+- **Multi-Locale Support**: Imports content across all 9 supported locales (en, es, de, it, fr, ru, ro, cs, uk)
+- **Resumable Import**: State tracking and ID mapping for safe interruption and resumption
+- **Tag-Based Tracking**: All imported documents tagged with `import-wemeditate` for easy identification
+- **Collection Reset**: `--reset` flag for destructive cleanup before re-importing
+
+**Usage Examples**:
+```bash
+# Dry run validation (skips Payload initialization)
+npx tsx migration/wemeditate/import.ts --dry-run
+
+# Full import
+npx tsx migration/wemeditate/import.ts
+
+# Reset and re-import
+npx tsx migration/wemeditate/import.ts --reset
+
+# Resume interrupted import
+npx tsx migration/wemeditate/import.ts --resume
+
+# Clear cache and start fresh
+npx tsx migration/wemeditate/import.ts --clear-cache --reset
+```
+
+**Data Transformation**:
+- **Authors** → **Authors Collection**: Name, title, description, country code, years meditating, profile image (all localized)
+- **Categories** → **PageTags**: Category names converted to page tags with localized titles
+- **Content Type Tags**: Automatic creation of tags for static-page, article, promo, subtle-system, treatment
+- **Static Pages, Articles, Promo Pages, Subtle System Nodes, Treatments** → **Pages Collection**: Title, slug, author relationships, tags, publish dates (all localized)
+
+**Source Database**:
+- **File**: `migration/wemeditate/data.bin` (PostgreSQL dump, ~2.4MB)
+- **Tables**: authors (25), categories (5), static_pages (31), articles (55), promo_pages (29), subtle_system_nodes (12), treatments (8)
+- **Locales**: 9 locales with translation tables for each content type
+
+**Future Enhancements**:
+- **EditorJS to Lexical Conversion**: Complex content block transformation (paragraph, textbox, layout, media, action, vimeo, catalog blocks)
+- **Media File Migration**: Automatic download and upload of images from Google Cloud Storage
+- **Form Creation**: Infer and create forms from action blocks in content
+- **External Video Integration**: Create ExternalVideo documents from vimeo blocks
+- **Rich Content Blocks**: Full support for all TextBoxBlock styles (splash, leftAligned, rightAligned, overlay, overlayDark)
+
+**Requirements**:
+- PostgreSQL installed locally
+- `DATABASE_URI` and `PAYLOAD_SECRET` environment variables
+- Source file: `migration/wemeditate/data.bin`
+- Target collections: `authors`, `pages`, `page-tags`, `media`, `forms`, `external-videos`
 
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation
