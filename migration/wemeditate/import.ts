@@ -310,8 +310,8 @@ class WeMeditateImporter {
             name: localizedData[Object.keys(localizedData)[0]].name,
             title: localizedData[Object.keys(localizedData)[0]].title,
             description: localizedData[Object.keys(localizedData)[0]].description,
-            country_code: author.country_code || undefined,
-            years_meditating: author.years_meditating || undefined,
+            countryCode: author.country_code || undefined,
+            yearsMeditating: author.years_meditating || undefined,
           },
           locale: 'all' as any,
         })

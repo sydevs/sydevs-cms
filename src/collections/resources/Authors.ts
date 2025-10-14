@@ -3,11 +3,11 @@ import { permissionBasedAccess } from '@/lib/accessControl'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
-  access: permissionBasedAccess(),
+  access: permissionBasedAccess('pages'),
   admin: {
     group: 'Resources',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'title', 'country_code'],
+    defaultColumns: ['name', 'title', 'countryCode'],
   },
   fields: [
     {
@@ -33,14 +33,14 @@ export const Authors: CollectionConfig = {
       },
     },
     {
-      name: 'country_code',
+      name: 'countryCode',
       type: 'text',
       admin: {
         description: 'ISO 2-letter country code',
       },
     },
     {
-      name: 'years_meditating',
+      name: 'yearsMeditating',
       type: 'number',
       admin: {
         description: 'Years of meditation experience',

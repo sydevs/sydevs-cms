@@ -339,11 +339,11 @@ export interface Author {
   /**
    * ISO 2-letter country code
    */
-  country_code?: string | null;
+  countryCode?: string | null;
   /**
    * Years of meditation experience
    */
-  years_meditating?: number | null;
+  yearsMeditating?: number | null;
   /**
    * Author profile image
    */
@@ -1501,8 +1501,8 @@ export interface AuthorsSelect<T extends boolean = true> {
   name?: T;
   title?: T;
   description?: T;
-  country_code?: T;
-  years_meditating?: T;
+  countryCode?: T;
+  yearsMeditating?: T;
   image?: T;
   updatedAt?: T;
   createdAt?: T;
