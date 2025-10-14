@@ -486,26 +486,19 @@ class WeMeditateImporter {
     this.state.phase = `importing-${tableName}`
     await this.saveState()
 
-    // Build SQL query based on table type
+    // Build SQL query based on table type - only articles has these extra fields
     const isArticles = tableName === 'articles'
-    const authorField = isArticles ? 'p.author_id,' : ''
-    const articleTypeField = isArticles ? 'p.article_type,' : ''
-    const categoryField = 'p.category_id,'
-    const groupByFields = [
-      'p.id',
-      isArticles ? 'p.author_id' : null,
-      isArticles ? 'p.article_type' : null,
-      'p.category_id',
-    ]
-      .filter(Boolean)
-      .join(', ')
+    const selectFields = ['p.id']
+    const groupByFields = ['p.id']
+
+    if (isArticles) {
+      selectFields.push('p.author_id', 'p.article_type', 'p.category_id')
+      groupByFields.push('p.author_id', 'p.article_type', 'p.category_id')
+    }
 
     const pagesResult = await this.dbClient.query(`
       SELECT
-        p.id,
-        ${authorField}
-        ${articleTypeField}
-        ${categoryField}
+        ${selectFields.join(',\n        ')},
         json_agg(
           json_build_object(
             'locale', pt.locale,
@@ -518,7 +511,7 @@ class WeMeditateImporter {
         ) as translations
       FROM ${tableName} p
       LEFT JOIN ${translationsTable} pt ON p.id = pt.${tableName.slice(0, -1)}_id
-      GROUP BY ${groupByFields}
+      GROUP BY ${groupByFields.join(', ')}
     `)
 
     await this.logger.log(`Found ${pagesResult.rows.length} pages to import from ${tableName}`)
