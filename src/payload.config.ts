@@ -24,8 +24,9 @@ const isProduction = process.env.NODE_ENV === 'production'
 const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     localization: {
-      locales: ['en', 'cs'],
+      locales: ['en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk'],
       defaultLocale: 'en',
+      fallback: true,
     },
     admin: {
       user: Managers.slug,

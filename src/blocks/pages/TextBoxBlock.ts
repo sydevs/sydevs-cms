@@ -31,6 +31,10 @@ export const TextBoxBlock: Block = {
           label: 'Overlay',
           value: 'overlay',
         },
+        {
+          label: 'Overlay Dark',
+          value: 'overlayDark',
+        },
       ],
       admin: {
         description: 'Display style for the text box',
@@ -42,6 +46,14 @@ export const TextBoxBlock: Block = {
       localized: true,
       admin: {
         description: 'Optional title for this text box',
+      },
+    },
+    {
+      name: 'subtitle',
+      type: 'text',
+      localized: true,
+      admin: {
+        description: 'Optional subtitle for this text box',
       },
     },
     {
@@ -75,6 +87,15 @@ export const TextBoxBlock: Block = {
       admin: {
         description: 'Call-to-action text for the link',
         condition: (_, siblingData) => Boolean(siblingData?.link),
+      },
+    },
+    {
+      name: 'importData',
+      type: 'json',
+      admin: {
+        readOnly: true,
+        hidden: true,
+        description: 'Original import data (background, color, position, spacing, decorations)',
       },
     },
   ],
