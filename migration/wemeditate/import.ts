@@ -760,7 +760,8 @@ class WeMeditateImporter {
     for (const [_tableName, translationsTable] of [
       ['static_pages', 'static_page_translations'],
       ['articles', 'article_translations'],
-      ['promo_pages', 'promo_page_translations'],
+      // TODO: promo_pages has different structure
+      // ['promo_pages', 'promo_page_translations'],
       ['subtle_system_nodes', 'subtle_system_node_translations'],
       ['treatments', 'treatment_translations'],
     ]) {
@@ -870,7 +871,8 @@ class WeMeditateImporter {
     for (const [_tableName, translationsTable] of [
       ['static_pages', 'static_page_translations'],
       ['articles', 'article_translations'],
-      ['promo_pages', 'promo_page_translations'],
+      // TODO: promo_pages has different structure
+      // ['promo_pages', 'promo_page_translations'],
       ['subtle_system_nodes', 'subtle_system_node_translations'],
       ['treatments', 'treatment_translations'],
     ]) {
