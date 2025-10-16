@@ -1111,10 +1111,19 @@ class SimpleImporter {
     console.log('\nImporting frames...')
 
     // Load existing frames to avoid duplicates
-    const existingFrames = await this.payload.find({
-      collection: 'frames',
-      limit: 1000,
-    })
+    let existingFrames
+    try {
+      existingFrames = await this.payload.find({
+        collection: 'frames',
+        limit: 1000,
+      })
+    } catch (error) {
+      // If frames have thumbnails that reference deleted media, we can't fetch them
+      // This can happen during import operations with --reset when media is deleted
+      // Continue with empty existing frames list
+      console.log('    ⚠️  Could not load existing frames (missing thumbnail references)')
+      existingFrames = { docs: [] }
+    }
 
     // Build map of existing frames by filename
     const existingByFilename = new Map<string, any>()
@@ -1523,10 +1532,19 @@ class SimpleImporter {
     console.log('\nImporting meditations...')
 
     // Load existing meditations to avoid duplicates
-    const existingMeditations = await this.payload.find({
-      collection: 'meditations',
-      limit: 1000,
-    })
+    let existingMeditations
+    try {
+      existingMeditations = await this.payload.find({
+        collection: 'meditations',
+        limit: 1000,
+      })
+    } catch (error) {
+      // If meditations have frames with thumbnails that reference deleted media, we can't fetch them
+      // This can happen during import operations with --reset when media is deleted
+      // Continue with empty existing meditations list
+      console.log('    ⚠️  Could not load existing meditations (missing thumbnail references)')
+      existingMeditations = { docs: [] }
+    }
 
     // Build map of existing meditations by slug
     const existingBySlug = new Map<string, any>()
@@ -1977,7 +1995,12 @@ class SimpleImporter {
 const dryRun = process.argv.includes('--dry-run')
 const reset = process.argv.includes('--reset')
 const importer = new SimpleImporter(dryRun, reset)
-importer.run().catch((error) => {
-  console.error('Fatal error:', error)
-  process.exit(1)
-})
+importer
+  .run()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch((error) => {
+    console.error('Fatal error:', error)
+    process.exit(1)
+  })

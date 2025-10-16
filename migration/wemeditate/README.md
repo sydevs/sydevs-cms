@@ -1,10 +1,10 @@
-# WeMediate Rails Database Import
+# WeMeditate Rails Database Import
 
-This directory contains the import script for migrating content from the Rails-based WeMediate PostgreSQL database into Payload CMS.
+This directory contains the import script for migrating content from the Rails-based WeMeditate PostgreSQL database into Payload CMS.
 
 ## Overview
 
-A comprehensive import script that migrates authors, categories, and pages from the WeMediate Rails application database across 9 locales into the Payload CMS system.
+A comprehensive import script that migrates authors, categories, and pages from the WeMeditate Rails application database across 9 locales into the Payload CMS system.
 
 **Script Location**: [`import.ts`](./import.ts)
 **Source Data**: [`data.bin`](./data.bin) (PostgreSQL dump, ~2.4MB)

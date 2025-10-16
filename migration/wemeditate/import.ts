@@ -316,7 +316,7 @@ class WeMeditateImporter {
         if (Object.keys(localizedData).length === 0) {
           await this.logger.log(
             `Skipping author ${author.id}: no translations in supported locales`,
-            false
+            false,
           )
           continue
         }
@@ -354,7 +354,9 @@ class WeMeditateImporter {
 
         this.idMaps.authors.set(author.id, authorDoc.id as string)
         this.state.itemsCreated[itemKey] = authorDoc.id as string
-        await this.logger.log(`✓ Created author: ${author.id} -> ${authorDoc.id} (${locales.length} locales)`)
+        await this.logger.log(
+          `✓ Created author: ${author.id} -> ${authorDoc.id} (${locales.length} locales)`,
+        )
       } catch (error: any) {
         await this.logger.log(`Error importing author ${author.id}: ${error.message}`, true)
       }
@@ -439,7 +441,9 @@ class WeMeditateImporter {
 
         this.idMaps.categories.set(category.id, tagDoc.id as string)
         this.state.itemsCreated[itemKey] = tagDoc.id as string
-        await this.logger.log(`✓ Created category tag: ${category.id} -> ${tagDoc.id} (${locales.length} locales)`)
+        await this.logger.log(
+          `✓ Created category tag: ${category.id} -> ${tagDoc.id} (${locales.length} locales)`,
+        )
       } catch (error: any) {
         await this.logger.log(`Error importing category ${category.id}: ${error.message}`, true)
       }
@@ -543,7 +547,10 @@ class WeMeditateImporter {
         }
 
         if (Object.keys(localizedData).length === 0) {
-          await this.logger.log(`Skipping ${tableName} ${page.id}: no published translations`, false)
+          await this.logger.log(
+            `Skipping ${tableName} ${page.id}: no published translations`,
+            false,
+          )
           continue
         }
 
@@ -616,7 +623,7 @@ class WeMeditateImporter {
         }
         const mapKey = mapKeyMap[tableName]
         if (mapKey && mapKey in this.idMaps) {
-          (this.idMaps as any)[mapKey].set(page.id, pageDoc.id)
+          ;(this.idMaps as any)[mapKey].set(page.id, pageDoc.id)
         }
 
         this.state.itemsCreated[itemKey] = pageDoc.id as string
@@ -689,7 +696,7 @@ class WeMeditateImporter {
         }
         ;(this.idMaps as unknown as Record<string, Map<number, string>>)[mapKey].set(
           page.id,
-          pageDoc.id as string
+          pageDoc.id as string,
         )
 
         this.state.itemsCreated[itemKey] = pageDoc.id as string
@@ -768,7 +775,7 @@ class WeMeditateImporter {
       } catch (error: any) {
         await this.logger.log(
           `Error updating promo_page ${page.id} with content: ${error.message}`,
-          true
+          true,
         )
         throw error // Fail on content conversion error
       }
@@ -992,7 +999,7 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${videoIds.size} unique external videos`)
 
     // Create ExternalVideo documents
-    for (const videoId of videoIds) {
+    for (const videoId of Array.from(videoIds)) {
       const itemKey = `external-video-${videoId}`
 
       if (this.state.itemsCreated[itemKey]) {
@@ -1012,7 +1019,7 @@ class WeMeditateImporter {
         if (!metadata.thumbnail) {
           await this.logger.log(
             `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`,
-            true
+            true,
           )
           continue
         }
@@ -1026,7 +1033,7 @@ class WeMeditateImporter {
         if (!thumbnailId) {
           await this.logger.log(
             `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`,
-            true
+            true,
           )
           continue
         }
@@ -1159,7 +1166,7 @@ class WeMeditateImporter {
 
     // Download and create Media documents
     let downloadedCount = 0
-    for (const url of mediaUrls) {
+    for (const url of Array.from(mediaUrls)) {
       const itemKey = `media-${url}`
 
       if (this.state.itemsCreated[itemKey]) {
@@ -1184,7 +1191,7 @@ class WeMeditateImporter {
           this.payload,
           downloadResult,
           metadata,
-          'all'
+          'all',
         )
 
         this.idMaps.media.set(url, mediaId)
@@ -1283,10 +1290,7 @@ class WeMeditateImporter {
 
         await this.logger.log(`✓ Updated page ${page.id} -> ${pageId} with content`)
       } catch (error: any) {
-        await this.logger.log(
-          `Error updating page ${page.id} with content: ${error.message}`,
-          true
-        )
+        await this.logger.log(`Error updating page ${page.id} with content: ${error.message}`, true)
         throw error // Fail on content conversion error
       }
     }
@@ -1299,7 +1303,7 @@ class WeMeditateImporter {
   // ============================================================================
 
   async run() {
-    console.log('\n🚀 Starting WeMediate Import\n')
+    console.log('\n🚀 Starting WeMeditate Import\n')
 
     try {
       // 1. Setup cache directory
@@ -1456,6 +1460,7 @@ async function main() {
 
   const importer = new WeMeditateImporter(options)
   await importer.run()
+  process.exit(0)
 }
 
 main().catch((error) => {

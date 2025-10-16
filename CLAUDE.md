@@ -451,11 +451,11 @@ import-cache/storyblok/
 - Sharp library for image processing
 - Target collections: `lessons`, `file-attachments`, `external-videos`, `media`
 
-#### WeMediate Rails Database Import
+#### WeMeditate Rails Database Import
 
 **Location**: `migration/wemeditate/import.ts`
 
-Imports content from the Rails-based WeMediate PostgreSQL database into Payload CMS across 9 locales, including authors, categories, and pages (~160+ pages across multiple content types).
+Imports content from the Rails-based WeMeditate PostgreSQL database into Payload CMS across 9 locales, including authors, categories, and pages (~160+ pages across multiple content types).
 
 **Documentation**: See [migration/wemeditate/README.md](migration/wemeditate/README.md) for detailed information on usage, data transformations, and future enhancements.
 

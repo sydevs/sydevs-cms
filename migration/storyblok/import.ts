@@ -803,13 +803,13 @@ class StoryblokImporter {
       await this.log(`✓ Deleted ${result.docs.length} documents from ${collection}`)
     }
 
-    this.state = {
+    this.stateManager.setState({
       lastUpdated: new Date().toISOString(),
       phase: 'initializing',
-      lessonsCreated: {},
+      itemsCreated: {},
       failed: [],
-    }
-    await this.saveState()
+    })
+    await this.stateManager.save()
     await this.log('✓ Reset complete')
   }
 
@@ -899,6 +899,7 @@ async function main() {
 
   const importer = new StoryblokImporter(token, options)
   await importer.run()
+  process.exit(0)
 }
 
 main().catch((error) => {
