@@ -5,7 +5,8 @@
  */
 
 export * from './logger'
-export * from './stateManager'
 export * from './fileUtils'
 export * from './tagManager'
 export * from './payloadHelpers'
+export * from './mediaDownloader'
+export * from './lexicalConverter'

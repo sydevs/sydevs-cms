@@ -392,39 +392,120 @@ The system automatically generates thumbnails for video frames to optimize admin
 
 ### Data Import Architecture
 
-The system includes import scripts for migrating content from external sources into Payload CMS:
+The system includes import scripts for migrating content from external sources into Payload CMS. All scripts follow a consistent, standardized pattern for reliability and maintainability.
+
+#### Import Scripts Design Principles
+
+All migration scripts adhere to these core principles:
+
+1. **Resilient Error Handling**: Scripts continue on errors, collecting them for end-of-run reporting rather than failing fast
+2. **No Resumability**: Scripts are stateless - focus on clean reset and re-import rather than resuming partial imports
+3. **Comprehensive Dry Run**: Initialize Payload and validate data structure without writing to database
+4. **Shared Utilities**: Use common library code from `migration/lib/` for consistency
+5. **Detailed Reporting**: Comprehensive summary with counts, errors, and warnings at end of run
+6. **Clean Shutdown**: Proper cleanup of database connections and resources in finally blocks
+
+#### Shared Migration Libraries
+
+**Location**: `migration/lib/`
+
+- **Logger** (`logger.ts`) - Colored console output + file logging with timestamps
+- **FileUtils** (`fileUtils.ts`) - File downloads, directory management, MIME type detection
+- **TagManager** (`tagManager.ts`) - Tag creation and management across collections
+- **PayloadHelpers** (`payloadHelpers.ts`) - Common Payload operations (reset, create, update)
+- **MediaDownloader** (`mediaDownloader.ts`) - Image download and WebP conversion
+- **LexicalConverter** (`lexicalConverter.ts`) - EditorJS to Lexical content conversion
+
+#### Standard Script Structure
+
+```typescript
+class Importer {
+  // Summary tracking
+  private summary = {
+    recordsCreated: 0,
+    errors: [],
+    warnings: []
+  }
+
+  // Error handling
+  private addError(context: string, error: Error | string) {
+    const message = error instanceof Error ? error.message : error
+    this.summary.errors.push(`${context}: ${message}`)
+    this.logger.error(message)
+  }
+
+  // Import with resilient error handling
+  async importItems(items: any[]) {
+    for (const item of items) {
+      try {
+        if (this.options.dryRun) {
+          this.logger.info('[DRY RUN] Would create...')
+          continue
+        }
+        // Create record
+        this.summary.recordsCreated++
+      } catch (error) {
+        this.addError(`Failed to import ${item.id}`, error)
+        continue  // Keep going!
+      }
+    }
+  }
+
+  // Comprehensive summary
+  printSummary() {
+    console.log('='.repeat(60))
+    console.log('IMPORT SUMMARY')
+    console.log(`Records Created: ${this.summary.recordsCreated}`)
+    console.log(`Errors: ${this.summary.errors.length}`)
+    console.log(`Warnings: ${this.summary.warnings.length}`)
+    // ... detailed error/warning output
+  }
+
+  // Cleanup in finally block
+  async run() {
+    try {
+      // Initialize Payload (even for dry run)
+      this.payload = await getPayload({ config })
+      // ... import logic
+      this.printSummary()
+    } finally {
+      await this.cleanup()
+      if (this.payload?.db?.destroy) {
+        await this.payload.db.destroy()
+      }
+    }
+  }
+}
+```
 
 #### Storyblok Path Steps Import
 
-**Location**: `src/scripts/import/storyblok-path-steps.ts`
+**Location**: `migration/storyblok/import.ts`
 
-A comprehensive import script that migrates "Path Step" data from Storyblok CMS into Payload's **Lessons** collection.
+Migrates "Path Step" data from Storyblok CMS into Payload's **Lessons** collection.
 
 **Key Features**:
-- **Resumable Import**: State tracking with `import-state.json` allows safe interruption and resumption
-- **Comprehensive Caching**: Downloads and caches all Storyblok data and assets in `import-cache/storyblok/`
+- **Comprehensive Caching**: Downloads and caches all Storyblok data and assets in `migration/cache/storyblok/`
 - **Asset Processing**: Automatic conversion of images to WebP format using Sharp
 - **FileAttachment Management**: Proper ownership assignment for cascade deletion
 - **Lexical Content Conversion**: Transforms Storyblok blocks into Payload's Lexical editor format
-- **Error Handling**: Retry logic with exponential backoff and detailed logging
-- **Collection Reset**: `--reset` flag for destructive cleanup of target collections
+- **Resilient Error Handling**: Continues on errors, reports at end
+- **Collection Reset**: `--reset` flag for clean import (deletes existing tagged records)
+- **Colored Logging**: Uses Logger class with color-coded output
 
 **Usage Examples**:
 ```bash
-# Dry run validation
-NODE_ENV=development npx tsx src/scripts/import/storyblok-path-steps.ts --dry-run
+# Dry run validation (initializes Payload, validates data)
+NODE_ENV=development npx tsx migration/storyblok/import.ts --dry-run
 
 # Import single unit for testing
-NODE_ENV=development npx tsx src/scripts/import/storyblok-path-steps.ts --unit=1
+NODE_ENV=development npx tsx migration/storyblok/import.ts --unit=1
 
-# Resume interrupted import
-NODE_ENV=development npx tsx src/scripts/import/storyblok-path-steps.ts --resume
-
-# Full import with cache clearing
-NODE_ENV=development npx tsx src/scripts/import/storyblok-path-steps.ts --clear-cache
+# Clear cache and run fresh import
+NODE_ENV=development npx tsx migration/storyblok/import.ts --clear-cache
 
 # Destructive reset and fresh import
-NODE_ENV=development npx tsx src/scripts/import/storyblok-path-steps.ts --reset
+NODE_ENV=development npx tsx migration/storyblok/import.ts --reset --unit=1
 ```
 
 **Data Transformation**:
@@ -435,21 +516,43 @@ NODE_ENV=development npx tsx src/scripts/import/storyblok-path-steps.ts --reset
 
 **File Organization**:
 ```
-import-cache/storyblok/
-├── stories.json              # Cached path step stories
-├── videos/{uuid}.json        # Referenced video stories
+migration/cache/storyblok/
+├── videos/{uuid}.json        # Cached video stories
 ├── assets/
 │   ├── audio/{filename}.mp3  # Downloaded audio files
 │   ├── images/{filename}.webp # Converted images
 │   ├── videos/{filename}.mp4  # Video files
 │   └── subtitles/{filename}.json # Subtitle data
-└── import-state.json         # Resumability state
+└── import.log                # Timestamped import log
 ```
 
 **Requirements**:
 - `STORYBLOK_ACCESS_TOKEN` environment variable
 - Sharp library for image processing
 - Target collections: `lessons`, `file-attachments`, `external-videos`, `media`
+
+**Summary Output**:
+```
+============================================================
+IMPORT SUMMARY
+============================================================
+
+📊 Records Created:
+  Lessons:             18
+  Media Files:         45
+  External Videos:     3
+  File Attachments:    24
+
+  Total Records:       90
+
+⚠️  Warnings (2):
+  1. Meditation "Step 3" not found for Step 3: Introduction...
+  2. Missing Step_Image for lesson: Step 6...
+
+✨ No errors - import completed successfully!
+
+============================================================
+```
 
 #### WeMeditate Rails Database Import
 
