@@ -14,13 +14,16 @@ npx tsx migration/storyblok/import.ts --reset
 npx tsx migration/storyblok/import.ts --clear-cache --unit=2
 ```
 
-### WeMediate Import ⏳ IN PROGRESS
+### WeMeditate Import ✅ READY
 ```bash
 # Dry run
 npx tsx migration/wemeditate/import.ts --dry-run
 
 # Full import with reset
 npx tsx migration/wemeditate/import.ts --reset
+
+# Clear cache and reset
+npx tsx migration/wemeditate/import.ts --clear-cache --reset
 ```
 
 ### Meditations Import ⏳ IN PROGRESS

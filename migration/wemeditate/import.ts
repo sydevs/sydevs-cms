@@ -21,9 +21,6 @@ import {
 
 const IMPORT_TAG = 'import-wemeditate'
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/wemeditate')
-const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
-const ID_MAPS_FILE = path.join(CACHE_DIR, 'id-mappings.json')
-const LOG_FILE = path.join(CACHE_DIR, 'import.log')
 const DATA_BIN = path.resolve(process.cwd(), 'migration/wemeditate/data.bin')
 
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
@@ -50,17 +47,9 @@ const DB_NAME = 'temp_wemeditate_import'
 // TYPES
 // ============================================================================
 
-interface ImportState {
-  lastUpdated: string
-  phase: string
-  itemsCreated: Record<string, string>
-  failed: string[]
-}
-
 interface ScriptOptions {
   dryRun: boolean
   reset: boolean
-  resume: boolean
   clearCache?: boolean
 }
 
@@ -77,6 +66,17 @@ interface IdMaps {
   externalVideos: Map<string, string>
 }
 
+interface ImportSummary {
+  authorsCreated: number
+  categoriesCreated: number
+  pagesCreated: number
+  mediaCreated: number
+  externalVideosCreated: number
+  formsCreated: number
+  errors: string[]
+  warnings: string[]
+}
+
 // ============================================================================
 // MAIN IMPORTER CLASS
 // ============================================================================
@@ -90,7 +90,6 @@ class WeMeditateImporter {
   private mediaDownloader!: MediaDownloader
 
   private dbClient!: Client
-  private state: ImportState
   private options: ScriptOptions
   private idMaps: IdMaps = {
     authors: new Map(),
@@ -105,68 +104,45 @@ class WeMeditateImporter {
     externalVideos: new Map(),
   }
   private meditationTitleMap: Map<string, string> = new Map()
+  private contentTypeTagMap: Map<string, string> = new Map()
+
+  // Summary tracking
+  private summary: ImportSummary = {
+    authorsCreated: 0,
+    categoriesCreated: 0,
+    pagesCreated: 0,
+    mediaCreated: 0,
+    externalVideosCreated: 0,
+    formsCreated: 0,
+    errors: [],
+    warnings: [],
+  }
 
   constructor(options: ScriptOptions) {
     this.options = options
-    this.state = {
-      lastUpdated: new Date().toISOString(),
-      phase: 'initializing',
-      itemsCreated: {},
-      failed: [],
-    }
   }
 
   // ============================================================================
-  // STATE MANAGEMENT
+  // ERROR HANDLING
   // ============================================================================
 
-  async saveState() {
-    this.state.lastUpdated = new Date().toISOString()
-    await fs.writeFile(STATE_FILE, JSON.stringify(this.state, null, 2))
+  private addError(context: string, error: Error | string) {
+    const message = error instanceof Error ? error.message : error
+    const fullMessage = `${context}: ${message}`
+    this.summary.errors.push(fullMessage)
+    this.logger.error(fullMessage)
   }
 
-  async loadState() {
-    try {
-      const data = await fs.readFile(STATE_FILE, 'utf-8')
-      this.state = JSON.parse(data)
-      await this.logger.log(`Loaded state from ${STATE_FILE}`)
-    } catch {
-      await this.logger.log('No previous state found, starting fresh')
-    }
-  }
-
-  async saveIdMappings() {
-    const cache: Record<string, Record<string, string>> = {}
-    for (const [key, map] of Object.entries(this.idMaps)) {
-      cache[key] = Object.fromEntries(map)
-    }
-    await fs.writeFile(ID_MAPS_FILE, JSON.stringify(cache, null, 2))
-  }
-
-  async loadIdMappings() {
-    try {
-      const data = await fs.readFile(ID_MAPS_FILE, 'utf-8')
-      const cached = JSON.parse(data)
-      for (const [key, value] of Object.entries(cached)) {
-        const entries = Object.entries(value as Record<string, string>)
-        // Convert string keys to numbers for numeric ID maps
-        if (key === 'media' || key === 'forms' || key === 'externalVideos') {
-          this.idMaps[key as keyof IdMaps] = new Map(entries) as any
-        } else {
-          this.idMaps[key as keyof IdMaps] = new Map(entries.map(([k, v]) => [Number(k), v])) as any
-        }
-      }
-      await this.logger.log('Loaded ID mappings from cache')
-    } catch {
-      await this.logger.log('No existing ID mappings found, starting fresh')
-    }
+  private addWarning(message: string) {
+    this.summary.warnings.push(message)
+    this.logger.warn(message)
   }
 
   // ============================================================================
   // DATABASE MANAGEMENT
   // ============================================================================
 
-  async setupDatabase() {
+  private async setupDatabase() {
     await this.logger.log('\n=== Setting up PostgreSQL Database ===')
 
     // Drop existing database if it exists
@@ -194,7 +170,7 @@ class WeMeditateImporter {
     await this.logger.log(`✓ Connected to database`)
   }
 
-  async cleanupDatabase() {
+  private async cleanupDatabase() {
     if (this.dbClient) {
       await this.dbClient.end()
       await this.logger.log('✓ Disconnected from database')
@@ -212,7 +188,7 @@ class WeMeditateImporter {
   // RESET FUNCTIONALITY
   // ============================================================================
 
-  async resetCollections() {
+  private async resetCollections() {
     await this.logger.log('\n=== Resetting Collections ===')
 
     const collections = [
@@ -246,18 +222,10 @@ class WeMeditateImporter {
 
         await this.logger.log(`✓ Deleted ${result.docs.length} documents from ${collection}`)
       } catch (error) {
-        await this.logger.log(`Note: ${collection} might not support tags or doesn't exist`, false)
+        await this.logger.log(`Note: ${collection} might not support tags or doesn't exist`)
       }
     }
 
-    // Reset state
-    this.state = {
-      lastUpdated: new Date().toISOString(),
-      phase: 'initializing',
-      itemsCreated: {},
-      failed: [],
-    }
-    await this.saveState()
     await this.logger.log('✓ Reset complete')
   }
 
@@ -265,10 +233,8 @@ class WeMeditateImporter {
   // IMPORT METHODS
   // ============================================================================
 
-  async importAuthors() {
+  private async importAuthors() {
     await this.logger.log('\n=== Importing Authors ===')
-    this.state.phase = 'importing-authors'
-    await this.saveState()
 
     // Get authors with their translations
     const authorsResult = await this.dbClient.query(`
@@ -292,13 +258,6 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${authorsResult.rows.length} authors to import`)
 
     for (const author of authorsResult.rows) {
-      const itemKey = `author-${author.id}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        await this.logger.log(`Skipping author ${author.id}, already created`)
-        continue
-      }
-
       try {
         // Build localized data - only include supported locales
         const localizedData: any = {}
@@ -353,23 +312,19 @@ class WeMeditateImporter {
         }
 
         this.idMaps.authors.set(author.id, authorDoc.id as string)
-        this.state.itemsCreated[itemKey] = authorDoc.id as string
+        this.summary.authorsCreated++
         await this.logger.log(
           `✓ Created author: ${author.id} -> ${authorDoc.id} (${locales.length} locales)`,
         )
       } catch (error: any) {
-        await this.logger.log(`Error importing author ${author.id}: ${error.message}`, true)
+        this.addError(`Failed to import author ${author.id}`, error)
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async importCategories() {
+  private async importCategories() {
     await this.logger.log('\n=== Importing Categories as Page Tags ===')
-    this.state.phase = 'importing-categories'
-    await this.saveState()
 
     const categoriesResult = await this.dbClient.query(`
       SELECT
@@ -389,13 +344,6 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${categoriesResult.rows.length} categories to import`)
 
     for (const category of categoriesResult.rows) {
-      const itemKey = `category-${category.id}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        await this.logger.log(`Skipping category ${category.id}, already created`)
-        continue
-      }
-
       try {
         // Build localized data
         const localizedData: any = {}
@@ -409,7 +357,7 @@ class WeMeditateImporter {
         }
 
         if (Object.keys(localizedData).length === 0) {
-          await this.logger.log(`Skipping category ${category.id}: no valid translations`, true)
+          this.addWarning(`Skipping category ${category.id}: no valid translations`)
           continue
         }
 
@@ -440,29 +388,21 @@ class WeMeditateImporter {
         }
 
         this.idMaps.categories.set(category.id, tagDoc.id as string)
-        this.state.itemsCreated[itemKey] = tagDoc.id as string
+        this.summary.categoriesCreated++
         await this.logger.log(
           `✓ Created category tag: ${category.id} -> ${tagDoc.id} (${locales.length} locales)`,
         )
       } catch (error: any) {
-        await this.logger.log(`Error importing category ${category.id}: ${error.message}`, true)
+        this.addError(`Failed to import category ${category.id}`, error)
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async importContentTypeTags() {
+  private async importContentTypeTags() {
     await this.logger.log('\n=== Creating Content Type Tags ===')
 
     for (const [sourceType, tagName] of Object.entries(CONTENT_TYPE_TAGS)) {
-      const itemKey = `content-type-tag-${tagName}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        continue
-      }
-
       try {
         const tagDoc = await this.payload.create({
           collection: 'page-tags',
@@ -472,7 +412,7 @@ class WeMeditateImporter {
           },
         })
 
-        this.state.itemsCreated[itemKey] = tagDoc.id as string
+        this.contentTypeTagMap.set(`content-type-tag-${tagName}`, tagDoc.id as string)
         await this.logger.log(`✓ Created content type tag: ${tagName}`)
       } catch (error: any) {
         // Tag might already exist
@@ -481,18 +421,14 @@ class WeMeditateImporter {
           where: { name: { equals: tagName } },
         })
         if (existing.docs.length > 0) {
-          this.state.itemsCreated[itemKey] = existing.docs[0].id as string
-        }
+          }
       }
     }
 
-    await this.saveState()
   }
 
-  async importPages(tableName: string, translationsTable: string) {
+  private async importPages(tableName: string, translationsTable: string) {
     await this.logger.log(`\n=== Importing ${tableName} ===`)
-    this.state.phase = `importing-${tableName}`
-    await this.saveState()
 
     // Build SQL query based on table type - only articles has these extra fields
     const isArticles = tableName === 'articles'
@@ -525,13 +461,6 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${pagesResult.rows.length} pages to import from ${tableName}`)
 
     for (const page of pagesResult.rows) {
-      const itemKey = `${tableName}-${page.id}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        await this.logger.log(`Skipping ${tableName} ${page.id}, already created`)
-        continue
-      }
-
       try {
         // Build localized data
         const localizedData: any = {}
@@ -565,16 +494,16 @@ class WeMeditateImporter {
 
         // Add content type tag
         const contentTypeTag = CONTENT_TYPE_TAGS[tableName]
-        if (contentTypeTag && this.state.itemsCreated[`content-type-tag-${contentTypeTag}`]) {
-          tags.push(this.state.itemsCreated[`content-type-tag-${contentTypeTag}`])
+        if (contentTypeTag && this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)) {
+          tags.push(this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`))
         }
 
         // Add article type tag
         if (page.article_type !== undefined && ARTICLE_TYPE_TAGS[page.article_type]) {
           const articleTypeTag = ARTICLE_TYPE_TAGS[page.article_type]
           const articleTypeTagKey = `content-type-tag-${articleTypeTag}`
-          if (this.state.itemsCreated[articleTypeTagKey]) {
-            tags.push(this.state.itemsCreated[articleTypeTagKey])
+          if (this.contentTypeTagMap.get(articleTypeTagKey)) {
+            tags.push(this.contentTypeTagMap.get(articleTypeTagKey))
           }
         }
 
@@ -626,21 +555,17 @@ class WeMeditateImporter {
           ;(this.idMaps as any)[mapKey].set(page.id, pageDoc.id)
         }
 
-        this.state.itemsCreated[itemKey] = pageDoc.id as string
+        this.summary.pagesCreated++
         await this.logger.log(`✓ Created page from ${tableName}: ${page.id} -> ${pageDoc.id}`)
       } catch (error: any) {
-        await this.logger.log(`Error importing ${tableName} ${page.id}: ${error.message}`, true)
+        this.addError(`Failed to import ${tableName} ${page.id}`, error)
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async importPromoPages() {
+  private async importPromoPages() {
     await this.logger.log('\n=== Importing promo_pages ===')
-    this.state.phase = 'importing-promo_pages'
-    await this.saveState()
 
     // promo_pages has a different structure - no translations table, locale on main table
     const pagesResult = await this.dbClient.query(`
@@ -660,21 +585,14 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${pagesResult.rows.length} published promo_pages to import`)
 
     for (const page of pagesResult.rows) {
-      const itemKey = `promo_pages-${page.id}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        await this.logger.log(`Skipping promo_pages ${page.id}, already created`)
-        continue
-      }
-
       try {
         // Get tags
         const tags: string[] = []
 
         // Add content type tag
         const contentTypeTag = CONTENT_TYPE_TAGS['promo_pages']
-        if (contentTypeTag && this.state.itemsCreated[`content-type-tag-${contentTypeTag}`]) {
-          tags.push(this.state.itemsCreated[`content-type-tag-${contentTypeTag}`])
+        if (contentTypeTag && this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)) {
+          tags.push(this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`))
         }
 
         // Create page document
@@ -699,21 +617,17 @@ class WeMeditateImporter {
           pageDoc.id as string,
         )
 
-        this.state.itemsCreated[itemKey] = pageDoc.id as string
+        this.summary.pagesCreated++
         await this.logger.log(`✓ Created page from promo_pages: ${page.id} -> ${pageDoc.id}`)
       } catch (error: any) {
-        await this.logger.log(`Error importing promo_pages ${page.id}: ${error.message}`, true)
+        this.addError(`Failed to import promo_pages ${page.id}`, error)
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async importPromoPagesWithContent() {
+  private async importPromoPagesWithContent() {
     await this.logger.log('\n=== Updating promo_pages with Content ===')
-    this.state.phase = 'updating-promo_pages-content'
-    await this.saveState()
 
     // promo_pages has content directly on the table
     const pagesResult = await this.dbClient.query(`
@@ -731,7 +645,7 @@ class WeMeditateImporter {
     for (const page of pagesResult.rows) {
       const pageId = this.idMaps.promoPages.get(page.id)
       if (!pageId) {
-        await this.logger.log(`Warning: Promo page ${page.id} not found in ID map`, true)
+        this.addWarning(`Promo page ${page.id} not found in ID map`)
         continue
       }
 
@@ -781,13 +695,10 @@ class WeMeditateImporter {
       }
     }
 
-    await this.saveState()
   }
 
-  async importForms() {
+  private async importForms() {
     await this.logger.log('\n=== Creating Shared Forms ===')
-    this.state.phase = 'creating-forms'
-    await this.saveState()
 
     const formConfigs = {
       contact: {
@@ -827,14 +738,6 @@ class WeMeditateImporter {
     }
 
     for (const [formType, config] of Object.entries(formConfigs)) {
-      const itemKey = `form-${formType}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        this.idMaps.forms.set(formType, this.state.itemsCreated[itemKey])
-        await this.logger.log(`Skipping form ${formType}, already created`)
-        continue
-      }
-
       try {
         // Check if form already exists
         const existing = await this.payload.find({
@@ -846,8 +749,7 @@ class WeMeditateImporter {
 
         if (existing.docs.length > 0) {
           this.idMaps.forms.set(formType, existing.docs[0].id as string)
-          this.state.itemsCreated[itemKey] = existing.docs[0].id as string
-          await this.logger.log(`✓ Reusing existing form: ${config.title}`)
+            await this.logger.log(`✓ Reusing existing form: ${config.title}`)
           continue
         }
 
@@ -893,18 +795,16 @@ class WeMeditateImporter {
         })
 
         this.idMaps.forms.set(formType, form.id as string)
-        this.state.itemsCreated[itemKey] = form.id as string
+        this.summary.formsCreated++
         await this.logger.log(`✓ Created form: ${config.title}`)
       } catch (error: any) {
-        await this.logger.log(`Error creating form ${formType}: ${error.message}`, true)
+        this.addError(`Failed: creating form ${formType}`, error)
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async buildMeditationTitleMap() {
+  private async buildMeditationTitleMap() {
     await this.logger.log('\n=== Building Meditation Title Map ===')
 
     try {
@@ -922,14 +822,12 @@ class WeMeditateImporter {
 
       await this.logger.log(`✓ Built map with ${this.meditationTitleMap.size} meditations`)
     } catch (error: any) {
-      await this.logger.log(`Error building meditation map: ${error.message}`, true)
+      this.addError('Failed: building meditation map', error)
     }
   }
 
-  async importExternalVideos() {
+  private async importExternalVideos() {
     await this.logger.log('\n=== Scanning for External Videos ===')
-    this.state.phase = 'importing-external-videos'
-    await this.saveState()
 
     // Collect all vimeo/youtube IDs from content
     const videoIds = new Set<string>()
@@ -1000,13 +898,6 @@ class WeMeditateImporter {
 
     // Create ExternalVideo documents
     for (const videoId of Array.from(videoIds)) {
-      const itemKey = `external-video-${videoId}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        this.idMaps.externalVideos.set(videoId, this.state.itemsCreated[itemKey])
-        continue
-      }
-
       try {
         const metadata = videoMetadata.get(videoId)!
 
@@ -1048,21 +939,17 @@ class WeMeditateImporter {
         })
 
         this.idMaps.externalVideos.set(videoId, externalVideo.id as string)
-        this.state.itemsCreated[itemKey] = externalVideo.id as string
+        this.summary.externalVideosCreated++
         await this.logger.log(`✓ Created ExternalVideo: ${videoId}`)
       } catch (error: any) {
-        await this.logger.log(`Error creating ExternalVideo ${videoId}: ${error.message}`, true)
+        this.addError(`Failed: creating ExternalVideo ${videoId}`, error)
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async importMedia() {
+  private async importMedia() {
     await this.logger.log('\n=== Importing Media Files ===')
-    this.state.phase = 'importing-media'
-    await this.saveState()
 
     // Initialize media downloader
     this.mediaDownloader = new MediaDownloader(CACHE_DIR, this.logger)
@@ -1167,14 +1054,6 @@ class WeMeditateImporter {
     // Download and create Media documents
     let downloadedCount = 0
     for (const url of Array.from(mediaUrls)) {
-      const itemKey = `media-${url}`
-
-      if (this.state.itemsCreated[itemKey]) {
-        this.idMaps.media.set(url, this.state.itemsCreated[itemKey])
-        downloadedCount++
-        continue
-      }
-
       try {
         // Download and convert
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
@@ -1195,24 +1074,20 @@ class WeMeditateImporter {
         )
 
         this.idMaps.media.set(url, mediaId)
-        this.state.itemsCreated[itemKey] = mediaId
+        this.summary.mediaCreated++
         downloadedCount++
 
         await this.logger.log(`✓ Imported media: ${downloadedCount}/${mediaUrls.size}`)
       } catch (error: any) {
-        await this.logger.log(`Error importing media ${url}: ${error.message}`, true)
-        throw error // Fail on media import error
+        this.addError(`Failed to import media ${url}`, error)
+        // Continue with next media item
       }
     }
 
-    await this.saveState()
-    await this.saveIdMappings()
   }
 
-  async importPagesWithContent(tableName: string, translationsTable: string) {
+  private async importPagesWithContent(tableName: string, translationsTable: string) {
     await this.logger.log(`\n=== Updating ${tableName} with Content ===`)
-    this.state.phase = `updating-${tableName}-content`
-    await this.saveState()
 
     const pagesResult = await this.dbClient.query(`
       SELECT
@@ -1244,7 +1119,7 @@ class WeMeditateImporter {
     for (const page of pagesResult.rows) {
       const pageId = pageIdMap.get(page.id)
       if (!pageId) {
-        await this.logger.log(`Warning: Page ${page.id} not found in ID map`, true)
+        this.addWarning(`Page ${page.id} not found in ID map`)
         continue
       }
 
@@ -1290,17 +1165,60 @@ class WeMeditateImporter {
 
         await this.logger.log(`✓ Updated page ${page.id} -> ${pageId} with content`)
       } catch (error: any) {
-        await this.logger.log(`Error updating page ${page.id} with content: ${error.message}`, true)
-        throw error // Fail on content conversion error
+        this.addError(`Failed: updating page ${page.id} with content`, error)
+        // Continue with next page
       }
     }
 
-    await this.saveState()
   }
 
   // ============================================================================
   // MAIN RUN METHOD
   // ============================================================================
+
+  private printSummary() {
+    console.log('\n' + '='.repeat(60))
+    console.log('IMPORT SUMMARY')
+    console.log('='.repeat(60))
+
+    console.log(`\n📊 Records Created:`)
+    console.log(`  Authors:            ${this.summary.authorsCreated}`)
+    console.log(`  Categories:         ${this.summary.categoriesCreated}`)
+    console.log(`  Pages:              ${this.summary.pagesCreated}`)
+    console.log(`  Media Files:        ${this.summary.mediaCreated}`)
+    console.log(`  External Videos:    ${this.summary.externalVideosCreated}`)
+    console.log(`  Forms:              ${this.summary.formsCreated}`)
+
+    const totalRecords =
+      this.summary.authorsCreated +
+      this.summary.categoriesCreated +
+      this.summary.pagesCreated +
+      this.summary.mediaCreated +
+      this.summary.externalVideosCreated +
+      this.summary.formsCreated
+
+    console.log(`\n  Total Records:      ${totalRecords}`)
+
+    if (this.summary.warnings.length > 0) {
+      console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
+      this.summary.warnings.forEach((warning, index) => {
+        console.log(`  ${index + 1}. ${warning}`)
+      })
+    }
+
+    if (this.summary.errors.length > 0) {
+      console.log(`\n❌ Errors (${this.summary.errors.length}):`)
+      this.summary.errors.forEach((error, index) => {
+        console.log(`  ${index + 1}. ${error}`)
+      })
+    }
+
+    if (this.summary.errors.length === 0 && this.summary.warnings.length === 0) {
+      console.log(`\n✨ No errors or warnings - import completed successfully!`)
+    }
+
+    console.log('\n' + '='.repeat(60))
+  }
 
   async run() {
     console.log('\n🚀 Starting WeMeditate Import\n')
@@ -1314,14 +1232,12 @@ class WeMeditateImporter {
       this.logger = new Logger(CACHE_DIR)
       this.fileUtils = new FileUtils(this.logger)
 
-      // 3. Initialize Payload (skip in dry run)
-      if (!this.options.dryRun) {
-        const payloadConfig = await configPromise
-        this.payload = await getPayload({ config: payloadConfig })
-        this.tagManager = new TagManager(this.payload, this.logger)
-        this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
-        await this.logger.log('✓ Payload CMS initialized')
-      }
+      // 3. Initialize Payload (always, even for dry run validation)
+      const payloadConfig = await configPromise
+      this.payload = await getPayload({ config: payloadConfig })
+      this.tagManager = new TagManager(this.payload, this.logger)
+      this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
+      await this.logger.log('✓ Payload CMS initialized')
 
       // 4. Handle options
       if (this.options.clearCache) {
@@ -1333,11 +1249,6 @@ class WeMeditateImporter {
 
       if (this.options.reset) {
         await this.resetCollections()
-      }
-
-      if (this.options.resume) {
-        await this.loadState()
-        await this.loadIdMappings()
       }
 
       // 5. Setup PostgreSQL database
@@ -1361,7 +1272,7 @@ class WeMeditateImporter {
       // Import article type tags
       for (const articleType of Object.values(ARTICLE_TYPE_TAGS)) {
         const itemKey = `content-type-tag-${articleType}`
-        if (!this.state.itemsCreated[itemKey]) {
+        if (!this.contentTypeTagMap.has(articleType)) {
           try {
             const tagDoc = await this.payload.create({
               collection: 'page-tags',
@@ -1370,8 +1281,7 @@ class WeMeditateImporter {
                 title: articleType,
               },
             })
-            this.state.itemsCreated[itemKey] = tagDoc.id as string
-          } catch {
+              } catch {
             // Might already exist
           }
         }
@@ -1384,8 +1294,7 @@ class WeMeditateImporter {
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPages('treatments', 'treatment_translations')
 
-      await this.saveIdMappings()
-
+  
       await this.logger.log('\n=== PHASE 2: Content Import ===\n')
 
       // Phase 2: Import content with full conversion
@@ -1401,19 +1310,15 @@ class WeMeditateImporter {
       await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPagesWithContent('treatments', 'treatment_translations')
 
-      await this.saveIdMappings()
-
+  
       // 7. Cleanup database
       await this.cleanupDatabase()
 
       await this.logger.log('\n=== Import Complete ===')
-      await this.logger.log(`Created ${Object.keys(this.state.itemsCreated).length} items`)
-      if (this.state.failed.length > 0) {
-        await this.logger.log(`\nFailed operations: ${this.state.failed.length}`)
-        this.state.failed.forEach((msg) => this.logger.log(`  - ${msg}`))
-      }
+      this.printSummary()
+
     } catch (error: any) {
-      await this.logger.log(`Fatal error: ${error.message}`, true)
+      await this.logger.error(`Fatal error: ${error.message}`)
       console.error('Fatal error:', error)
 
       // Try to cleanup database on error
@@ -1424,6 +1329,11 @@ class WeMeditateImporter {
       }
 
       throw error
+    } finally {
+      // Ensure Payload cleanup
+      if (this.payload?.db?.destroy) {
+        await this.payload.db.destroy()
+      }
     }
   }
 }
@@ -1437,7 +1347,6 @@ async function main() {
   const options: ScriptOptions = {
     dryRun: args.includes('--dry-run'),
     reset: args.includes('--reset'),
-    resume: args.includes('--resume'),
     clearCache: args.includes('--clear-cache'),
   }
 

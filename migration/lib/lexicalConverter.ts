@@ -502,7 +502,7 @@ export function convertVimeo(block: EditorJSBlock, context: ConversionContext): 
   const externalVideoId = context.externalVideoMap.get(videoId)
 
   if (!externalVideoId) {
-    context.logger.log(`Warning: ExternalVideo not found for ${videoId}`, true)
+    context.logger.warn(`ExternalVideo not found for ${videoId}`)
     return null
   }
 
