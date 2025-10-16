@@ -26,7 +26,7 @@ npx tsx migration/wemeditate/import.ts --reset
 npx tsx migration/wemeditate/import.ts --clear-cache --reset
 ```
 
-### Meditations Import ⏳ IN PROGRESS
+### Meditations Import ✅ READY
 ```bash
 # Dry run
 npx tsx migration/meditations/import.ts --dry-run
