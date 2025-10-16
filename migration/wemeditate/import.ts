@@ -274,8 +274,7 @@ class WeMeditateImporter {
 
         if (Object.keys(localizedData).length === 0) {
           await this.logger.log(
-            `Skipping author ${author.id}: no translations in supported locales`,
-            false,
+            `Skipping author ${author.id}: no translations in supported locales`
           )
           continue
         }
@@ -477,8 +476,7 @@ class WeMeditateImporter {
 
         if (Object.keys(localizedData).length === 0) {
           await this.logger.log(
-            `Skipping ${tableName} ${page.id}: no published translations`,
-            false,
+            `Skipping ${tableName} ${page.id}: no published translations`
           )
           continue
         }
@@ -688,8 +686,7 @@ class WeMeditateImporter {
         await this.logger.log(`✓ Updated promo_page ${page.id} -> ${pageId} with content`)
       } catch (error: any) {
         await this.logger.log(
-          `Error updating promo_page ${page.id} with content: ${error.message}`,
-          true,
+          `Error updating promo_page ${page.id} with content: ${error.message}`
         )
         throw error // Fail on content conversion error
       }
@@ -909,8 +906,7 @@ class WeMeditateImporter {
         // Thumbnail is required - skip if we don't have one or can't create it
         if (!metadata.thumbnail) {
           await this.logger.log(
-            `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`,
-            true,
+            `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`
           )
           continue
         }
@@ -923,8 +919,7 @@ class WeMeditateImporter {
 
         if (!thumbnailId) {
           await this.logger.log(
-            `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`,
-            true,
+            `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`
           )
           continue
         }

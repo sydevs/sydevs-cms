@@ -3,15 +3,12 @@ import * as dotenv from 'dotenv'
 dotenv.config()
 
 import { getPayload } from 'payload'
-import { payloadConfig } from '@/payload.config'
+import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { fileURLToPath } from 'url'
 import * as sharp from 'sharp'
 import type { Payload } from 'payload'
 import { Logger, FileUtils, TagManager } from '../lib'
-
-const __filename = fileURLToPath(import.meta.url)
 
 const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
@@ -159,7 +156,7 @@ class StoryblokImporter {
       .catch(() => false)
 
     if (!fileExists) {
-      await sharp.default(imagePath).webp({ quality: 90 }).toFile(webpPath)
+      await sharp(imagePath).webp({ quality: 90 }).toFile(webpPath)
       await this.logger.info(`Converted ${path.basename(imagePath)} to WebP`)
     }
 
@@ -867,7 +864,8 @@ class StoryblokImporter {
       }
 
       // Initialize Payload
-      this.payload = await getPayload({ config: payloadConfig() })
+      const payloadConfig = await configPromise
+      this.payload = await getPayload({ config: payloadConfig })
       await this.initialize()
 
       await this.logger.info('=== Storyblok Path Steps Import ===')

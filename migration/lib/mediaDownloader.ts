@@ -9,7 +9,7 @@ import type { Logger } from './logger'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
-import sharp from 'sharp'
+import * as sharp from 'sharp'
 
 // ============================================================================
 // TYPES

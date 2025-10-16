@@ -533,16 +533,14 @@ export async function convertCatalog(
         itemIds.push(pageId)
       } else {
         await context.logger.log(
-          `Warning: Treatment ${itemId} not found in catalog block for page ${context.pageId}`,
-          true
+          `Warning: Treatment ${itemId} not found in catalog block for page ${context.pageId}`
         )
       }
     } else if (type === 'meditations') {
       // Need to look up by title - this requires the title
       // Since we don't have title here, we'll skip for now
       await context.logger.log(
-        `Warning: Meditation catalog items require title lookup - skipping item ${itemId}`,
-        true
+        `Warning: Meditation catalog items require title lookup - skipping item ${itemId}`
       )
     }
   }
@@ -635,8 +633,7 @@ export async function convertEditorJSToLexical(
 
         default:
           await context.logger.log(
-            `Warning: Unknown block type '${block.type}' at index ${i} for page ${context.pageId}`,
-            true
+            `Warning: Unknown block type '${block.type}' at index ${i} for page ${context.pageId}`
           )
           continue
       }
