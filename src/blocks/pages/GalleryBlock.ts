@@ -10,7 +10,6 @@ export const GalleryBlock: Block = {
     {
       name: 'title',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Optional title for this gallery',
       },

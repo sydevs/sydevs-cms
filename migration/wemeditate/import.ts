@@ -591,15 +591,17 @@ class WeMeditateImporter {
           // If slug validation fails (duplicate), retry without slug to auto-generate
           if (slugError.message && slugError.message.includes('slug')) {
             await this.logger.log(`  Slug conflict for ${tableName} ${page.id}, auto-generating...`)
+            // Omit the slug field entirely to let SlugField auto-generate
+            const retryData: any = {
+              title: localizedData[firstLocale].title,
+              publishAt: localizedData[firstLocale].publishAt || undefined,
+              author: authorId,
+              tags: tags.length > 0 ? tags : undefined,
+            }
+            // Do NOT include slug property at all
             pageDoc = await this.payload.create({
               collection: 'pages',
-              data: {
-                title: localizedData[firstLocale].title,
-                slug: undefined, // Let SlugField auto-generate
-                publishAt: localizedData[firstLocale].publishAt || undefined,
-                author: authorId,
-                tags: tags.length > 0 ? tags : undefined,
-              },
+              data: retryData,
               locale: firstLocale,
             })
           } else {
@@ -703,14 +705,16 @@ class WeMeditateImporter {
           // If slug validation fails (duplicate), retry without slug to auto-generate
           if (slugError.message && slugError.message.includes('slug')) {
             await this.logger.log(`  Slug conflict for promo_page ${page.id}, auto-generating...`)
+            // Omit the slug field entirely to let SlugField auto-generate
+            const retryData: any = {
+              title: page.name,
+              publishAt: page.published_at || undefined,
+              tags,
+            }
+            // Do NOT include slug property at all
             pageDoc = await this.payload.create({
               collection: 'pages',
-              data: {
-                title: page.name,
-                slug: undefined, // Let SlugField auto-generate
-                publishAt: page.published_at || undefined,
-                tags,
-              },
+              data: retryData,
               locale: page.locale as any,
             })
           } else {
@@ -1232,6 +1236,9 @@ class WeMeditateImporter {
         continue
       }
 
+      let lastLexicalContent: any = null
+      let lastLocale: string = ''
+
       try {
         // Convert content for each locale
         for (const translation of page.translations) {
@@ -1243,6 +1250,7 @@ class WeMeditateImporter {
           }
 
           const locale = translation.locale
+          lastLocale = locale
 
           // Parse content if it's a string (PostgreSQL returns JSONB as string in json_agg)
           const content =
@@ -1265,6 +1273,7 @@ class WeMeditateImporter {
 
           // Convert EditorJS to Lexical
           const lexicalContent = await convertEditorJSToLexical(content, context)
+          lastLexicalContent = lexicalContent
 
           // Update page with content
           await this.payload.update({
@@ -1279,6 +1288,19 @@ class WeMeditateImporter {
 
         await this.logger.log(`✓ Updated page ${page.id} -> ${pageId} with content`)
       } catch (error: any) {
+        // Log the actual error details for debugging
+        await this.logger.error(`\nDetailed error for page ${page.id} (locale: ${lastLocale}):`)
+        await this.logger.error(`Error message: ${error.message}`)
+        if (error.data) {
+          await this.logger.error(`Error data: ${JSON.stringify(error.data, null, 2)}`)
+        }
+
+        // Also log the lexical content structure that failed
+        if (lastLexicalContent) {
+          await this.logger.error(`Lexical content structure (first 3000 chars):`)
+          await this.logger.error(JSON.stringify(lastLexicalContent, null, 2).substring(0, 3000))
+        }
+
         this.addError(`Failed: updating page ${page.id} with content`, error)
         // Continue with next page
       }

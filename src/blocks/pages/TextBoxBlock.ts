@@ -1,6 +1,6 @@
 import { Block } from 'payload'
-import { validateCharacterCount } from '@/lib/validators/characterCount'
 import { MediaField } from '@/fields'
+import { basicRichTextEditor } from '@/lib/richEditor'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
@@ -43,7 +43,6 @@ export const TextBoxBlock: Block = {
     {
       name: 'title',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Optional title for this text box',
       },
@@ -51,7 +50,6 @@ export const TextBoxBlock: Block = {
     {
       name: 'subtitle',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Optional subtitle for this text box',
       },
@@ -59,11 +57,9 @@ export const TextBoxBlock: Block = {
     {
       name: 'text',
       type: 'richText',
-      required: true,
-      localized: true,
-      validate: validateCharacterCount(250),
+      editor: basicRichTextEditor,
       admin: {
-        description: 'Main content text (max 250 characters)',
+        description: 'Main content text',
       },
     },
     MediaField({
@@ -83,7 +79,6 @@ export const TextBoxBlock: Block = {
     {
       name: 'actionText',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Call-to-action text for the link',
         condition: (_, siblingData) => Boolean(siblingData?.link),

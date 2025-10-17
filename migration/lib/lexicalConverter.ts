@@ -118,8 +118,12 @@ function parseHTMLToSegments(html: string): TextSegment[] {
       } else if (tagName === 'a') {
         // Extract href
         const hrefMatch = attributes.match(/href=["']([^"']+)["']/i)
-        if (hrefMatch) {
-          currentUrl = hrefMatch[1]
+        if (hrefMatch && hrefMatch[1] && hrefMatch[1].trim()) {
+          const url = hrefMatch[1].trim()
+          // Only set URL if it's not just a hash anchor or empty
+          if (url !== '#' && url !== '') {
+            currentUrl = url
+          }
         }
       }
     } else {
@@ -166,7 +170,9 @@ function parseHTMLToSegments(html: string): TextSegment[] {
  */
 function stripHTML(html: string): string {
   if (!html) return ''
-  return html.replace(/<[^>]*>/g, '')
+  // Ensure the input is a string, even if it's accidentally something else
+  const htmlString = String(html)
+  return htmlString.replace(/<[^>]*>/g, '')
 }
 
 /**
@@ -182,7 +188,11 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
     const text = stripHTML(segment.text)
     if (!text) continue
 
-    if (segment.url) {
+    // Ensure text is explicitly a string
+    const textString = String(text)
+
+    // Only create link node if URL is a valid non-empty string
+    if (segment.url && segment.url.trim().length > 0) {
       // Link node
       nodes.push({
         type: 'link',
@@ -198,7 +208,7 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
           {
             type: 'text',
             version: 1,
-            text,
+            text: textString,
             format: getTextFormat(segment.format),
             style: '',
             mode: 'normal',
@@ -211,7 +221,7 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
       nodes.push({
         type: 'text',
         version: 1,
-        text,
+        text: textString,
         format: getTextFormat(segment.format),
         style: '',
         mode: 'normal',
@@ -388,7 +398,7 @@ export function convertTextbox(block: EditorJSBlock, context: ConversionContext)
     fields.image = imageId
   }
 
-  return createBlockNode('textBox', 'Text Box', fields)
+  return createBlockNode('textbox', 'Text Box', fields)
 }
 
 /**
