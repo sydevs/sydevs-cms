@@ -7,7 +7,7 @@ import { execSync } from 'child_process'
 import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
-import { Logger, FileUtils, TagManager, PayloadHelpers } from '../lib'
+import { Logger, FileUtils, TagManager, PayloadHelpers, MediaUploader } from '../lib'
 import { MediaDownloader, extractMediaUrls, extractAuthorImageUrl } from '../lib/mediaDownloader'
 import {
   convertEditorJSToLexical,
@@ -40,7 +40,24 @@ const CONTENT_TYPE_TAGS: Record<string, string> = {
   treatments: 'treatment',
 }
 
-const LOCALES = ['en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk', 'el', 'hy', 'pl', 'pt-br']
+const LOCALES = [
+  'en',
+  'es',
+  'de',
+  'it',
+  'fr',
+  'ru',
+  'ro',
+  'cs',
+  'uk',
+  'el',
+  'hy',
+  'pl',
+  'pt-br',
+  'fa',
+  'bg',
+  'tr',
+]
 const DB_NAME = 'temp_wemeditate_import'
 
 // ============================================================================
@@ -88,6 +105,7 @@ class WeMeditateImporter {
   private tagManager!: TagManager
   private payloadHelpers!: PayloadHelpers
   private mediaDownloader!: MediaDownloader
+  private mediaUploader!: MediaUploader
 
   private dbClient!: Client
   private options: ScriptOptions
@@ -274,7 +292,7 @@ class WeMeditateImporter {
 
         if (Object.keys(localizedData).length === 0) {
           await this.logger.log(
-            `Skipping author ${author.id}: no translations in supported locales`
+            `Skipping author ${author.id}: no translations in supported locales`,
           )
           continue
         }
@@ -319,7 +337,6 @@ class WeMeditateImporter {
         this.addError(`Failed to import author ${author.id}`, error)
       }
     }
-
   }
 
   private async importCategories() {
@@ -395,7 +412,6 @@ class WeMeditateImporter {
         this.addError(`Failed to import category ${category.id}`, error)
       }
     }
-
   }
 
   private async importContentTypeTags() {
@@ -420,10 +436,9 @@ class WeMeditateImporter {
           where: { name: { equals: tagName } },
         })
         if (existing.docs.length > 0) {
-          }
+        }
       }
     }
-
   }
 
   private async importPages(tableName: string, translationsTable: string) {
@@ -460,24 +475,24 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${pagesResult.rows.length} pages to import from ${tableName}`)
 
     for (const page of pagesResult.rows) {
-      try {
-        // Build localized data
-        const localizedData: any = {}
-        for (const translation of page.translations) {
-          if (translation.locale && translation.name && translation.state === 1) {
-            localizedData[translation.locale] = {
-              title: translation.name,
-              slug: translation.slug,
-              content: translation.content,
-              publishAt: translation.published_at,
-            }
+      // Build localized data (outside try block for error reporting)
+      const localizedData: any = {}
+      for (const translation of page.translations) {
+        if (translation.locale && translation.name && translation.state === 1) {
+          // Clean slug: trim whitespace and reject if empty
+          const slug = translation.slug?.trim()
+          localizedData[translation.locale] = {
+            title: translation.name,
+            slug: slug && slug.length > 0 ? slug : undefined,
+            content: translation.content,
+            publishAt: translation.published_at,
           }
         }
+      }
 
+      try {
         if (Object.keys(localizedData).length === 0) {
-          await this.logger.log(
-            `Skipping ${tableName} ${page.id}: no published translations`
-          )
+          await this.logger.log(`Skipping ${tableName} ${page.id}: no published translations`)
           continue
         }
 
@@ -492,16 +507,20 @@ class WeMeditateImporter {
 
         // Add content type tag
         const contentTypeTag = CONTENT_TYPE_TAGS[tableName]
-        if (contentTypeTag && this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)) {
-          tags.push(this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`))
+        if (contentTypeTag) {
+          const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
+          if (tagId) {
+            tags.push(tagId)
+          }
         }
 
         // Add article type tag
         if (page.article_type !== undefined && ARTICLE_TYPE_TAGS[page.article_type]) {
           const articleTypeTag = ARTICLE_TYPE_TAGS[page.article_type]
           const articleTypeTagKey = `content-type-tag-${articleTypeTag}`
-          if (this.contentTypeTagMap.get(articleTypeTagKey)) {
-            tags.push(this.contentTypeTagMap.get(articleTypeTagKey))
+          const tagId = this.contentTypeTagMap.get(articleTypeTagKey)
+          if (tagId) {
+            tags.push(tagId)
           }
         }
 
@@ -514,17 +533,38 @@ class WeMeditateImporter {
         const locales = Object.keys(localizedData)
         const firstLocale = locales[0] as any
 
-        const pageDoc = await this.payload.create({
-          collection: 'pages',
-          data: {
-            title: localizedData[firstLocale].title,
-            slug: localizedData[firstLocale].slug,
-            publishAt: localizedData[firstLocale].publishAt || undefined,
-            author: authorId,
-            tags: tags.length > 0 ? tags : undefined,
-          },
-          locale: firstLocale,
-        })
+        let pageDoc
+        try {
+          pageDoc = await this.payload.create({
+            collection: 'pages',
+            data: {
+              title: localizedData[firstLocale].title,
+              slug: localizedData[firstLocale].slug, // Already cleaned above
+              publishAt: localizedData[firstLocale].publishAt || undefined,
+              author: authorId,
+              tags: tags.length > 0 ? tags : undefined,
+            },
+            locale: firstLocale,
+          })
+        } catch (slugError: any) {
+          // If slug validation fails (duplicate), retry without slug to auto-generate
+          if (slugError.message && slugError.message.includes('slug')) {
+            await this.logger.log(`  Slug conflict for ${tableName} ${page.id}, auto-generating...`)
+            pageDoc = await this.payload.create({
+              collection: 'pages',
+              data: {
+                title: localizedData[firstLocale].title,
+                slug: undefined, // Let SlugField auto-generate
+                publishAt: localizedData[firstLocale].publishAt || undefined,
+                author: authorId,
+                tags: tags.length > 0 ? tags : undefined,
+              },
+              locale: firstLocale,
+            })
+          } else {
+            throw slugError
+          }
+        }
 
         // Update with other locales
         for (let i = 1; i < locales.length; i++) {
@@ -534,7 +574,7 @@ class WeMeditateImporter {
             id: pageDoc.id,
             data: {
               title: localizedData[locale].title,
-              slug: localizedData[locale].slug,
+              // Note: slug is not localized, so we don't update it here
               publishAt: localizedData[locale].publishAt || undefined,
             },
             locale,
@@ -556,10 +596,16 @@ class WeMeditateImporter {
         this.summary.pagesCreated++
         await this.logger.log(`✓ Created page from ${tableName}: ${page.id} -> ${pageDoc.id}`)
       } catch (error: any) {
-        this.addError(`Failed to import ${tableName} ${page.id}`, error)
+        // Enhanced error logging for slug issues
+        if (error.message && error.message.includes('slug')) {
+          const locales = Object.keys(localizedData)
+          const slugInfo = locales.map((loc) => `${loc}:"${localizedData[loc].slug}"`).join(', ')
+          this.addError(`Failed to import ${tableName} ${page.id} [slugs: ${slugInfo}]`, error)
+        } else {
+          this.addError(`Failed to import ${tableName} ${page.id}`, error)
+        }
       }
     }
-
   }
 
   private async importPromoPages() {
@@ -583,27 +629,53 @@ class WeMeditateImporter {
     await this.logger.log(`Found ${pagesResult.rows.length} published promo_pages to import`)
 
     for (const page of pagesResult.rows) {
+      // Clean slug outside try block for error reporting
+      const slug = page.slug?.trim()
+
       try {
         // Get tags
         const tags: string[] = []
 
         // Add content type tag
         const contentTypeTag = CONTENT_TYPE_TAGS['promo_pages']
-        if (contentTypeTag && this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)) {
-          tags.push(this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`))
+        if (contentTypeTag) {
+          const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
+          if (tagId) {
+            tags.push(tagId)
+          }
         }
 
         // Create page document
-        const pageDoc = await this.payload.create({
-          collection: 'pages',
-          data: {
-            title: page.name,
-            slug: page.slug,
-            publishAt: page.published_at || undefined,
-            tags,
-          },
-          locale: page.locale as any,
-        })
+        let pageDoc
+        try {
+          pageDoc = await this.payload.create({
+            collection: 'pages',
+            data: {
+              title: page.name,
+              slug: slug && slug.length > 0 ? slug : undefined, // Let SlugField auto-generate if empty/null
+              publishAt: page.published_at || undefined,
+              tags,
+            },
+            locale: page.locale as any,
+          })
+        } catch (slugError: any) {
+          // If slug validation fails (duplicate), retry without slug to auto-generate
+          if (slugError.message && slugError.message.includes('slug')) {
+            await this.logger.log(`  Slug conflict for promo_page ${page.id}, auto-generating...`)
+            pageDoc = await this.payload.create({
+              collection: 'pages',
+              data: {
+                title: page.name,
+                slug: undefined, // Let SlugField auto-generate
+                publishAt: page.published_at || undefined,
+                tags,
+              },
+              locale: page.locale as any,
+            })
+          } else {
+            throw slugError
+          }
+        }
 
         // Store mapping
         const mapKey = `promoPages`
@@ -618,10 +690,14 @@ class WeMeditateImporter {
         this.summary.pagesCreated++
         await this.logger.log(`✓ Created page from promo_pages: ${page.id} -> ${pageDoc.id}`)
       } catch (error: any) {
-        this.addError(`Failed to import promo_pages ${page.id}`, error)
+        // Enhanced error logging for slug issues
+        if (error.message && error.message.includes('slug')) {
+          this.addError(`Failed to import promo_pages ${page.id} [slug: "${slug}"]`, error)
+        } else {
+          this.addError(`Failed to import promo_pages ${page.id}`, error)
+        }
       }
     }
-
   }
 
   private async importPromoPagesWithContent() {
@@ -685,13 +761,10 @@ class WeMeditateImporter {
 
         await this.logger.log(`✓ Updated promo_page ${page.id} -> ${pageId} with content`)
       } catch (error: any) {
-        await this.logger.log(
-          `Error updating promo_page ${page.id} with content: ${error.message}`
-        )
+        await this.logger.log(`Error updating promo_page ${page.id} with content: ${error.message}`)
         throw error // Fail on content conversion error
       }
     }
-
   }
 
   private async importForms() {
@@ -746,7 +819,7 @@ class WeMeditateImporter {
 
         if (existing.docs.length > 0) {
           this.idMaps.forms.set(formType, existing.docs[0].id as string)
-            await this.logger.log(`✓ Reusing existing form: ${config.title}`)
+          await this.logger.log(`✓ Reusing existing form: ${config.title}`)
           continue
         }
 
@@ -798,7 +871,6 @@ class WeMeditateImporter {
         this.addError(`Failed: creating form ${formType}`, error)
       }
     }
-
   }
 
   private async buildMeditationTitleMap() {
@@ -906,7 +978,7 @@ class WeMeditateImporter {
         // Thumbnail is required - skip if we don't have one or can't create it
         if (!metadata.thumbnail) {
           await this.logger.log(
-            `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`
+            `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`,
           )
           continue
         }
@@ -919,7 +991,7 @@ class WeMeditateImporter {
 
         if (!thumbnailId) {
           await this.logger.log(
-            `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`
+            `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`,
           )
           continue
         }
@@ -940,15 +1012,15 @@ class WeMeditateImporter {
         this.addError(`Failed: creating ExternalVideo ${videoId}`, error)
       }
     }
-
   }
 
   private async importMedia() {
     await this.logger.log('\n=== Importing Media Files ===')
 
-    // Initialize media downloader
+    // Initialize media downloader and uploader
     this.mediaDownloader = new MediaDownloader(CACHE_DIR, this.logger)
     await this.mediaDownloader.initialize()
+    this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
     // Collect all media URLs from content
     const mediaUrls = new Set<string>()
@@ -1060,25 +1132,26 @@ class WeMeditateImporter {
           caption: '',
         }
 
-        // Create Media document
-        const mediaId = await this.mediaDownloader.createMediaDocument(
-          this.payload,
-          downloadResult,
-          metadata,
-          'all',
-        )
+        // Upload Media document with deduplication
+        const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
+          alt: metadata.alt,
+          credit: metadata.credit,
+          locale: 'all',
+        })
 
-        this.idMaps.media.set(url, mediaId)
-        this.summary.mediaCreated++
-        downloadedCount++
-
-        await this.logger.log(`✓ Imported media: ${downloadedCount}/${mediaUrls.size}`)
+        if (result) {
+          this.idMaps.media.set(url, result.id)
+          if (!result.wasReused) {
+            this.summary.mediaCreated++
+          }
+          downloadedCount++
+          await this.logger.log(`✓ Imported media: ${downloadedCount}/${mediaUrls.size}`)
+        }
       } catch (error: any) {
         this.addError(`Failed to import media ${url}`, error)
         // Continue with next media item
       }
     }
-
   }
 
   private async importPagesWithContent(tableName: string, translationsTable: string) {
@@ -1164,7 +1237,6 @@ class WeMeditateImporter {
         // Continue with next page
       }
     }
-
   }
 
   // ============================================================================
@@ -1176,11 +1248,14 @@ class WeMeditateImporter {
     console.log('IMPORT SUMMARY')
     console.log('='.repeat(60))
 
+    // Get MediaUploader stats
+    const mediaStats = this.mediaUploader.getStats()
+
     console.log(`\n📊 Records Created:`)
     console.log(`  Authors:            ${this.summary.authorsCreated}`)
     console.log(`  Categories:         ${this.summary.categoriesCreated}`)
     console.log(`  Pages:              ${this.summary.pagesCreated}`)
-    console.log(`  Media Files:        ${this.summary.mediaCreated}`)
+    console.log(`  Media Files:        ${mediaStats.uploaded}`)
     console.log(`  External Videos:    ${this.summary.externalVideosCreated}`)
     console.log(`  Forms:              ${this.summary.formsCreated}`)
 
@@ -1188,11 +1263,12 @@ class WeMeditateImporter {
       this.summary.authorsCreated +
       this.summary.categoriesCreated +
       this.summary.pagesCreated +
-      this.summary.mediaCreated +
+      mediaStats.uploaded +
       this.summary.externalVideosCreated +
       this.summary.formsCreated
 
     console.log(`\n  Total Records:      ${totalRecords}`)
+    console.log(`  Media Reused:       ${mediaStats.reused}`)
 
     if (this.summary.warnings.length > 0) {
       console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
@@ -1276,7 +1352,7 @@ class WeMeditateImporter {
                 title: articleType,
               },
             })
-              } catch {
+          } catch {
             // Might already exist
           }
         }
@@ -1289,7 +1365,6 @@ class WeMeditateImporter {
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPages('treatments', 'treatment_translations')
 
-  
       await this.logger.log('\n=== PHASE 2: Content Import ===\n')
 
       // Phase 2: Import content with full conversion
@@ -1305,13 +1380,11 @@ class WeMeditateImporter {
       await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPagesWithContent('treatments', 'treatment_translations')
 
-  
       // 7. Cleanup database
       await this.cleanupDatabase()
 
       await this.logger.log('\n=== Import Complete ===')
       this.printSummary()
-
     } catch (error: any) {
       await this.logger.error(`Fatal error: ${error.message}`)
       console.error('Fatal error:', error)

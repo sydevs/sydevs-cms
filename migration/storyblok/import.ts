@@ -1,6 +1,4 @@
-import * as dotenv from 'dotenv'
-// Load environment variables FIRST before importing anything else
-dotenv.config()
+import 'dotenv/config'
 
 import { getPayload } from 'payload'
 import configPromise from '../../src/payload.config'
@@ -8,7 +6,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as sharp from 'sharp'
 import type { Payload } from 'payload'
-import { Logger, FileUtils, TagManager } from '../lib'
+import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
 const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
@@ -51,6 +49,7 @@ class StoryblokImporter {
   private logger!: Logger
   private fileUtils!: FileUtils
   private tagManager!: TagManager
+  private mediaUploader!: MediaUploader
   private mediaTagId: string | null = null
 
   // In-memory ID mappings (no persistence)
@@ -77,6 +76,7 @@ class StoryblokImporter {
     this.logger = new Logger(CACHE_DIR)
     this.fileUtils = new FileUtils(this.logger)
     this.tagManager = new TagManager(this.payload, this.logger)
+    this.mediaUploader = new MediaUploader(this.payload, this.logger)
   }
 
   private addError(context: string, error: Error | string) {
@@ -156,7 +156,8 @@ class StoryblokImporter {
       .catch(() => false)
 
     if (!fileExists) {
-      await sharp(imagePath).webp({ quality: 90 }).toFile(webpPath)
+      const sharpInstance = sharp.default ? sharp.default(imagePath) : (sharp as any)(imagePath)
+      await sharpInstance.webp({ quality: 90 }).toFile(webpPath)
       await this.logger.info(`Converted ${path.basename(imagePath)} to WebP`)
     }
 
@@ -176,23 +177,21 @@ class StoryblokImporter {
     // Ensure media tag exists
     await this.ensureMediaTag()
 
-    const fileBuffer = await fs.readFile(webpPath)
-    const media = await this.payload.create({
-      collection: 'media',
-      data: {
-        alt: alt || filename,
-        tags: this.mediaTagId ? [this.mediaTagId] : [],
-      },
-      file: {
-        data: fileBuffer,
-        name: path.basename(webpPath),
-        size: fileBuffer.length,
-        mimetype: 'image/webp',
-      },
+    // Upload with deduplication
+    const tags = this.mediaTagId ? [this.mediaTagId] : []
+    const result = await this.mediaUploader.uploadWithDeduplication(webpPath, {
+      alt: alt || filename,
+      tags,
     })
 
-    this.summary.mediaCreated++
-    return media.id as string
+    if (!result) {
+      throw new Error('Failed to upload media')
+    }
+
+    if (!result.wasReused) {
+      this.summary.mediaCreated++
+    }
+    return result.id
   }
 
   async createFileAttachment(
@@ -585,9 +584,7 @@ class StoryblokImporter {
               })
               await this.logger.info(`✓ Found meditation: ${expectedMeditationTitle}`)
             } else {
-              this.addWarning(
-                `Meditation "${expectedMeditationTitle}" not found for ${story.name}`,
-              )
+              this.addWarning(`Meditation "${expectedMeditationTitle}" not found for ${story.name}`)
               meditationId = undefined
             }
           } else {
@@ -772,8 +769,12 @@ class StoryblokImporter {
   async resetCollections() {
     await this.logger.info('\n=== Resetting Collections ===')
 
-    const collections: Array<'lessons' | 'file-attachments' | 'external-videos' | 'media'> =
-      ['lessons', 'file-attachments', 'external-videos', 'media']
+    const collections: Array<'lessons' | 'file-attachments' | 'external-videos' | 'media'> = [
+      'lessons',
+      'file-attachments',
+      'external-videos',
+      'media',
+    ]
 
     // Ensure media tag exists for filtering
     await this.ensureMediaTag()
@@ -821,19 +822,23 @@ class StoryblokImporter {
     console.log('IMPORT SUMMARY')
     console.log('='.repeat(60))
 
+    // Get MediaUploader stats
+    const mediaStats = this.mediaUploader.getStats()
+
     console.log(`\n📊 Records Created:`)
     console.log(`  Lessons:             ${this.summary.lessonsCreated}`)
-    console.log(`  Media Files:         ${this.summary.mediaCreated}`)
+    console.log(`  Media Files:         ${mediaStats.uploaded}`)
     console.log(`  External Videos:     ${this.summary.externalVideosCreated}`)
     console.log(`  File Attachments:    ${this.summary.fileAttachmentsCreated}`)
 
     const totalRecords =
       this.summary.lessonsCreated +
-      this.summary.mediaCreated +
+      mediaStats.uploaded +
       this.summary.externalVideosCreated +
       this.summary.fileAttachmentsCreated
 
     console.log(`\n  Total Records:       ${totalRecords}`)
+    console.log(`  Media Reused:        ${mediaStats.reused}`)
 
     if (this.summary.warnings.length > 0) {
       console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
@@ -902,8 +907,7 @@ class StoryblokImporter {
           const content = s.content as Record<string, unknown>
           const stepInfo = content.Step_info as Array<{ Unit_number?: number }> | undefined
           return (
-            stepInfo?.[0]?.Unit_number === unitNum ||
-            this.extractUnitFromSlug(s.slug) === unitNum
+            stepInfo?.[0]?.Unit_number === unitNum || this.extractUnitFromSlug(s.slug) === unitNum
           )
         })
         await this.logger.info(`Filtered to ${filteredStories.length} stories for unit ${unitNum}`)

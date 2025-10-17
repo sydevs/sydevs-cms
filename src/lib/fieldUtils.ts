@@ -1,6 +1,5 @@
 import {
   CollectionAfterChangeHook,
-  CollectionAfterDeleteHook,
   CollectionAfterReadHook,
   CollectionBeforeChangeHook,
   CollectionBeforeOperationHook,
@@ -125,6 +124,7 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
   doc,
   req,
   operation,
+  collection,
 }) => {
   if (operation !== 'create' || !doc.mimeType?.startsWith('video/') || !req.file?.data) {
     return doc
@@ -135,11 +135,14 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
     const tmpFile = tmp.fileSync({ postfix: '.webp' })
     fs.writeFileSync(tmpFile.fd, thumbnailBuffer)
 
-    const thumbnailMedia = await req.payload.create({
-      collection: 'media',
+    // Create FileAttachment instead of Media
+    const thumbnailAttachment = await req.payload.create({
+      collection: 'file-attachments',
       data: {
-        alt: `Thumbnail for ${doc.filename}`,
-        hidden: true,
+        owner: {
+          relationTo: collection.slug as any,
+          value: doc.id,
+        },
       },
       filePath: tmpFile.name,
     })
@@ -148,9 +151,12 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
       collection: 'frames',
       id: doc.id,
       data: {
-        thumbnail: thumbnailMedia.id,
+        thumbnail: thumbnailAttachment.id,
       },
     })
+
+    // Clean up temp file
+    tmpFile.removeCallback()
 
     return updatedDoc
   } catch (error) {
@@ -162,21 +168,6 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
   }
 }
 
-export const deleteThumbnailHook: CollectionAfterDeleteHook = async ({ doc, req }) => {
-  if (!doc?.thumbnail) {
-    return
-  }
-
-  const thumbnailId = typeof doc.thumbnail === 'string' ? doc.thumbnail : doc.thumbnail.id
-
-  if (thumbnailId) {
-    await req.payload.delete({
-      collection: 'media',
-      id: thumbnailId,
-    })
-  }
-}
-
 export const setPreviewUrlHook: CollectionAfterReadHook = async ({ doc, req }) => {
   if (!doc) return doc
 
@@ -185,7 +176,7 @@ export const setPreviewUrlHook: CollectionAfterReadHook = async ({ doc, req }) =
     // If thumbnail is just an ID, we need to populate it
     if (typeof doc.thumbnail === 'string') {
       const thumbnailDoc = await req.payload.findByID({
-        collection: 'media',
+        collection: 'file-attachments',
         id: doc.thumbnail,
       })
       if (thumbnailDoc?.url) {

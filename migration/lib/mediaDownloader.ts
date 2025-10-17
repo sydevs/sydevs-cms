@@ -70,7 +70,8 @@ export class MediaDownloader {
         await this.logger.log(`Using cached image: ${filename}`)
 
         // Get dimensions
-        const metadata = await sharp(localPath).metadata()
+        const sharpInstance = sharp.default ? sharp.default(localPath) : (sharp as any)(localPath)
+        const metadata = await sharpInstance.metadata()
 
         const result: DownloadResult = {
           localPath,
@@ -98,7 +99,7 @@ export class MediaDownloader {
 
       // Convert to WebP
       await this.logger.log(`Converting to WebP: ${filename}`)
-      const sharpInstance = sharp(buffer)
+      const sharpInstance = sharp.default ? sharp.default(buffer) : (sharp as any)(buffer)
       const metadata = await sharpInstance.metadata()
 
       await sharpInstance.webp({ quality: 90 }).toFile(localPath)

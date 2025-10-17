@@ -150,7 +150,7 @@ The system provides 5 block types that can be embedded within the rich text edit
 - **Lexical Editor Integration**: Full-featured editor with formatting options and embedded blocks
 - **Character Count Validation**: TextBoxBlock text field enforces 250-character limit with HTML stripping
 - **Gallery Block Validation**: Maximum 10 items per gallery with conditional relationship filtering
-- **Localization Support**: All text content fields support 13 locales (en, es, de, it, fr, ru, ro, cs, uk, el, hy, pl, pt-br)
+- **Localization Support**: All text content fields support 16 locales (en, es, de, it, fr, ru, ro, cs, uk, el, hy, pl, pt-br, fa, bg, tr)
 - **Slug Generation**: Uses Better Fields plugin for automatic slug generation from title
 - **Admin Integration**: Uses PublishStateCell component and slug generation utilities
 
@@ -161,10 +161,10 @@ The system provides 5 block types that can be embedded within the rich text edit
 
 ### Localization Architecture
 
-The application supports comprehensive localization for 13 locales: English (`en`), Spanish (`es`), German (`de`), Italian (`it`), French (`fr`), Russian (`ru`), Romanian (`ro`), Czech (`cs`), Ukrainian (`uk`), Greek (`el`), Armenian (`hy`), Polish (`pl`), and Brazilian Portuguese (`pt-br`).
+The application supports comprehensive localization for 16 locales: English (`en`), Spanish (`es`), German (`de`), Italian (`it`), French (`fr`), Russian (`ru`), Romanian (`ro`), Czech (`cs`), Ukrainian (`uk`), Greek (`el`), Armenian (`hy`), Polish (`pl`), Brazilian Portuguese (`pt-br`), Farsi/Persian (`fa`), Bulgarian (`bg`), and Turkish (`tr`).
 
 #### Global Configuration
-- Configured in `src/payload.config.ts` with all 13 locales and `defaultLocale: 'en'`
+- Configured in `src/payload.config.ts` with all 16 locales and `defaultLocale: 'en'`
 - Payload CMS automatically handles locale switching in the admin UI
 - Fallback enabled to provide content in default locale when translations are missing
 

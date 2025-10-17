@@ -140,7 +140,23 @@ export interface Config {
     'we-meditate-web-settings': WeMeditateWebSettingsSelect<false> | WeMeditateWebSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
-  locale: 'en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk' | 'el' | 'hy' | 'pl' | 'pt-br';
+  locale:
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-br'
+    | 'fa'
+    | 'bg'
+    | 'tr';
   user:
     | (Manager & {
         collection: 'managers';
@@ -692,7 +708,7 @@ export interface Frame {
   /**
    * Auto-generated thumbnail for video frames
    */
-  thumbnail?: (string | null) | Media;
+  thumbnail?: (string | null) | FileAttachment;
   duration?: number | null;
   fileMetadata?:
     | {

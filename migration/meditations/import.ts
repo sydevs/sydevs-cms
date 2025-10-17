@@ -7,7 +7,7 @@ import { execSync } from 'child_process'
 import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
-import { Logger, FileUtils, TagManager, PayloadHelpers } from '../lib'
+import { Logger, FileUtils, TagManager, PayloadHelpers, MediaUploader } from '../lib'
 
 interface ImportedData {
   tags: Array<{ id: number; name: string }>
@@ -62,6 +62,7 @@ class SimpleImporter {
   private fileUtils!: FileUtils
   private tagManager!: TagManager
   private payloadHelpers!: PayloadHelpers
+  private mediaUploader!: MediaUploader
 
   private tempDb: Client
   private cacheDir: string
@@ -157,6 +158,7 @@ class SimpleImporter {
         this.fileUtils = new FileUtils(this.logger)
         this.tagManager = new TagManager(this.payload, this.logger)
         this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
+        this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
         // 2.1. Reset Meditations collection if requested
         if (this.reset) {
@@ -268,27 +270,38 @@ class SimpleImporter {
   }
 
   private async resetMeditationsCollection() {
-    await this.logger.log('\n🗑️  Resetting Meditations collection...')
+    await this.logger.log('\n🗑️  Resetting Meditations and Frames collections...')
 
     try {
-      const deletedCount = await this.payloadHelpers.resetCollection('meditations')
-
-      if (deletedCount > 0) {
-        await this.logger.log(`  ✓ Cleared meditations collection (${deletedCount} documents deleted)`)
+      // Delete all meditations
+      const deletedMeditationsCount = await this.payloadHelpers.resetCollection('meditations')
+      if (deletedMeditationsCount > 0) {
+        await this.logger.log(
+          `  ✓ Cleared meditations (${deletedMeditationsCount} documents deleted)`,
+        )
       } else {
         await this.logger.log(`  ✓ Meditations collection already empty`)
       }
 
-      // Clear meditation-related ID mappings cache since meditations are reset
+      // Delete all frames (they don't check for duplicates during import)
+      const deletedFramesCount = await this.payloadHelpers.resetCollection('frames')
+      if (deletedFramesCount > 0) {
+        await this.logger.log(`  ✓ Cleared frames (${deletedFramesCount} documents deleted)`)
+      } else {
+        await this.logger.log(`  ✓ Frames collection already empty`)
+      }
+
+      // Clear meditation and frame ID mappings cache
+      // Note: Other collections (narrators, music, tags) handle duplicates during import
       this.idMaps.meditations.clear()
-      await this.logger.log('✓ Cleared meditation ID mappings cache')
+      this.idMaps.frames.clear()
+      await this.logger.log('✓ Cleared meditation and frame ID mappings cache')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await this.logger.error(`  Could not clear meditations collection: ${message}`)
+      await this.logger.error(`  Could not clear collections: ${message}`)
       throw error
     }
   }
-
 
   private async loadData(): Promise<ImportedData> {
     await this.logger.log('Loading data from temporary database...')
@@ -581,65 +594,6 @@ class SimpleImporter {
     }
   }
 
-  private async uploadMediaWithDeduplication(
-    localPath: string,
-    metadata: any = {},
-  ): Promise<string | null> {
-    try {
-      const filename = path.basename(localPath).replace(/^[^_]+_/, '') // Remove hash prefix
-
-      // Check if media with this filename already exists
-      const existingMediaId = this.idMaps.media.get(filename)
-      if (existingMediaId) {
-        // Validate that the media actually exists before reusing
-        try {
-          const existingMedia = await this.payload.findByID({
-            collection: 'media',
-            id: existingMediaId,
-          })
-          if (existingMedia && existingMedia.filename === filename) {
-            // If metadata includes tags, ensure existing media has those tags
-            if (metadata.tags && Array.isArray(metadata.tags) && metadata.tags.length > 0) {
-              await this.ensureMeditationThumbnailTag(existingMediaId)
-            }
-
-            this.summary.media.reused++
-            await this.logger.log(`    ✓ Reusing existing media: ${filename}`)
-            return existingMediaId
-          } else {
-            // Media doesn't exist or filename doesn't match, remove from cache
-            this.addWarning(
-              `Cached media ID ${existingMediaId} for ${filename} not found, will re-upload`,
-            )
-            this.idMaps.media.delete(filename)
-          }
-        } catch (error) {
-          // Media doesn't exist, remove from cache
-          this.addWarning(
-            `Cached media ID ${existingMediaId} for ${filename} not found, will re-upload`,
-          )
-          this.idMaps.media.delete(filename)
-        }
-      }
-
-      // Upload new media file
-      const uploaded = await this.uploadToPayload(localPath, 'media', metadata)
-      if (uploaded) {
-        // Add to media mapping for future deduplication
-        this.idMaps.media.set(filename, String(uploaded.id))
-        this.summary.media.uploaded++
-        await this.logger.log(`    ✓ Uploaded new media: ${filename}`)
-        return String(uploaded.id)
-      }
-
-      return null
-    } catch (error: any) {
-      this.addWarning(
-        `Failed to upload media ${path.basename(localPath)}: ${error.message || error}`,
-      )
-      return null
-    }
-  }
 
   private async uploadToPayloadForUpdate(
     localPath: string,
@@ -698,7 +652,6 @@ class SimpleImporter {
     }
   }
 
-
   private mapFrameCategory(oldCategory: string): string | null {
     // Map old categories to new lowercase versions
     // Special case: "Heart" maps to "anahat"
@@ -742,8 +695,13 @@ class SimpleImporter {
     await this.logger.log('\nSetting up meditation thumbnail and import tags...')
 
     // Setup meditation-thumbnail tag using TagManager
-    this.meditationThumbnailTagId = await this.tagManager.ensureTag('media-tags', 'meditation-thumbnail')
-    await this.logger.log(`    ✓ Meditation-thumbnail tag ready (ID: ${this.meditationThumbnailTagId})`)
+    this.meditationThumbnailTagId = await this.tagManager.ensureTag(
+      'media-tags',
+      'meditation-thumbnail',
+    )
+    await this.logger.log(
+      `    ✓ Meditation-thumbnail tag ready (ID: ${this.meditationThumbnailTagId})`,
+    )
 
     // Setup import tag using TagManager
     this.importMediaTagId = await this.tagManager.ensureTag('media-tags', IMPORT_TAG)
@@ -798,7 +756,9 @@ class SimpleImporter {
     // Upload or reuse placeholder.jpg
     if (existingPlaceholder.docs.length > 0) {
       this.placeholderMediaId = String(existingPlaceholder.docs[0].id)
-      await this.logger.log(`    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`)
+      await this.logger.log(
+        `    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`,
+      )
 
       // Update existing placeholder with meditation-thumbnail tag if not already tagged
       await this.ensureMeditationThumbnailTag(this.placeholderMediaId)
@@ -825,7 +785,9 @@ class SimpleImporter {
     // Upload or reuse path.jpg
     if (existingPathPlaceholder.docs.length > 0) {
       this.pathPlaceholderMediaId = String(existingPathPlaceholder.docs[0].id)
-      await this.logger.log(`    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`)
+      await this.logger.log(
+        `    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`,
+      )
 
       // Update existing path placeholder with meditation-thumbnail tag if not already tagged
       await this.ensureMeditationThumbnailTag(this.pathPlaceholderMediaId)
@@ -1031,7 +993,7 @@ class SimpleImporter {
 
     let createdCount = 0
     let foundCount = 0
-    let updatedCount = 0
+    const updatedCount = 0
     let skippedCount = 0
 
     for (const frame of frames) {
@@ -1252,7 +1214,7 @@ class SimpleImporter {
 
     let createdCount = 0
     let foundCount = 0
-    let updatedCount = 0
+    const updatedCount = 0
 
     for (const music of musics) {
       // Generate expected slug for this music
@@ -1394,7 +1356,7 @@ class SimpleImporter {
 
     let createdCount = 0
     let foundCount = 0
-    let updatedCount = 0
+    const updatedCount = 0
 
     for (const meditation of meditations) {
       // Generate unique slug with duration suffix to avoid conflicts
@@ -1409,7 +1371,9 @@ class SimpleImporter {
       // Check if meditation already exists by unique slug
       const existingMeditation = existingBySlug.get(uniqueSlug)
       if (existingMeditation) {
-        await this.logger.log(`    ✓ Found existing meditation: ${existingMeditation.title} (skipping)`)
+        await this.logger.log(
+          `    ✓ Found existing meditation: ${existingMeditation.title} (skipping)`,
+        )
         this.idMaps.meditations.set(meditation.id, String(existingMeditation.id))
         foundCount++
         continue
@@ -1483,7 +1447,9 @@ class SimpleImporter {
         }
       }
 
-      await this.logger.log(`    ℹ️  Meditation ${meditation.title} has ${validFrames.length} valid frames`)
+      await this.logger.log(
+        `    ℹ️  Meditation ${meditation.title} has ${validFrames.length} valid frames`,
+      )
 
       // Get meditation tags from taggings table
       const meditationTaggings = taggings.filter(
@@ -1538,10 +1504,13 @@ class SimpleImporter {
           const tags = []
           if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
           if (this.importMediaTagId) tags.push(this.importMediaTagId)
-          thumbnailId = await this.uploadMediaWithDeduplication(localPath, {
+          const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
             alt: `${meditation.title} thumbnail`,
             tags,
           })
+          if (result) {
+            thumbnailId = result.id
+          }
         }
       }
 
@@ -1556,10 +1525,14 @@ class SimpleImporter {
 
         if (hasPathTag && this.pathPlaceholderMediaId) {
           thumbnailId = this.pathPlaceholderMediaId
-          await this.logger.log(`    ℹ️  Using path placeholder for meditation: ${meditation.title}`)
+          await this.logger.log(
+            `    ℹ️  Using path placeholder for meditation: ${meditation.title}`,
+          )
         } else if (this.placeholderMediaId) {
           thumbnailId = this.placeholderMediaId
-          await this.logger.log(`    ℹ️  Using default placeholder for meditation: ${meditation.title}`)
+          await this.logger.log(
+            `    ℹ️  Using default placeholder for meditation: ${meditation.title}`,
+          )
         } else {
           this.addWarning(
             `No thumbnail or placeholder available for meditation: ${meditation.title}`,
@@ -1645,7 +1618,9 @@ class SimpleImporter {
     if (foundCount > 0) {
       statusParts.push(`${foundCount} skipped`)
     }
-    await this.logger.log(`✓ Processed ${meditations.length} meditations (${statusParts.join(', ')})`)
+    await this.logger.log(
+      `✓ Processed ${meditations.length} meditations (${statusParts.join(', ')})`,
+    )
   }
 
   private printSummary() {
@@ -1672,6 +1647,9 @@ class SimpleImporter {
 
     const totalProcessed = totalCreated + totalExisting
 
+    // Get MediaUploader stats
+    const mediaStats = this.mediaUploader.getStats()
+
     // Print collection-by-collection breakdown
     console.log('\n📊 Records Created:')
     console.log(`  Narrators:        ${this.summary.narrators.created}`)
@@ -1680,11 +1658,11 @@ class SimpleImporter {
     console.log(`  Frames:           ${this.summary.frames.created}`)
     console.log(`  Music:            ${this.summary.music.created}`)
     console.log(`  Meditations:      ${this.summary.meditations.created}`)
-    console.log(`  Media Files:      ${this.summary.media.uploaded}`)
+    console.log(`  Media Files:      ${mediaStats.uploaded}`)
 
     console.log(`\n  Total Records:    ${totalCreated}`)
     console.log(`  Existing/Skipped: ${totalExisting}`)
-    console.log(`  Media Reused:     ${this.summary.media.reused}`)
+    console.log(`  Media Reused:     ${mediaStats.reused}`)
 
     // Print alerts section
     const totalAlerts =
