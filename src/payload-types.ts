@@ -92,6 +92,9 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    authors: {
+      articles: 'pages';
+    };
     'media-tags': {
       media: 'media';
     };
@@ -364,6 +367,11 @@ export interface Author {
    * Author profile image
    */
   image?: (string | null) | Media;
+  articles?: {
+    docs?: (string | Page)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -1520,6 +1528,7 @@ export interface AuthorsSelect<T extends boolean = true> {
   countryCode?: T;
   yearsMeditating?: T;
   image?: T;
+  articles?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -54,5 +54,11 @@ export const Authors: CollectionConfig = {
         description: 'Author profile image',
       },
     },
+    {
+      name: 'articles',
+      type: 'join',
+      collection: 'pages',
+      on: 'author',
+    },
   ],
 }

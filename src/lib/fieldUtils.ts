@@ -175,13 +175,18 @@ export const setPreviewUrlHook: CollectionAfterReadHook = async ({ doc, req }) =
   if (doc.mimeType?.startsWith('video/') && doc.thumbnail) {
     // If thumbnail is just an ID, we need to populate it
     if (typeof doc.thumbnail === 'string') {
-      const thumbnailDoc = await req.payload.findByID({
-        collection: 'file-attachments',
-        id: doc.thumbnail,
-      })
-      if (thumbnailDoc?.url) {
-        doc.previewUrl = thumbnailDoc.url
-        return doc
+      try {
+        const thumbnailDoc = await req.payload.findByID({
+          collection: 'file-attachments',
+          id: doc.thumbnail,
+        })
+        if (thumbnailDoc?.url) {
+          doc.previewUrl = thumbnailDoc.url
+          return doc
+        }
+      } catch (_error) {
+        // Thumbnail not found (e.g., deleted or invalid reference), skip gracefully
+        // This can happen during collection resets or data migration
       }
     } else if (typeof doc.thumbnail === 'object' && doc.thumbnail?.url) {
       doc.previewUrl = doc.thumbnail.url

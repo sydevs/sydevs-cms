@@ -209,39 +209,80 @@ class WeMeditateImporter {
   private async resetCollections() {
     await this.logger.log('\n=== Resetting Collections ===')
 
-    const collections = [
-      'authors',
-      'pages',
-      'page-tags',
-      'media',
-      'forms',
-      'form-submissions',
-      'external-videos',
+    // Collections with 'tags' relationship field
+    const taggedCollections: Array<{ collection: CollectionSlug; tagField: string }> = [
+      { collection: 'authors', tagField: 'tags' },
+      { collection: 'pages', tagField: 'tags' },
+      { collection: 'page-tags', tagField: 'tags' },
+      { collection: 'media', tagField: 'tags' },
+      { collection: 'external-videos', tagField: 'tags' },
     ]
 
-    for (const collection of collections) {
-      await this.logger.log(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
-
-      try {
-        const result = await this.payload.find({
-          collection: collection as CollectionSlug,
-          where: {
-            tags: { contains: IMPORT_TAG },
-          },
-          limit: 1000,
-        })
-
-        for (const doc of result.docs) {
-          await this.payload.delete({
-            collection: collection as CollectionSlug,
-            id: doc.id,
-          })
-        }
-
-        await this.logger.log(`✓ Deleted ${result.docs.length} documents from ${collection}`)
-      } catch (error) {
-        await this.logger.log(`Note: ${collection} might not support tags or doesn't exist`)
+    // First, get the import tag ID
+    let importTagId: string | null = null
+    try {
+      const importTags = await this.payload.find({
+        collection: 'media-tags',
+        where: { slug: { equals: IMPORT_TAG } },
+        limit: 1,
+      })
+      if (importTags.docs.length > 0) {
+        importTagId = String(importTags.docs[0].id)
       }
+    } catch (_error) {
+      await this.logger.warn('Could not find import tag, skipping tagged collections reset')
+    }
+
+    // Reset tagged collections
+    if (importTagId) {
+      for (const { collection, tagField } of taggedCollections) {
+        try {
+          const deletedCount = await this.payloadHelpers.resetCollectionByTag(
+            collection,
+            tagField,
+            importTagId,
+          )
+          if (deletedCount > 0) {
+            await this.logger.log(`✓ Deleted ${deletedCount} documents from ${collection}`)
+          } else {
+            await this.logger.log(`✓ No documents with import tag in ${collection}`)
+          }
+        } catch (error) {
+          await this.logger.warn(
+            `Could not reset ${collection}: ${error instanceof Error ? error.message : String(error)}`,
+          )
+        }
+      }
+    }
+
+    // Reset form submissions (no tags field, delete all)
+    try {
+      const deletedCount = await this.payloadHelpers.resetCollection('pages')
+      if (deletedCount > 0) {
+        await this.logger.log(`✓ Deleted ${deletedCount} pages`)
+      }
+    } catch (_error) {
+      await this.logger.warn('Could not reset pages')
+    }
+
+    // Reset form submissions (no tags field, delete all)
+    try {
+      const deletedCount = await this.payloadHelpers.resetCollection('form-submissions')
+      if (deletedCount > 0) {
+        await this.logger.log(`✓ Deleted ${deletedCount} form submissions`)
+      }
+    } catch (_error) {
+      await this.logger.warn('Could not reset form submissions')
+    }
+
+    // Reset forms (no tags field, delete all)
+    try {
+      const deletedCount = await this.payloadHelpers.resetCollection('forms')
+      if (deletedCount > 0) {
+        await this.logger.log(`✓ Deleted ${deletedCount} forms`)
+      }
+    } catch (_error) {
+      await this.logger.warn('Could not reset forms')
     }
 
     await this.logger.log('✓ Reset complete')
@@ -1202,7 +1243,12 @@ class WeMeditateImporter {
           }
 
           const locale = translation.locale
-          const content = translation.content as EditorJSContent
+
+          // Parse content if it's a string (PostgreSQL returns JSONB as string in json_agg)
+          const content =
+            typeof translation.content === 'string'
+              ? JSON.parse(translation.content)
+              : translation.content
 
           // Build conversion context
           const context: ConversionContext = {

@@ -5,7 +5,7 @@ import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as sharp from 'sharp'
-import type { Payload } from 'payload'
+import type { CollectionSlug, Payload } from 'payload'
 import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
 const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
@@ -769,12 +769,7 @@ class StoryblokImporter {
   async resetCollections() {
     await this.logger.info('\n=== Resetting Collections ===')
 
-    const collections: Array<'lessons' | 'file-attachments' | 'external-videos' | 'media'> = [
-      'lessons',
-      'file-attachments',
-      'external-videos',
-      'media',
-    ]
+    const collections: Array<CollectionSlug> = ['lessons', 'external-videos', 'media']
 
     // Ensure media tag exists for filtering
     await this.ensureMediaTag()

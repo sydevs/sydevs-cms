@@ -576,9 +576,20 @@ export async function convertEditorJSToLexical(
   const children: LexicalNode[] = []
 
   if (!content || !content.blocks) {
+    // Return valid empty Lexical structure with at least one paragraph node
+    // Lexical requires root to always have at least one child
     return {
       root: {
-        children,
+        children: [
+          {
+            children: [],
+            direction: null,
+            format: '',
+            indent: 0,
+            type: 'paragraph',
+            version: 1,
+          },
+        ],
         direction: null,
         format: '',
         indent: 0,
@@ -647,6 +658,19 @@ export async function convertEditorJSToLexical(
         `Failed to convert block type '${block.type}' at index ${i} for page ${context.pageId}: ${error.message}`
       )
     }
+  }
+
+  // Ensure root always has at least one child (Lexical requirement)
+  // If all blocks failed to convert or no valid blocks, add empty paragraph
+  if (children.length === 0) {
+    children.push({
+      children: [],
+      direction: null,
+      format: '',
+      indent: 0,
+      type: 'paragraph',
+      version: 1,
+    })
   }
 
   return {
