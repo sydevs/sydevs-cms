@@ -320,9 +320,35 @@ class WeMeditateImporter {
       try {
         // Build localized data - only include supported locales
         const localizedData: any = {}
+
+        // First pass: check if English translation exists
+        let hasEnglish = false
         for (const translation of author.translations) {
-          // Filter to only supported locales and require at least a name
-          if (translation.locale && translation.name && LOCALES.includes(translation.locale)) {
+          if (translation.locale === 'en' && translation.name) {
+            hasEnglish = true
+            localizedData['en'] = {
+              name: translation.name,
+              title: translation.title || '',
+              description: translation.description || '',
+            }
+            break
+          }
+        }
+
+        // Skip if no English translation
+        if (!hasEnglish) {
+          await this.logger.log(`Skipping author ${author.id}: no English (en) translation`)
+          continue
+        }
+
+        // Second pass: add other translations
+        for (const translation of author.translations) {
+          if (
+            translation.locale !== 'en' &&
+            translation.locale &&
+            translation.name &&
+            LOCALES.includes(translation.locale)
+          ) {
             localizedData[translation.locale] = {
               name: translation.name,
               title: translation.title || '',
@@ -331,32 +357,23 @@ class WeMeditateImporter {
           }
         }
 
-        if (Object.keys(localizedData).length === 0) {
-          await this.logger.log(
-            `Skipping author ${author.id}: no translations in supported locales`,
-          )
-          continue
-        }
-
-        // Create author document with first locale
-        const locales = Object.keys(localizedData)
-        const firstLocale = locales[0] as any
+        // Always use English as first locale, then add other locales
+        const otherLocales = Object.keys(localizedData).filter((locale) => locale !== 'en')
 
         const authorDoc = await this.payload.create({
           collection: 'authors',
           data: {
-            name: localizedData[firstLocale].name,
-            title: localizedData[firstLocale].title,
-            description: localizedData[firstLocale].description,
+            name: localizedData['en'].name,
+            title: localizedData['en'].title,
+            description: localizedData['en'].description,
             countryCode: author.country_code || undefined,
             yearsMeditating: author.years_meditating || undefined,
           },
-          locale: firstLocale,
+          locale: 'en',
         })
 
         // Update with other locales
-        for (let i = 1; i < locales.length; i++) {
-          const locale = locales[i] as any
+        for (const locale of otherLocales) {
           await this.payload.update({
             collection: 'authors',
             id: authorDoc.id,
@@ -372,7 +389,7 @@ class WeMeditateImporter {
         this.idMaps.authors.set(author.id, authorDoc.id as string)
         this.summary.authorsCreated++
         await this.logger.log(
-          `✓ Created author: ${author.id} -> ${authorDoc.id} (${locales.length} locales)`,
+          `✓ Created author: ${author.id} -> ${authorDoc.id} (${1 + otherLocales.length} locales)`,
         )
       } catch (error: any) {
         this.addError(`Failed to import author ${author.id}`, error)
@@ -404,8 +421,29 @@ class WeMeditateImporter {
       try {
         // Build localized data
         const localizedData: any = {}
+
+        // First pass: check if English translation exists
+        let hasEnglish = false
         for (const translation of category.translations) {
-          if (translation.locale && translation.name) {
+          if (translation.locale === 'en' && translation.name) {
+            hasEnglish = true
+            localizedData['en'] = {
+              title: translation.name,
+              name: translation.slug || translation.name.toLowerCase(),
+            }
+            break
+          }
+        }
+
+        // Skip if no English translation
+        if (!hasEnglish) {
+          await this.logger.log(`Skipping category ${category.id}: no English (en) translation`)
+          continue
+        }
+
+        // Second pass: add other translations
+        for (const translation of category.translations) {
+          if (translation.locale !== 'en' && translation.locale && translation.name) {
             localizedData[translation.locale] = {
               title: translation.name,
               name: translation.slug || translation.name.toLowerCase(),
@@ -413,27 +451,21 @@ class WeMeditateImporter {
           }
         }
 
-        if (Object.keys(localizedData).length === 0) {
-          this.addWarning(`Skipping category ${category.id}: no valid translations`)
-          continue
-        }
+        // Always use English as first locale
+        const otherLocales = Object.keys(localizedData).filter((locale) => locale !== 'en')
 
-        const locales = Object.keys(localizedData)
-        const firstLocale = locales[0] as any
-
-        // Create page tag with first locale
+        // Create page tag with English locale
         const tagDoc = await this.payload.create({
           collection: 'page-tags',
           data: {
-            name: localizedData[firstLocale].name,
-            title: localizedData[firstLocale].title,
+            name: localizedData['en'].name,
+            title: localizedData['en'].title,
           },
-          locale: firstLocale,
+          locale: 'en',
         })
 
         // Update with other locales
-        for (let i = 1; i < locales.length; i++) {
-          const locale = locales[i] as any
+        for (const locale of otherLocales) {
           await this.payload.update({
             collection: 'page-tags',
             id: tagDoc.id,
@@ -447,7 +479,7 @@ class WeMeditateImporter {
         this.idMaps.categories.set(category.id, tagDoc.id as string)
         this.summary.categoriesCreated++
         await this.logger.log(
-          `✓ Created category tag: ${category.id} -> ${tagDoc.id} (${locales.length} locales)`,
+          `✓ Created category tag: ${category.id} -> ${tagDoc.id} (${1 + otherLocales.length} locales)`,
         )
       } catch (error: any) {
         this.addError(`Failed to import category ${category.id}`, error)
@@ -518,9 +550,32 @@ class WeMeditateImporter {
     for (const page of pagesResult.rows) {
       // Build localized data (outside try block for error reporting)
       const localizedData: any = {}
+
+      // First pass: check if English translation exists
+      let hasEnglish = false
       for (const translation of page.translations) {
-        if (translation.locale && translation.name && translation.state === 1) {
-          // Clean slug: trim whitespace and reject if empty
+        if (translation.locale === 'en' && translation.name) {
+          hasEnglish = true
+          const slug = translation.slug?.trim()
+          localizedData['en'] = {
+            title: translation.name,
+            slug: slug && slug.length > 0 ? slug : undefined,
+            content: translation.content,
+            publishAt: translation.published_at,
+          }
+          break
+        }
+      }
+
+      // Skip if no English translation
+      if (!hasEnglish) {
+        await this.logger.log(`Skipping ${tableName} ${page.id}: no English (en) translation`)
+        continue
+      }
+
+      // Second pass: add other translations
+      for (const translation of page.translations) {
+        if (translation.locale !== 'en' && translation.locale && translation.name) {
           const slug = translation.slug?.trim()
           localizedData[translation.locale] = {
             title: translation.name,
@@ -532,10 +587,6 @@ class WeMeditateImporter {
       }
 
       try {
-        if (Object.keys(localizedData).length === 0) {
-          await this.logger.log(`Skipping ${tableName} ${page.id}: no published translations`)
-          continue
-        }
 
         // Get author relationship
         let authorId: string | undefined
@@ -570,9 +621,9 @@ class WeMeditateImporter {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
-        // Create page with first locale
-        const locales = Object.keys(localizedData)
-        const firstLocale = locales[0] as any
+        // Always use English as the first locale, then add other locales
+        const firstLocale = 'en'
+        const otherLocales = Object.keys(localizedData).filter((locale) => locale !== 'en')
 
         let pageDoc
         try {
@@ -609,9 +660,8 @@ class WeMeditateImporter {
           }
         }
 
-        // Update with other locales
-        for (let i = 1; i < locales.length; i++) {
-          const locale = locales[i] as any
+        // Update with other locales (all except English which was already created)
+        for (const locale of otherLocales) {
           await this.payload.update({
             collection: 'pages',
             id: pageDoc.id,
@@ -620,7 +670,7 @@ class WeMeditateImporter {
               // Note: slug is not localized, so we don't update it here
               publishAt: localizedData[locale].publishAt || undefined,
             },
-            locale,
+            locale: locale as (typeof LOCALES)[number],
           })
         }
 
@@ -655,6 +705,7 @@ class WeMeditateImporter {
     await this.logger.log('\n=== Importing promo_pages ===')
 
     // promo_pages has a different structure - no translations table, locale on main table
+    // Group by the base page (we need to find English versions and their translations)
     const pagesResult = await this.dbClient.query(`
       SELECT
         id,
@@ -662,24 +713,36 @@ class WeMeditateImporter {
         slug,
         content,
         published_at,
-        state,
         locale
       FROM promo_pages
-      WHERE state = 1
-      ORDER BY id
+      ORDER BY id, locale
     `)
 
-    await this.logger.log(`Found ${pagesResult.rows.length} published promo_pages to import`)
+    await this.logger.log(`Found ${pagesResult.rows.length} promo_page records to import`)
 
+    // Group pages by their base content (same slug typically means same page in different locales)
+    // For promo_pages, each row is a separate locale version
+    const pageGroups = new Map<number, Array<typeof pagesResult.rows[0]>>()
     for (const page of pagesResult.rows) {
-      // Clean slug outside try block for error reporting
-      const slug = page.slug?.trim()
+      if (!pageGroups.has(page.id)) {
+        pageGroups.set(page.id, [])
+      }
+      pageGroups.get(page.id)!.push(page)
+    }
 
+    await this.logger.log(`Grouped into ${pageGroups.size} unique promo_pages`)
+
+    for (const [pageId, localeVersions] of Array.from(pageGroups.entries())) {
       try {
+        // Find English version
+        const englishVersion = localeVersions.find((v) => v.locale === 'en')
+        if (!englishVersion) {
+          await this.logger.log(`Skipping promo_page ${pageId}: no English (en) version`)
+          continue
+        }
+
         // Get tags
         const tags: string[] = []
-
-        // Add content type tag
         const contentTypeTag = CONTENT_TYPE_TAGS['promo_pages']
         if (contentTypeTag) {
           const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
@@ -688,59 +751,62 @@ class WeMeditateImporter {
           }
         }
 
-        // Create page document
+        // Clean slug for English version
+        const slug = englishVersion.slug?.trim()
+
+        // Create page with English version first
         let pageDoc
         try {
           pageDoc = await this.payload.create({
             collection: 'pages',
             data: {
-              title: page.name,
-              slug: slug && slug.length > 0 ? slug : undefined, // Let SlugField auto-generate if empty/null
-              publishAt: page.published_at || undefined,
-              tags,
+              title: englishVersion.name,
+              slug: slug && slug.length > 0 ? slug : undefined,
+              publishAt: englishVersion.published_at || undefined,
+              tags: tags.length > 0 ? tags : undefined,
             },
-            locale: page.locale as any,
+            locale: 'en',
           })
         } catch (slugError: any) {
           // If slug validation fails (duplicate), retry without slug to auto-generate
           if (slugError.message && slugError.message.includes('slug')) {
-            await this.logger.log(`  Slug conflict for promo_page ${page.id}, auto-generating...`)
-            // Omit the slug field entirely to let SlugField auto-generate
-            const retryData: any = {
-              title: page.name,
-              publishAt: page.published_at || undefined,
-              tags,
-            }
-            // Do NOT include slug property at all
+            await this.logger.log(`  Slug conflict for promo_page ${pageId}, auto-generating...`)
             pageDoc = await this.payload.create({
               collection: 'pages',
-              data: retryData,
-              locale: page.locale as any,
+              data: {
+                title: englishVersion.name,
+                publishAt: englishVersion.published_at || undefined,
+                tags: tags.length > 0 ? tags : undefined,
+              },
+              locale: 'en',
             })
           } else {
             throw slugError
           }
         }
 
-        // Store mapping
-        const mapKey = `promoPages`
-        if (!this.idMaps[mapKey as keyof typeof this.idMaps]) {
-          ;(this.idMaps as any)[mapKey] = new Map()
+        // Update with other locales
+        const otherLocales = localeVersions.filter((v) => v.locale !== 'en' && LOCALES.includes(v.locale))
+        for (const localeVersion of otherLocales) {
+          await this.payload.update({
+            collection: 'pages',
+            id: pageDoc.id,
+            data: {
+              title: localeVersion.name,
+              publishAt: localeVersion.published_at || undefined,
+            },
+            locale: localeVersion.locale,
+          })
         }
-        ;(this.idMaps as unknown as Record<string, Map<number, string>>)[mapKey].set(
-          page.id,
-          pageDoc.id as string,
-        )
 
+        // Store mapping
+        this.idMaps.promoPages.set(pageId, pageDoc.id as string)
         this.summary.pagesCreated++
-        await this.logger.log(`✓ Created page from promo_pages: ${page.id} -> ${pageDoc.id}`)
-      } catch (error: any) {
-        // Enhanced error logging for slug issues
-        if (error.message && error.message.includes('slug')) {
-          this.addError(`Failed to import promo_pages ${page.id} [slug: "${slug}"]`, error)
-        } else {
-          this.addError(`Failed to import promo_pages ${page.id}`, error)
-        }
+        await this.logger.log(
+          `✓ Created page from promo_pages: ${pageId} -> ${pageDoc.id} (${1 + otherLocales.length} locales)`,
+        )
+      } catch (error: unknown) {
+        this.addError(`Failed to import promo_pages ${pageId}`, error as Error)
       }
     }
   }
@@ -748,23 +814,30 @@ class WeMeditateImporter {
   private async importPromoPagesWithContent() {
     await this.logger.log('\n=== Updating promo_pages with Content ===')
 
-    // promo_pages has content directly on the table
+    // Only process promo_pages that have English version (these were created in Phase 1)
+    // promo_pages has content directly on the table (each row is a locale)
     const pagesResult = await this.dbClient.query(`
       SELECT
-        id,
-        locale,
-        content
-      FROM promo_pages
-      WHERE state = 1 AND content IS NOT NULL
-      ORDER BY id
+        pp.id,
+        pp.locale,
+        pp.content
+      FROM promo_pages pp
+      WHERE pp.content IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM promo_pages pp_en
+          WHERE pp_en.id = pp.id
+            AND pp_en.locale = 'en'
+        )
+      ORDER BY pp.id
     `)
 
-    await this.logger.log(`Updating ${pagesResult.rows.length} promo_pages with content`)
+    await this.logger.log(`Updating ${pagesResult.rows.length} promo_page records with content`)
 
     for (const page of pagesResult.rows) {
       const pageId = this.idMaps.promoPages.get(page.id)
       if (!pageId) {
-        this.addWarning(`Promo page ${page.id} not found in ID map`)
+        // This should not happen since we're filtering for pages with English versions
+        this.addWarning(`Promo page ${page.id} not found in ID map (unexpected)`)
         continue
       }
 
@@ -959,7 +1032,7 @@ class WeMeditateImporter {
       const result = await this.dbClient.query(`
         SELECT content
         FROM ${translationsTable}
-        WHERE content IS NOT NULL AND state = 1
+        WHERE content IS NOT NULL
       `)
 
       for (const row of result.rows) {
@@ -986,7 +1059,7 @@ class WeMeditateImporter {
     const promoResult = await this.dbClient.query(`
       SELECT content
       FROM promo_pages
-      WHERE content IS NOT NULL AND state = 1
+      WHERE content IS NOT NULL
     `)
 
     for (const row of promoResult.rows) {
@@ -1081,7 +1154,7 @@ class WeMeditateImporter {
       const result = await this.dbClient.query(`
         SELECT content, locale
         FROM ${translationsTable}
-        WHERE content IS NOT NULL AND state = 1
+        WHERE content IS NOT NULL
       `)
 
       for (const row of result.rows) {
@@ -1114,7 +1187,7 @@ class WeMeditateImporter {
     const promoResult = await this.dbClient.query(`
       SELECT content, locale
       FROM promo_pages
-      WHERE content IS NOT NULL AND state = 1
+      WHERE content IS NOT NULL
     `)
 
     for (const row of promoResult.rows) {
@@ -1202,6 +1275,7 @@ class WeMeditateImporter {
   private async importPagesWithContent(tableName: string, translationsTable: string) {
     await this.logger.log(`\n=== Updating ${tableName} with Content ===`)
 
+    // Only process pages that have English translations (these were created in Phase 1)
     const pagesResult = await this.dbClient.query(`
       SELECT
         p.id,
@@ -1213,7 +1287,12 @@ class WeMeditateImporter {
         ) as translations
       FROM ${tableName} p
       LEFT JOIN ${translationsTable} pt ON p.id = pt.${tableName.slice(0, -1)}_id
-      WHERE pt.state = 1 AND pt.content IS NOT NULL
+      WHERE pt.content IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM ${translationsTable} pt_en
+          WHERE pt_en.${tableName.slice(0, -1)}_id = p.id
+            AND pt_en.locale = 'en'
+        )
       GROUP BY p.id
     `)
 
@@ -1232,7 +1311,8 @@ class WeMeditateImporter {
     for (const page of pagesResult.rows) {
       const pageId = pageIdMap.get(page.id)
       if (!pageId) {
-        this.addWarning(`Page ${page.id} not found in ID map`)
+        // This should not happen since we're filtering for pages with English versions
+        this.addWarning(`Page ${page.id} from ${tableName} not found in ID map (unexpected)`)
         continue
       }
 
@@ -1253,10 +1333,25 @@ class WeMeditateImporter {
           lastLocale = locale
 
           // Parse content if it's a string (PostgreSQL returns JSONB as string in json_agg)
-          const content =
-            typeof translation.content === 'string'
-              ? JSON.parse(translation.content)
-              : translation.content
+          let content
+          try {
+            content =
+              typeof translation.content === 'string'
+                ? JSON.parse(translation.content)
+                : translation.content
+          } catch (parseError) {
+            // Log the raw content that failed to parse
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError)
+            await this.logger.error(
+              `\nJSON parse error for page ${page.id} (locale: ${locale}):`,
+            )
+            await this.logger.error(`Parse error: ${errorMessage}`)
+            await this.logger.error(`Raw content (first 500 chars):`)
+            await this.logger.error(
+              String(translation.content).substring(0, 500),
+            )
+            throw parseError // Re-throw to be caught by outer catch block
+          }
 
           // Build conversion context
           const context: ConversionContext = {
@@ -1297,8 +1392,26 @@ class WeMeditateImporter {
 
         // Also log the lexical content structure that failed
         if (lastLexicalContent) {
-          await this.logger.error(`Lexical content structure (first 3000 chars):`)
-          await this.logger.error(JSON.stringify(lastLexicalContent, null, 2).substring(0, 3000))
+          const contentStr = JSON.stringify(lastLexicalContent, null, 2)
+          const errorDataStr = JSON.stringify(error.data || {})
+
+          // If link validation error, find and log all link nodes
+          if (errorDataStr.includes('link node failed')) {
+            await this.logger.error(`\nSearching for link nodes with invalid URLs...`)
+            const linkMatches = contentStr.match(/"type":\s*"link"[\s\S]{0,300}/g)
+            if (linkMatches && linkMatches.length > 0) {
+              await this.logger.error(`Found ${linkMatches.length} link node(s):`)
+              for (let i = 0; i < Math.min(linkMatches.length, 10); i++) {
+                await this.logger.error(`\nLink #${i + 1}:`)
+                await this.logger.error(linkMatches[i])
+              }
+            } else {
+              await this.logger.error(`No link nodes found in content`)
+            }
+          }
+
+          await this.logger.error(`\nLexical content structure (first 15000 chars):`)
+          await this.logger.error(contentStr.substring(0, 15000))
         }
 
         this.addError(`Failed: updating page ${page.id} with content`, error)
@@ -1429,7 +1542,8 @@ class WeMeditateImporter {
       // Import pages metadata only (no content conversion yet)
       await this.importPages('static_pages', 'static_page_translations')
       await this.importPages('articles', 'article_translations')
-      await this.importPromoPages() // Different structure - no translations table
+      // NOTE: PromoPages import is disabled - uncomment if needed
+      // await this.importPromoPages() // Different structure - no translations table
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPages('treatments', 'treatment_translations')
 
@@ -1444,7 +1558,8 @@ class WeMeditateImporter {
       // Update pages with converted Lexical content
       await this.importPagesWithContent('static_pages', 'static_page_translations')
       await this.importPagesWithContent('articles', 'article_translations')
-      await this.importPromoPagesWithContent() // Different structure - no translations table
+      // NOTE: PromoPages content import is disabled - uncomment if needed
+      // await this.importPromoPagesWithContent() // Different structure - no translations table
       await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPagesWithContent('treatments', 'treatment_translations')
 

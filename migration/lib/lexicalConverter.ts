@@ -119,11 +119,24 @@ function parseHTMLToSegments(html: string): TextSegment[] {
         // Extract href
         const hrefMatch = attributes.match(/href=["']([^"']+)["']/i)
         if (hrefMatch && hrefMatch[1] && hrefMatch[1].trim()) {
-          const url = hrefMatch[1].trim()
+          let url = hrefMatch[1].trim()
+          // Decode HTML entities in URL
+          url = url
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
           // Only set URL if it's not just a hash anchor or empty
           if (url !== '#' && url !== '') {
             currentUrl = url
+          } else {
+            // Explicitly set to undefined if href is invalid
+            currentUrl = undefined
           }
+        } else {
+          // No href attribute or invalid - set to undefined
+          currentUrl = undefined
         }
       }
     } else {
@@ -191,33 +204,62 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
     // Ensure text is explicitly a string
     const textString = String(text)
 
-    // Only create link node if URL is a valid non-empty string
-    if (segment.url && segment.url.trim().length > 0) {
-      // Link node
-      nodes.push({
-        type: 'link',
-        version: 3,
-        url: segment.url,
-        rel: null,
-        target: null,
-        title: null,
-        direction: null,
-        format: '',
-        indent: 0,
-        children: [
-          {
-            type: 'text',
-            version: 1,
-            text: textString,
-            format: getTextFormat(segment.format),
-            style: '',
-            mode: 'normal',
-            detail: 0,
+    // Only create link node if URL is valid
+    // Filter out mailto:, tel:, javascript:, and other protocol links that Payload may not support
+    // Payload accepts: http://, https://, / (relative paths)
+    const url = segment.url?.trim()
+    const isValidLink = url &&
+                       url.length > 0 &&
+                       url !== '#' &&
+                       url !== '' &&
+                       !url.startsWith('mailto:') &&
+                       !url.startsWith('tel:') &&
+                       !url.startsWith('javascript:') &&
+                       !/^\s+$/.test(url) && // Not whitespace-only
+                       // Ensure URL is properly formed (starts with http://, https://, /, or is a valid relative path)
+                       (/^https?:\/\//i.test(url) || url.startsWith('/') || /^[a-zA-Z0-9]/.test(url))
+
+    if (isValidLink) {
+      // Ensure URL is not undefined (add extra safety check)
+      if (!url || url.trim() === '') {
+        // Fallback to text node if URL is somehow invalid
+        nodes.push({
+          type: 'text',
+          version: 1,
+          text: textString,
+          format: getTextFormat(segment.format),
+          style: '',
+          mode: 'normal',
+          detail: 0,
+        })
+      } else {
+        // Link node - Payload uses a different structure with fields wrapper
+        nodes.push({
+          type: 'link',
+          version: 3,
+          fields: {
+            linkType: 'custom',
+            url: url.trim(),
+            newTab: false,
           },
-        ],
-      })
+          direction: null,
+          format: '',
+          indent: 0,
+          children: [
+            {
+              type: 'text',
+              version: 1,
+              text: textString,
+              format: getTextFormat(segment.format),
+              style: '',
+              mode: 'normal',
+              detail: 0,
+            },
+          ],
+        })
+      }
     } else {
-      // Regular text node
+      // Regular text node (for mailto:, tel:, invalid, or empty URLs)
       nodes.push({
         type: 'text',
         version: 1,
@@ -337,13 +379,19 @@ export function convertParagraph(block: EditorJSBlock): LexicalNode {
 /**
  * Convert EditorJS textbox block to TextBoxBlock or QuoteBlock
  */
-export function convertTextbox(block: EditorJSBlock, context: ConversionContext): LexicalNode {
+export function convertTextbox(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
 
   // Check if it's a quote (type: text or hero)
   if (data.type === 'text' || data.type === 'hero') {
+    const text = stripHTML(data.text || '').trim()
+    // Quote block requires text field - skip if empty
+    if (!text) {
+      context.logger.warn(`Skipping quote block with empty text for page ${context.pageId}`)
+      return null
+    }
     return createBlockNode('quote', 'Quote', {
-      text: stripHTML(data.text || ''),
+      text: text,
       author: stripHTML(data.credit || ''),
       subtitle: stripHTML(data.subtitle || ''),
     })
@@ -368,30 +416,48 @@ export function convertTextbox(block: EditorJSBlock, context: ConversionContext)
     imageId = context.mediaMap.get(imageUrl)
   }
 
-  // Build TextBoxBlock fields
+  // Build TextBoxBlock fields - only include non-empty strings to avoid validation issues
   const fields: any = {
     style,
-    title: stripHTML(data.title || ''),
-    subtitle: stripHTML(data.subtitle || ''),
-    text: {
-      root: {
-        type: 'root',
-        version: 1,
-        children: [createParagraphNode(data.text || '')],
-        direction: null,
-        format: '',
-        indent: 0,
-      },
-    },
-    actionText: stripHTML(data.action || ''),
-    link: data.url || '',
-    importData: {
-      background: data.background,
-      color: data.color,
-      position: data.position,
-      spacing: data.spacing,
-      decorations: data.decorations,
-    },
+  }
+
+  // Only include title if non-empty
+  const title = stripHTML(data.title || '').trim()
+  if (title) {
+    fields.title = title
+  }
+
+  // Only include subtitle if non-empty
+  const subtitle = stripHTML(data.subtitle || '').trim()
+  if (subtitle) {
+    fields.subtitle = subtitle
+  }
+
+  // Text field is now a simple textarea - only include if non-empty
+  // Payload blocks may validate empty strings as invalid even when not marked as required
+  const textContent = stripHTML(data.text || '').trim()
+  if (textContent) {
+    fields.text = textContent
+  }
+
+  // Only add link and actionText if there's a valid URL
+  const linkUrl = (data.url || '').trim()
+  if (linkUrl && linkUrl !== '#' && linkUrl !== '') {
+    fields.link = linkUrl
+    // Only include actionText if it's non-empty
+    const actionText = stripHTML(data.action || '').trim()
+    if (actionText) {
+      fields.actionText = actionText
+    }
+  }
+
+  // Add import metadata
+  fields.importData = {
+    background: data.background,
+    color: data.color,
+    position: data.position,
+    spacing: data.spacing,
+    decorations: data.decorations,
   }
 
   if (imageId) {

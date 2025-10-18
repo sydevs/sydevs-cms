@@ -1,6 +1,5 @@
 import { Block } from 'payload'
 import { MediaField } from '@/fields'
-import { basicRichTextEditor } from '@/lib/richEditor'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
@@ -56,8 +55,7 @@ export const TextBoxBlock: Block = {
     },
     {
       name: 'text',
-      type: 'richText',
-      editor: basicRichTextEditor,
+      type: 'textarea',
       admin: {
         description: 'Main content text',
       },
