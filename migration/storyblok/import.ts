@@ -541,15 +541,20 @@ class StoryblokImporter {
           image?: string
           video?: string
         }> = []
+        const videoPanels: Array<{ insertAt: number; videoId: string }> = [] // Track video panels to add later
+        let panelIndexCounter = 0 // Track position in original panel order
         for (const panel of sortedPanels) {
           try {
-            if (panel.Video && panel.Video.filename) {
-              const videoUrl = panel.Video.filename
+            if (panel.Video && panel.Video.url) {
+              const videoUrl = panel.Video.url
+              await this.logger.info(`Creating video attachment from: ${videoUrl}`)
               const videoId = await this.createFileAttachment(videoUrl)
-              panels.push({
-                blockType: 'video' as const,
-                video: videoId,
-              })
+              await this.logger.info(`✓ Created video attachment: ${videoId}`)
+
+              // Don't add video panels initially - we'll insert them after lesson creation
+              // Track where this video panel should be inserted
+              videoPanels.push({ insertAt: panelIndexCounter, videoId })
+              panelIndexCounter++
             } else if (panel.Image && panel.Image.url) {
               const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title)
               panels.push({
@@ -558,8 +563,12 @@ class StoryblokImporter {
                 text: this.processTextareaField(panel.Text || ''), // Process as textarea field
                 image: imageId,
               })
+              panelIndexCounter++
             } else {
-              this.addWarning(`Panel missing both video and image for ${story.name}`)
+              this.addWarning(
+                `Panel missing both video and image for ${story.name} - ${this.processTextField(panel.Title || '')}`,
+              )
+              panelIndexCounter++
             }
           } catch (error) {
             this.addError(`Processing panel for ${story.name}`, error as Error)
@@ -705,6 +714,47 @@ class StoryblokImporter {
             await this.logger.info(`✓ Added intro audio to lesson`)
           } catch (error) {
             this.addError(`Adding intro audio to lesson ${story.name}`, error as Error)
+          }
+        }
+
+        // Insert video panels after lesson creation
+        // This avoids validation issues with file attachment filters on new documents
+        if (videoPanels.length > 0) {
+          try {
+            // Fetch the current lesson to get its panels
+            const currentLesson = await this.payload.findByID({
+              collection: 'lessons',
+              id: lesson.id as string,
+            })
+
+            const updatedPanels = [...(currentLesson.panels as Array<Record<string, unknown>>)]
+
+            // Insert video panels at their correct positions
+            // Sort by insertAt position in reverse order to maintain correct indices
+            const sortedVideoPanels = [...videoPanels].sort((a, b) => b.insertAt - a.insertAt)
+
+            for (const { insertAt, videoId } of sortedVideoPanels) {
+              // +1 to account for cover panel at index 0
+              const insertIndex = insertAt + 1
+              updatedPanels.splice(insertIndex, 0, {
+                blockType: 'video',
+                video: videoId,
+              })
+              await this.updateFileAttachmentOwner(videoId, 'lessons', lesson.id as string)
+            }
+
+            await this.payload.update({
+              collection: 'lessons',
+              id: lesson.id as string,
+              data: {
+                panels: updatedPanels,
+              },
+            })
+            await this.logger.info(
+              `✓ Inserted ${videoPanels.length} video panel(s) into lesson`,
+            )
+          } catch (error) {
+            this.addError(`Inserting video panels for ${story.name}`, error as Error)
           }
         }
 
