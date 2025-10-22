@@ -27,9 +27,15 @@ export interface LogOptions {
 
 export class Logger {
   private logFile: string
+  private onWarning?: (message: string) => void
 
-  constructor(cacheDir: string) {
+  constructor(cacheDir: string, onWarning?: (message: string) => void) {
     this.logFile = path.join(cacheDir, 'import.log')
+    this.onWarning = onWarning
+  }
+
+  setWarningCallback(callback: (message: string) => void): void {
+    this.onWarning = callback
   }
 
   async log(message: string, options: LogOptions = {}): Promise<void> {
@@ -53,6 +59,10 @@ export class Logger {
 
   async warn(message: string): Promise<void> {
     await this.log(`WARN: ${message}`, { color: 'yellow' })
+    // Call the warning callback if set
+    if (this.onWarning) {
+      this.onWarning(message)
+    }
   }
 
   async info(message: string): Promise<void> {

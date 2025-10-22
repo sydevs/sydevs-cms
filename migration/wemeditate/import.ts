@@ -106,6 +106,7 @@ class WeMeditateImporter {
   private payloadHelpers!: PayloadHelpers
   private mediaDownloader!: MediaDownloader
   private mediaUploader!: MediaUploader
+  private defaultThumbnailId: string | null = null
 
   private dbClient!: Client
   private options: ScriptOptions
@@ -121,7 +122,8 @@ class WeMeditateImporter {
     forms: new Map(),
     externalVideos: new Map(),
   }
-  private meditationTitleMap: Map<string, string> = new Map()
+  private meditationTitleMap: Map<string, string> = new Map() // Payload title → Payload ID
+  private meditationRailsTitleMap: Map<number, string> = new Map() // Rails ID → title (no duration)
   private contentTypeTagMap: Map<string, string> = new Map()
 
   // Summary tracking
@@ -153,7 +155,8 @@ class WeMeditateImporter {
 
   private addWarning(message: string) {
     this.summary.warnings.push(message)
-    this.logger.warn(message)
+    // Note: Do NOT call logger.warn() here to avoid infinite loop
+    // The logger already calls this method via the callback
   }
 
   // ============================================================================
@@ -587,7 +590,6 @@ class WeMeditateImporter {
       }
 
       try {
-
         // Get author relationship
         let authorId: string | undefined
         if (page.author_id && this.idMaps.authors.has(page.author_id)) {
@@ -683,7 +685,9 @@ class WeMeditateImporter {
         }
         const mapKey = mapKeyMap[tableName]
         if (mapKey && mapKey in this.idMaps) {
-          ;(this.idMaps as any)[mapKey].set(page.id, pageDoc.id)
+          // Ensure page.id is stored as a number for proper type matching
+          const numericId = typeof page.id === 'string' ? parseInt(page.id) : page.id
+          ;(this.idMaps as any)[mapKey].set(numericId, pageDoc.id)
         }
 
         this.summary.pagesCreated++
@@ -722,7 +726,7 @@ class WeMeditateImporter {
 
     // Group pages by their base content (same slug typically means same page in different locales)
     // For promo_pages, each row is a separate locale version
-    const pageGroups = new Map<number, Array<typeof pagesResult.rows[0]>>()
+    const pageGroups = new Map<number, Array<(typeof pagesResult.rows)[0]>>()
     for (const page of pagesResult.rows) {
       if (!pageGroups.has(page.id)) {
         pageGroups.set(page.id, [])
@@ -786,7 +790,9 @@ class WeMeditateImporter {
         }
 
         // Update with other locales
-        const otherLocales = localeVersions.filter((v) => v.locale !== 'en' && LOCALES.includes(v.locale))
+        const otherLocales = localeVersions.filter(
+          (v) => v.locale !== 'en' && LOCALES.includes(v.locale),
+        )
         for (const localeVersion of otherLocales) {
           await this.payload.update({
             collection: 'pages',
@@ -820,6 +826,7 @@ class WeMeditateImporter {
       SELECT
         pp.id,
         pp.locale,
+        pp.title,
         pp.content
       FROM promo_pages pp
       WHERE pp.content IS NOT NULL
@@ -834,10 +841,12 @@ class WeMeditateImporter {
     await this.logger.log(`Updating ${pagesResult.rows.length} promo_page records with content`)
 
     for (const page of pagesResult.rows) {
-      const pageId = this.idMaps.promoPages.get(page.id)
+      // Convert page.id to number for map lookup
+      const numericId = typeof page.id === 'string' ? parseInt(page.id) : page.id
+      const pageId = this.idMaps.promoPages.get(numericId)
       if (!pageId) {
         // This should not happen since we're filtering for pages with English versions
-        this.addWarning(`Promo page ${page.id} not found in ID map (unexpected)`)
+        this.addWarning(`Promo page ${page.id} (${page.title}) not found in ID map (unexpected)`)
         continue
       }
 
@@ -856,12 +865,14 @@ class WeMeditateImporter {
           payload: this.payload,
           logger: this.logger,
           pageId: page.id,
+          pageTitle: page.title || 'Unknown',
           locale,
           mediaMap: this.idMaps.media,
           formMap: this.idMaps.forms,
           externalVideoMap: this.idMaps.externalVideos,
           treatmentMap: this.idMaps.treatments,
           meditationTitleMap: this.meditationTitleMap,
+          meditationRailsTitleMap: this.meditationRailsTitleMap,
         }
 
         // Convert EditorJS to Lexical
@@ -992,9 +1003,10 @@ class WeMeditateImporter {
   }
 
   private async buildMeditationTitleMap() {
-    await this.logger.log('\n=== Building Meditation Title Map ===')
+    await this.logger.log('\n=== Building Meditation Maps ===')
 
     try {
+      // Build title map from Payload meditations
       const meditations = await this.payload.find({
         collection: 'meditations',
         limit: 1000,
@@ -1007,9 +1019,139 @@ class WeMeditateImporter {
         }
       }
 
-      await this.logger.log(`✓ Built map with ${this.meditationTitleMap.size} meditations`)
+      await this.logger.log(`✓ Built title map with ${this.meditationTitleMap.size} meditations`)
+
+      // Build Rails meditation title map from PostgreSQL (Rails ID → title without duration)
+      const result = await this.dbClient.query(`
+        SELECT m.id, mt.name
+        FROM meditations m
+        LEFT JOIN meditation_translations mt ON m.id = mt.meditation_id
+        WHERE mt.locale = 'en'
+      `)
+
+      for (const row of result.rows) {
+        if (row.name) {
+          // Strip duration suffix (everything after and including " | ")
+          // PostgreSQL: "Focus Your Attention | 10 min" -> "focus your attention"
+          const titleWithoutDuration = row.name.split('|')[0].trim()
+          const title = titleWithoutDuration.toLowerCase().trim()
+          // Store Rails ID (as number) → cleaned title for lookup in convertCatalog
+          // PostgreSQL returns id as a string, so convert to number for consistent lookups
+          this.meditationRailsTitleMap.set(Number(row.id), title)
+        }
+      }
+
+      await this.logger.log(
+        `✓ Built Rails title map with ${this.meditationRailsTitleMap.size} meditation titles from PostgreSQL`
+      )
     } catch (error: any) {
-      this.addError('Failed: building meditation map', error)
+      this.addError('Failed: building meditation maps', error)
+    }
+  }
+
+  /**
+   * Get or create default thumbnail for external videos
+   */
+  private async getDefaultThumbnail(): Promise<string> {
+    if (this.defaultThumbnailId) {
+      return this.defaultThumbnailId
+    }
+
+    try {
+      const previewPath = path.join(__dirname, 'preview.png')
+      const result = await this.mediaUploader.uploadWithDeduplication(previewPath, {
+        alt: 'Video preview placeholder',
+      })
+      if (!result) {
+        throw new Error('Failed to upload default thumbnail - no result returned')
+      }
+      this.defaultThumbnailId = result.id
+      await this.logger.log(`✓ Created default thumbnail: ${result.filename}`)
+      return result.id
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to create default thumbnail: ${errorMessage}`)
+    }
+  }
+
+  /**
+   * Fetch video thumbnail from Vimeo or YouTube
+   * Returns Media ID of the downloaded thumbnail, or default thumbnail if fetch fails
+   */
+  private async fetchVideoThumbnail(
+    videoId: string,
+    vimeoId?: string,
+    youtubeId?: string,
+  ): Promise<string> {
+    try {
+      let thumbnailUrl: string | null = null
+
+      if (vimeoId) {
+        // Try Vimeo oEmbed API
+        try {
+          const oembedUrl = `https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}`
+          const response = await fetch(oembedUrl)
+          if (response.ok) {
+            const data = await response.json()
+            thumbnailUrl = data.thumbnail_url
+            await this.logger.log(`✓ Fetched Vimeo thumbnail for ${vimeoId}`)
+          }
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          await this.logger.warn(`Failed to fetch Vimeo thumbnail for ${vimeoId}: ${errorMessage}`)
+        }
+      } else if (youtubeId) {
+        // Try YouTube maxresdefault first, fallback to hqdefault
+        const maxResUrl = `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
+        try {
+          const response = await fetch(maxResUrl, { method: 'HEAD' })
+          if (response.ok) {
+            thumbnailUrl = maxResUrl
+            await this.logger.log(`✓ Using YouTube maxresdefault thumbnail for ${youtubeId}`)
+          } else {
+            // Fallback to hqdefault
+            thumbnailUrl = `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
+            await this.logger.log(`✓ Using YouTube hqdefault thumbnail for ${youtubeId}`)
+          }
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          // Fallback to hqdefault
+          thumbnailUrl = `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
+          await this.logger.warn(
+            `Failed to check YouTube maxresdefault for ${youtubeId}, using hqdefault: ${errorMessage}`,
+          )
+        }
+      }
+
+      if (thumbnailUrl) {
+        // Download and convert thumbnail
+        const downloadResult = await this.mediaDownloader.downloadAndConvertImage(thumbnailUrl)
+
+        // Upload to Payload
+        const uploadResult = await this.mediaUploader.uploadWithDeduplication(
+          downloadResult.localPath,
+          {
+            alt: `Video thumbnail for ${videoId}`,
+          },
+        )
+
+        if (!uploadResult) {
+          await this.logger.warn(`Failed to upload thumbnail for video ${videoId}, using default`)
+          return await this.getDefaultThumbnail()
+        }
+
+        return uploadResult.id
+      }
+
+      // No thumbnail URL found, use default
+      await this.logger.warn(`No thumbnail URL found for video ${videoId}, using default`)
+      return await this.getDefaultThumbnail()
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      await this.logger.warn(
+        `Failed to fetch thumbnail for video ${videoId}: ${errorMessage}, using default`,
+      )
+      return await this.getDefaultThumbnail()
     }
   }
 
@@ -1093,26 +1235,12 @@ class WeMeditateImporter {
           ? `https://vimeo.com/${metadata.vimeoId}`
           : `https://youtube.com/watch?v=${metadata.youtubeId}`
 
-        // Thumbnail is required - skip if we don't have one or can't create it
-        if (!metadata.thumbnail) {
-          await this.logger.log(
-            `Warning: Skipping ExternalVideo ${videoId} - no thumbnail available`,
-          )
-          continue
-        }
-
-        // Try to get thumbnail from media map
-        const thumbnailUrl = metadata.thumbnail.startsWith('http')
-          ? metadata.thumbnail
-          : STORAGE_BASE_URL + metadata.thumbnail
-        const thumbnailId = this.idMaps.media.get(thumbnailUrl)
-
-        if (!thumbnailId) {
-          await this.logger.log(
-            `Warning: Skipping ExternalVideo ${videoId} - thumbnail not in media map`,
-          )
-          continue
-        }
+        // Fetch thumbnail from Vimeo/YouTube API (or use default)
+        const thumbnailId = await this.fetchVideoThumbnail(
+          videoId,
+          metadata.vimeoId,
+          metadata.youtubeId,
+        )
 
         const externalVideo = await this.payload.create({
           collection: 'external-videos',
@@ -1234,6 +1362,10 @@ class WeMeditateImporter {
       }
     }
 
+    // Note: Treatment thumbnails are stored in the media_files table with polymorphic relationships
+    // For now, skipping treatment thumbnail scanning as the schema needs further investigation
+    // TODO: Implement treatment thumbnail scanning once we understand the media_files schema
+
     await this.logger.log(`Found ${mediaUrls.size} unique media files to download`)
 
     // Download and create Media documents
@@ -1279,6 +1411,8 @@ class WeMeditateImporter {
     const pagesResult = await this.dbClient.query(`
       SELECT
         p.id,
+        (SELECT pt_en.name FROM ${translationsTable} pt_en
+         WHERE pt_en.${tableName.slice(0, -1)}_id = p.id AND pt_en.locale = 'en' LIMIT 1) as title,
         json_agg(
           json_build_object(
             'locale', pt.locale,
@@ -1309,10 +1443,14 @@ class WeMeditateImporter {
     const pageIdMap = (this.idMaps as unknown as Record<string, Map<number, string>>)[mapKey]
 
     for (const page of pagesResult.rows) {
-      const pageId = pageIdMap.get(page.id)
+      // Convert page.id to number for map lookup (same fix as treatment map)
+      const numericId = typeof page.id === 'string' ? parseInt(page.id) : page.id
+      const pageId = pageIdMap.get(numericId)
       if (!pageId) {
         // This should not happen since we're filtering for pages with English versions
-        this.addWarning(`Page ${page.id} from ${tableName} not found in ID map (unexpected)`)
+        this.addWarning(
+          `Page ${page.id} (${page.title}) from ${tableName} not found in ID map (unexpected)`,
+        )
         continue
       }
 
@@ -1335,21 +1473,22 @@ class WeMeditateImporter {
           // Parse content if it's a string (PostgreSQL returns JSONB as string in json_agg)
           let content
           try {
-            content =
-              typeof translation.content === 'string'
-                ? JSON.parse(translation.content)
-                : translation.content
+            if (typeof translation.content === 'string') {
+              // Fix Ruby hash syntax (=>) to proper JSON (:) before parsing
+              // This handles cases where the database has Ruby-serialized data instead of JSON
+              const contentStr = translation.content.replace(/=>/g, ':')
+              content = JSON.parse(contentStr)
+            } else {
+              content = translation.content
+            }
           } catch (parseError) {
             // Log the raw content that failed to parse
-            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError)
-            await this.logger.error(
-              `\nJSON parse error for page ${page.id} (locale: ${locale}):`,
-            )
+            const errorMessage =
+              parseError instanceof Error ? parseError.message : String(parseError)
+            await this.logger.error(`\nJSON parse error for page ${page.id} (locale: ${locale}):`)
             await this.logger.error(`Parse error: ${errorMessage}`)
             await this.logger.error(`Raw content (first 500 chars):`)
-            await this.logger.error(
-              String(translation.content).substring(0, 500),
-            )
+            await this.logger.error(String(translation.content).substring(0, 500))
             throw parseError // Re-throw to be caught by outer catch block
           }
 
@@ -1358,23 +1497,37 @@ class WeMeditateImporter {
             payload: this.payload,
             logger: this.logger,
             pageId: page.id,
+            pageTitle: page.title || 'Unknown',
             locale,
             mediaMap: this.idMaps.media,
             formMap: this.idMaps.forms,
             externalVideoMap: this.idMaps.externalVideos,
             treatmentMap: this.idMaps.treatments,
             meditationTitleMap: this.meditationTitleMap,
+            meditationRailsTitleMap: this.meditationRailsTitleMap,
           }
 
           // Convert EditorJS to Lexical
           const lexicalContent = await convertEditorJSToLexical(content, context)
           lastLexicalContent = lexicalContent
 
+          // TODO: For treatments, prepend thumbnail as upload node with align='right'
+          // Currently disabled as treatment thumbnails are in media_files table with polymorphic relationships
+          // Need to investigate schema and implement proper thumbnail extraction
+
+          // Fetch existing page to preserve required fields (Fix #2)
+          const existingPage = await this.payload.findByID({
+            collection: 'pages',
+            id: pageId,
+            locale,
+          })
+
           // Update page with content
           await this.payload.update({
             collection: 'pages',
             id: pageId,
             data: {
+              title: existingPage.title, // Preserve existing title to pass validation
               content: lexicalContent as any,
             },
             locale,
@@ -1481,7 +1634,7 @@ class WeMeditateImporter {
       await fs.mkdir(path.join(CACHE_DIR, 'assets'), { recursive: true })
 
       // 2. Initialize utilities
-      this.logger = new Logger(CACHE_DIR)
+      this.logger = new Logger(CACHE_DIR, (message) => this.addWarning(message))
       this.fileUtils = new FileUtils(this.logger)
 
       // 3. Initialize Payload (always, even for dry run validation)

@@ -15,6 +15,7 @@ export interface ConversionContext {
   payload: Payload
   logger: Logger
   pageId: number
+  pageTitle: string // For better error messages
   locale: string
   // ID maps for relationships
   mediaMap: Map<string, string> // image URL → Media ID
@@ -22,6 +23,25 @@ export interface ConversionContext {
   externalVideoMap: Map<string, string> // vimeo_id → ExternalVideo ID
   treatmentMap: Map<number, string> // treatment ID → Page ID
   meditationTitleMap: Map<string, string> // meditation title → Meditation ID
+  meditationRailsTitleMap: Map<number, string> // Rails meditation ID → title (without duration)
+}
+
+// ============================================================================
+// MEDITATION TITLE MAPPING
+// ============================================================================
+// Hard-coded mapping from Rails meditation titles to PayloadCMS meditation titles
+// This handles cases where titles don't match exactly between the two systems
+const RAILS_TO_PAYLOAD_MEDITATION_TITLES: Record<string, string> = {
+  'your first meditation': 'first meditation',
+  'experience joy': 'feel inner joy',
+  'feel joyful': 'feel joy',
+  'silence your mind': 'feel the silence within',
+  'relax yourself': 'feel calm',
+  'boost your confidence': 'feel self-esteem',
+  'feel creative': 'be creative',
+  'nourish your creativity': 'be creative',
+  'feel more balanced': 'feel balanced',
+  'experience inner harmony': 'feel harmony within',
 }
 
 export interface EditorJSContent {
@@ -349,10 +369,50 @@ export function createRelationshipNode(relationTo: string, value: string): Lexic
 }
 
 /**
+ * Create a Lexical upload node (inline image)
+ */
+export function createUploadNode(
+  mediaId: string,
+  align: 'center' | 'left' | 'right' | 'wide',
+  caption?: string
+): LexicalNode {
+  return {
+    type: 'upload',
+    version: 1,
+    relationTo: 'media',
+    value: mediaId,
+    fields: {
+      align,
+      ...(caption ? { caption } : {}),
+    },
+  }
+}
+
+/**
+ * Determine align value based on position and size
+ * Mapping:
+ * - position: left = align: left
+ * - position: right = align: right
+ * - position: full-width + size: normal = align: center
+ * - position: full-width + size: wide = align: wide
+ * - default = center
+ */
+export function determineAlign(position?: string, size?: string): 'center' | 'left' | 'right' | 'wide' {
+  if (position === 'left') return 'left'
+  if (position === 'right') return 'right'
+  if (position === 'full-width' || position === 'full_width' || position === 'fullwidth') {
+    if (size === 'wide') return 'wide'
+    return 'center'
+  }
+  // Default to center if no position/size specified
+  return 'center'
+}
+
+/**
  * Generate a unique ID for blocks
  */
 function generateId(): string {
-  return Math.random().toString(36).substr(2, 9)
+  return Math.random().toString(36).substring(2, 11)
 }
 
 // ============================================================================
@@ -366,8 +426,8 @@ export function convertParagraph(block: EditorJSBlock): LexicalNode {
   const { data } = block
   const text = data.text || ''
 
-  // Check if it's a header
-  if (data.type === 'header' || data.level) {
+  // Check if it's a header (only blocks with type: 'header' should become headings)
+  if (data.type === 'header') {
     const level = data.level === 'h1' ? 'h1' : data.level === 'h3' ? 'h3' : 'h2'
     return createHeadingNode(text, level)
   }
@@ -387,7 +447,9 @@ export function convertTextbox(block: EditorJSBlock, context: ConversionContext)
     const text = stripHTML(data.text || '').trim()
     // Quote block requires text field - skip if empty
     if (!text) {
-      context.logger.warn(`Skipping quote block with empty text for page ${context.pageId}`)
+      context.logger.warn(
+        `Skipping quote block with empty text for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+      )
       return null
     }
     return createBlockNode('quote', 'Quote', {
@@ -484,9 +546,9 @@ export function convertLayout(block: EditorJSBlock, context: ConversionContext):
   // Convert items
   const items = (data.items || []).map((item: any) => {
     let imageId: string | undefined
-    if (item.image?.id) {
-      // Look up in media map by ID
-      imageId = context.mediaMap.get(String(item.image.id))
+    if (item.image?.preview) {
+      // Look up in media map by preview URL
+      imageId = context.mediaMap.get(item.image.preview)
     }
 
     const convertedItem: any = {
@@ -527,8 +589,8 @@ export function convertMedia(block: EditorJSBlock, context: ConversionContext): 
   // Collect Media IDs
   const mediaIds: string[] = []
   for (const item of data.items || []) {
-    if (item.image?.id) {
-      const mediaId = context.mediaMap.get(String(item.image.id))
+    if (item.image?.preview) {
+      const mediaId = context.mediaMap.get(item.image.preview)
       if (mediaId) {
         mediaIds.push(mediaId)
       }
@@ -608,16 +670,41 @@ export async function convertCatalog(
       if (pageId) {
         itemIds.push(pageId)
       } else {
-        await context.logger.log(
-          `Warning: Treatment ${itemId} not found in catalog block for page ${context.pageId}`
+        await context.logger.warn(
+          `Treatment ${itemId} not found in catalog block for page "${context.pageTitle}" (Rails ID ${context.pageId})`
         )
       }
     } else if (type === 'meditations') {
-      // Need to look up by title - this requires the title
-      // Since we don't have title here, we'll skip for now
-      await context.logger.log(
-        `Warning: Meditation catalog items require title lookup - skipping item ${itemId}`
-      )
+      // Two-step lookup: Rails ID → title → Payload ID
+      // Convert itemId to number if it's a string (JSON may have numbers as strings)
+      const numericItemId = typeof itemId === 'string' ? parseInt(itemId) : itemId
+
+      const railsTitle = context.meditationRailsTitleMap.get(numericItemId)
+
+      if (railsTitle) {
+        // Try direct lookup first
+        let meditationId = context.meditationTitleMap.get(railsTitle)
+
+        // If not found, try using hard-coded mapping
+        if (!meditationId) {
+          const mappedTitle = RAILS_TO_PAYLOAD_MEDITATION_TITLES[railsTitle]
+          if (mappedTitle) {
+            meditationId = context.meditationTitleMap.get(mappedTitle)
+          }
+        }
+
+        if (meditationId) {
+          itemIds.push(meditationId)
+        } else {
+          await context.logger.warn(
+            `Meditation title "${railsTitle}" (Rails ID ${numericItemId}) not found in Payload for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+          )
+        }
+      } else {
+        await context.logger.warn(
+          `Meditation Rails ID ${numericItemId} not found in PostgreSQL database for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+        )
+      }
     }
   }
 
@@ -636,6 +723,67 @@ export async function convertCatalog(
     collectionType: type === 'treatments' ? 'pages' : 'meditations',
     items: itemIds,
   })
+}
+
+/**
+ * Convert EditorJS quote block to QuoteBlock
+ * Quote block structure:
+ * {
+ *   "type": "quote",
+ *   "data": {
+ *     "text": "...",
+ *     "credit": "",
+ *     "caption": "",
+ *     "position": "narrow"
+ *   }
+ * }
+ */
+export function convertQuoteBlock(block: EditorJSBlock): LexicalNode | null {
+  const { data } = block
+  const text = stripHTML(data.text || '').trim()
+
+  // Quote block requires text field - skip if empty
+  if (!text) {
+    return null
+  }
+
+  return createBlockNode('quote', 'Quote', {
+    text: text,
+    author: stripHTML(data.credit || ''),
+    subtitle: stripHTML(data.caption || ''),
+  })
+}
+
+/**
+ * Convert EditorJS header block to heading node
+ * Header block structure:
+ * {
+ *   "type": "header",
+ *   "data": {
+ *     "text": "...",
+ *     "level": "h2",
+ *     "centered": false
+ *   }
+ * }
+ */
+export function convertHeaderBlock(block: EditorJSBlock): LexicalNode | null {
+  const { data } = block
+  const text = stripHTML(data.text || '').trim()
+
+  // Skip empty headers
+  if (!text) {
+    return null
+  }
+
+  // Map level to heading tag (default to h2)
+  let tag: 'h1' | 'h2' | 'h3' = 'h2'
+  if (data.level === 'h1') {
+    tag = 'h1'
+  } else if (data.level === 'h3') {
+    tag = 'h3'
+  }
+
+  return createHeadingNode(text, tag)
 }
 
 // ============================================================================
@@ -718,9 +866,19 @@ export async function convertEditorJSToLexical(
           // Skip list blocks (table of contents)
           continue
 
+        case 'quote':
+          // Convert quote block to QuoteBlock
+          node = convertQuoteBlock(block)
+          break
+
+        case 'header':
+          // Convert header block to heading node
+          node = convertHeaderBlock(block)
+          break
+
         default:
-          await context.logger.log(
-            `Warning: Unknown block type '${block.type}' at index ${i} for page ${context.pageId}`
+          await context.logger.warn(
+            `Unknown block type '${block.type}' at index ${i} for page "${context.pageTitle}" (Rails ID ${context.pageId})`
           )
           continue
       }
