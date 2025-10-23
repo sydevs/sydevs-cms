@@ -1288,12 +1288,22 @@ class WeMeditateImporter {
       for (const row of result.rows) {
         if (!row.content) continue
 
-        const urls = extractMediaUrls(row.content, STORAGE_BASE_URL)
+        // Parse JSON content if it's a string (PostgreSQL JSONB can return as string or object)
+        let content
+        try {
+          content = typeof row.content === 'string' ? JSON.parse(row.content) : row.content
+        } catch (error) {
+          // If JSON parse fails, content might already be an object or invalid - skip this row
+          await this.logger.warn(`Failed to parse content for a row: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
+
+        const urls = extractMediaUrls(content, STORAGE_BASE_URL)
         urls.forEach((url) => mediaUrls.add(url))
 
         // Extract metadata from blocks
-        if (row.content.blocks) {
-          for (const block of row.content.blocks) {
+        if (content.blocks) {
+          for (const block of content.blocks) {
             if (block.type === 'media' && block.data.items) {
               for (const item of block.data.items) {
                 if (item.image?.preview) {
@@ -1321,12 +1331,22 @@ class WeMeditateImporter {
     for (const row of promoResult.rows) {
       if (!row.content) continue
 
-      const urls = extractMediaUrls(row.content, STORAGE_BASE_URL)
+      // Parse JSON content if it's a string (PostgreSQL JSONB can return as string or object)
+      let content
+      try {
+        content = typeof row.content === 'string' ? JSON.parse(row.content) : row.content
+      } catch (error) {
+        // If JSON parse fails, content might already be an object or invalid - skip this row
+        await this.logger.warn(`Failed to parse promo content for a row: ${error instanceof Error ? error.message : String(error)}`)
+        continue
+      }
+
+      const urls = extractMediaUrls(content, STORAGE_BASE_URL)
       urls.forEach((url) => mediaUrls.add(url))
 
       // Extract metadata from blocks
-      if (row.content.blocks) {
-        for (const block of row.content.blocks) {
+      if (content.blocks) {
+        for (const block of content.blocks) {
           if (block.type === 'media' && block.data.items) {
             for (const item of block.data.items) {
               if (item.image?.preview) {
@@ -1382,11 +1402,14 @@ class WeMeditateImporter {
           caption: '',
         }
 
+        // Extract filename without extension for fallback alt text
+        const filename = path.basename(downloadResult.localPath, path.extname(downloadResult.localPath))
+
         // Upload Media document with deduplication
+        // Note: alt is required, so use filename as fallback if empty
         const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
-          alt: metadata.alt,
-          credit: metadata.credit,
-          locale: 'all',
+          alt: metadata.alt || filename,
+          credit: metadata.credit || '',
         })
 
         if (result) {

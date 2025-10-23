@@ -58,7 +58,7 @@ export class MediaUploader {
    */
   async uploadWithDeduplication(
     localPath: string,
-    options: MediaUploadOptions = {}
+    options: MediaUploadOptions = {},
   ): Promise<MediaUploadResult | null> {
     try {
       const filename = path.basename(localPath)
@@ -148,7 +148,9 @@ export class MediaUploader {
         const escapedExt = extension.replace('.', '\\.')
         const regex = new RegExp(`^${baseNameWithoutExt}(-[a-z0-9]+)?${escapedExt}$`, 'i')
         if (regex.test(docFilename)) {
-          await this.logger.log(`    ✓ Found existing media in database: ${docFilename} (matches ${filename})`)
+          await this.logger.log(
+            `    ✓ Found existing media in database: ${docFilename} (matches ${filename})`,
+          )
           return String(doc.id)
         }
       }
@@ -212,7 +214,7 @@ export class MediaUploader {
    */
   private async uploadNewMedia(
     localPath: string,
-    options: MediaUploadOptions
+    options: MediaUploadOptions,
   ): Promise<MediaUploadResult | null> {
     try {
       const fileBuffer = await fs.readFile(localPath)
@@ -243,7 +245,6 @@ export class MediaUploader {
           name: filename,
           size: fileBuffer.length,
         },
-        locale: options.locale as any,
       })
 
       return {

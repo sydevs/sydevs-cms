@@ -53,14 +53,17 @@ export class MediaDownloader {
    * Download and convert image to WebP format
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
-    // Check cache
-    if (this.downloadedFiles.has(url)) {
-      return this.downloadedFiles.get(url)!
+    // Normalize URL: Fix legacy .co domain to .com
+    const normalizedUrl = url.replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+
+    // Check cache (using normalized URL)
+    if (this.downloadedFiles.has(normalizedUrl)) {
+      return this.downloadedFiles.get(normalizedUrl)!
     }
 
     try {
-      // Generate hash for filename
-      const hash = crypto.createHash('md5').update(url).digest('hex')
+      // Generate hash for filename (using normalized URL)
+      const hash = crypto.createHash('md5').update(normalizedUrl).digest('hex')
       const filename = `${hash}.webp`
       const localPath = path.join(this.cacheDir, filename)
 
@@ -80,15 +83,15 @@ export class MediaDownloader {
           height: metadata.height || 0,
         }
 
-        this.downloadedFiles.set(url, result)
+        this.downloadedFiles.set(normalizedUrl, result)
         return result
       } catch {
         // File doesn't exist, download it
       }
 
       // Download image
-      await this.logger.log(`Downloading image: ${url}`)
-      const response = await fetch(url)
+      await this.logger.log(`Downloading image: ${normalizedUrl}`)
+      const response = await fetch(normalizedUrl)
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -111,12 +114,12 @@ export class MediaDownloader {
         height: metadata.height || 0,
       }
 
-      this.downloadedFiles.set(url, result)
+      this.downloadedFiles.set(normalizedUrl, result)
       await this.logger.log(`✓ Downloaded and converted: ${filename}`)
 
       return result
     } catch (error: any) {
-      throw new Error(`Failed to download image from ${url}: ${error.message}`)
+      throw new Error(`Failed to download image from ${normalizedUrl}: ${error.message}`)
     }
   }
 

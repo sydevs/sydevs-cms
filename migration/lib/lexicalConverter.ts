@@ -228,16 +228,17 @@ export function htmlToLexicalText(html: string): LexicalNode[] {
     // Filter out mailto:, tel:, javascript:, and other protocol links that Payload may not support
     // Payload accepts: http://, https://, / (relative paths)
     const url = segment.url?.trim()
-    const isValidLink = url &&
-                       url.length > 0 &&
-                       url !== '#' &&
-                       url !== '' &&
-                       !url.startsWith('mailto:') &&
-                       !url.startsWith('tel:') &&
-                       !url.startsWith('javascript:') &&
-                       !/^\s+$/.test(url) && // Not whitespace-only
-                       // Ensure URL is properly formed (starts with http://, https://, /, or is a valid relative path)
-                       (/^https?:\/\//i.test(url) || url.startsWith('/') || /^[a-zA-Z0-9]/.test(url))
+    const isValidLink =
+      url &&
+      url.length > 0 &&
+      url !== '#' &&
+      url !== '' &&
+      !url.startsWith('mailto:') &&
+      !url.startsWith('tel:') &&
+      !url.startsWith('javascript:') &&
+      !/^\s+$/.test(url) && // Not whitespace-only
+      // Ensure URL is properly formed (starts with http://, https://, /, or is a valid relative path)
+      (/^https?:\/\//i.test(url) || url.startsWith('/') || /^[a-zA-Z0-9]/.test(url))
 
     if (isValidLink) {
       // Ensure URL is not undefined (add extra safety check)
@@ -374,7 +375,7 @@ export function createRelationshipNode(relationTo: string, value: string): Lexic
 export function createUploadNode(
   mediaId: string,
   align: 'center' | 'left' | 'right' | 'wide',
-  caption?: string
+  caption?: string,
 ): LexicalNode {
   return {
     type: 'upload',
@@ -397,7 +398,10 @@ export function createUploadNode(
  * - position: full-width + size: wide = align: wide
  * - default = center
  */
-export function determineAlign(position?: string, size?: string): 'center' | 'left' | 'right' | 'wide' {
+export function determineAlign(
+  position?: string,
+  size?: string,
+): 'center' | 'left' | 'right' | 'wide' {
   if (position === 'left') return 'left'
   if (position === 'right') return 'right'
   if (position === 'full-width' || position === 'full_width' || position === 'fullwidth') {
@@ -439,7 +443,10 @@ export function convertParagraph(block: EditorJSBlock): LexicalNode {
 /**
  * Convert EditorJS textbox block to TextBoxBlock or QuoteBlock
  */
-export function convertTextbox(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
+export function convertTextbox(
+  block: EditorJSBlock,
+  context: ConversionContext,
+): LexicalNode | null {
   const { data } = block
 
   // Check if it's a quote (type: text or hero)
@@ -448,7 +455,7 @@ export function convertTextbox(block: EditorJSBlock, context: ConversionContext)
     // Quote block requires text field - skip if empty
     if (!text) {
       context.logger.warn(
-        `Skipping quote block with empty text for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+        `Skipping quote block with empty text for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
       )
       return null
     }
@@ -532,8 +539,16 @@ export function convertTextbox(block: EditorJSBlock, context: ConversionContext)
 /**
  * Convert EditorJS layout block to LayoutBlock
  */
-export function convertLayout(block: EditorJSBlock, context: ConversionContext): LexicalNode {
+export function convertLayout(
+  block: EditorJSBlock,
+  context: ConversionContext,
+): LexicalNode | null {
   const { data } = block
+
+  // Return null if no items - will be filtered out by caller
+  if (!data.items || data.items.length === 0) {
+    return null
+  }
 
   // Map style
   const styleMap: Record<string, string> = {
@@ -543,36 +558,52 @@ export function convertLayout(block: EditorJSBlock, context: ConversionContext):
   }
   const style = styleMap[data.type] || 'columns'
 
-  // Convert items
-  const items = (data.items || []).map((item: any) => {
-    let imageId: string | undefined
-    if (item.image?.preview) {
-      // Look up in media map by preview URL
-      imageId = context.mediaMap.get(item.image.preview)
-    }
+  // Convert items - filter out items that have no meaningful content
+  const items = (data.items || [])
+    .map((item: any) => {
+      let imageId: string | undefined
+      if (item.image?.preview) {
+        // Look up in media map by preview URL
+        imageId = context.mediaMap.get(item.image.preview)
+      }
 
-    const convertedItem: any = {
-      title: stripHTML(item.title || ''),
-      text: {
-        root: {
-          type: 'root',
-          version: 1,
-          children: [createParagraphNode(item.text || '')],
-          direction: null,
-          format: '',
-          indent: 0,
+      const title = stripHTML(item.title || '').trim()
+      const text = stripHTML(item.text || '').trim()
+      const link = (item.url || '').trim()
+
+      // Skip items that have no content at all
+      if (!imageId && !title && !text && !link) {
+        return null
+      }
+
+      const convertedItem: any = {
+        title: title || '',
+        text: {
+          root: {
+            type: 'root',
+            version: 1,
+            children: [createParagraphNode(text || '')],
+            direction: null,
+            format: '',
+            indent: 0,
+          },
         },
-      },
-      link: item.url || '',
-      id: generateId(),
-    }
+        link: link || '',
+        id: generateId(),
+      }
 
-    if (imageId) {
-      convertedItem.image = imageId
-    }
+      if (imageId) {
+        convertedItem.image = imageId
+      }
 
-    return convertedItem
-  })
+      return convertedItem
+    })
+    .filter((item: any) => item !== null) // Remove null items
+
+  // Return null if all items were filtered out
+  if (items.length === 0) {
+    return null
+  }
 
   return createBlockNode('layout', 'Layout', {
     style,
@@ -582,6 +613,7 @@ export function convertLayout(block: EditorJSBlock, context: ConversionContext):
 
 /**
  * Convert EditorJS media block to GalleryBlock
+ * Note: GalleryBlock has a max of 15 items
  */
 export function convertMedia(block: EditorJSBlock, context: ConversionContext): LexicalNode {
   const { data } = block
@@ -652,7 +684,7 @@ export function convertVimeo(block: EditorJSBlock, context: ConversionContext): 
  */
 export async function convertCatalog(
   block: EditorJSBlock,
-  context: ConversionContext
+  context: ConversionContext,
 ): Promise<LexicalNode | null> {
   const { data } = block
 
@@ -671,7 +703,7 @@ export async function convertCatalog(
         itemIds.push(pageId)
       } else {
         await context.logger.warn(
-          `Treatment ${itemId} not found in catalog block for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+          `Treatment ${itemId} not found in catalog block for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
         )
       }
     } else if (type === 'meditations') {
@@ -697,12 +729,12 @@ export async function convertCatalog(
           itemIds.push(meditationId)
         } else {
           await context.logger.warn(
-            `Meditation title "${railsTitle}" (Rails ID ${numericItemId}) not found in Payload for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+            `Meditation title "${railsTitle}" (Rails ID ${numericItemId}) not found in Payload for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
           )
         }
       } else {
         await context.logger.warn(
-          `Meditation Rails ID ${numericItemId} not found in PostgreSQL database for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+          `Meditation Rails ID ${numericItemId} not found in PostgreSQL database for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
         )
       }
     }
@@ -795,7 +827,7 @@ export function convertHeaderBlock(block: EditorJSBlock): LexicalNode | null {
  */
 export async function convertEditorJSToLexical(
   content: EditorJSContent | null,
-  context: ConversionContext
+  context: ConversionContext,
 ): Promise<LexicalRoot> {
   const children: LexicalNode[] = []
 
@@ -878,7 +910,7 @@ export async function convertEditorJSToLexical(
 
         default:
           await context.logger.warn(
-            `Unknown block type '${block.type}' at index ${i} for page "${context.pageTitle}" (Rails ID ${context.pageId})`
+            `Unknown block type '${block.type}' at index ${i} for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
           )
           continue
       }
@@ -889,7 +921,7 @@ export async function convertEditorJSToLexical(
     } catch (error: any) {
       // Fail the entire import on block conversion error
       throw new Error(
-        `Failed to convert block type '${block.type}' at index ${i} for page ${context.pageId}: ${error.message}`
+        `Failed to convert block type '${block.type}' at index ${i} for page ${context.pageId}: ${error.message}`,
       )
     }
   }
