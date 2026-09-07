@@ -1,5 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
+import { availableLocalesField } from '@/fields/availableLocalesField'
+
 export const WeMeditateWebConfig: GlobalConfig = {
   slug: 'wm-web-config',
   admin: {
@@ -21,6 +23,10 @@ export const WeMeditateWebConfig: GlobalConfig = {
       relationTo: 'pages',
       required: true,
     },
+    availableLocalesField({
+      translationsSlug: 'wm-web-translations',
+      surface: 'We Meditate',
+    }),
     {
       name: 'audiences',
       type: 'relationship',
