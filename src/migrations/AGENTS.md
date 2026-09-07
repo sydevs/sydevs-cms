@@ -76,42 +76,24 @@ Then classify the outcome:
 
 ### "Migration created" has a false positive too — read the DDL first
 
-A clean checkout of `main` generated a **111 KB** migration on the run that
-measured the boot time above. Every statement in it touched one of the five
-`*_tz` columns, dropping and recreating their enum types to reorder the
-`SupportedTimezones` members. No table, no column, no semantic change.
+A migration whose every statement drops and recreates the five `*_tz` enum types
+changes no table and no column — it only reorders the `SupportedTimezones`
+members. `src/lib/timezones/index.ts` imposes a stable order and
+`tests/unit/timezone-options.spec.ts` pins it, so a reorder nobody asked for
+turns that spec red first (#722).
 
-**The cause is now known, and fixed (#722).** `@vvo/tzdb`'s `getTimeZones()`
-sorts its zones by **current** UTC offset, which moves at every DST boundary in
-any zone the list covers — so the enum member order was a function of the date
-the migration was generated. `src/lib/timezones/index.ts` now sorts on
-`rawOffsetInMinutes`, which is fixed for a zone, and
-`tests/unit/timezone-options.spec.ts` pins the resulting list by digest.
+**A widening looks exactly like a reorder**, so still check. Adding one zone
+also drops and recreates all five enums, and deleting a widening is the
+crash-loop this file exists to prevent. Compare the member list the new `.ts`
+writes against the newest committed `.json` snapshot, as **sets**:
 
-So a reorder that the code did not ask for now shows up as a **red unit test
-first**. **A green spec beside a reorder migration has exactly two causes**, and
-they want opposite actions:
-
-- **The committed snapshot is stale** — someone changed the ordering
-  deliberately and the migration is the one-time catch-up. This is what #722
-  itself shipped. **Commit it.**
-- **The pin was edited to match a diff nobody read.** **Do not commit it** —
-  find out why the list moved.
-
-The commit that last touched `src/lib/timezones/index.ts` tells you which.
-
-**A widening still looks exactly like a reorder**, so this check stays. Adding
-one zone also drops and recreates all five enums, and deleting a widening is
-the crash-loop this file exists to prevent. Take the member list the new `.ts`
-writes and the member list in the newest committed `.json` snapshot, and
-compare them as **sets**:
-
-- Same set, different order — a reorder. Use the two cases above.
-- Any member added or removed — a real change. Keep it, and update the pinned
-  digest in the same commit. Usually a `@vvo/tzdb` bump — but confirm that from
-  the lockfile, because a **shorter** list with no dependency change means the
-  module fell back to a host-dependent source. That one is a bug in this
-  checkout, never a schema change, and must not be committed.
+- Same set, different order — a reorder. Do not commit it until you know why the
+  list moved.
+- Any member added or removed — a real change. Keep it, and update the pin in the
+  same commit. Usually a `@vvo/tzdb` bump — but confirm that from the lockfile. A
+  **shorter** list with no dependency change means the module fell back to a
+  host-dependent source. That is a bug in this checkout, never a schema change,
+  and must not be committed.
 
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 

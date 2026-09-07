@@ -21,29 +21,13 @@ export interface TimezoneOption {
  * `America/Belem`, …) resolve, not just the canonical `Europe/Kyiv` /
  * `Australia/Sydney`. Bumping `@vvo/tzdb` widens the enums → needs a migration.
  *
- * ⚠ **Both the membership and the ORDER are schema, so we take neither from a
- * function of the host or the clock** (#722).
+ * ⚠ **The order is schema too, so take it from neither the host nor the clock**
+ * (#722). Sort on `rawOffsetInMinutes`, fixed for a zone, and read the static
+ * `rawTimeZones`. `getTimeZones()` fails both: it sorts on
+ * `currentTimeOffsetInMinutes`, which every DST boundary moves, and it resolves
+ * each zone through `Intl`, silently dropping any the host's ICU cannot format.
  *
- * - **Order.** `getTimeZones()` returns its zones sorted by
- *   `currentTimeOffsetInMinutes`, which moves at every DST boundary in any zone
- *   this list covers. That made the enum member order a function of the *date
- *   the migration was generated*: a clean checkout generated a 111 KB migration
- *   that dropped and recreated all five `*_tz` enums to reorder them, with no
- *   schema change at all. We sort on `rawOffsetInMinutes`, fixed for a zone.
- *   Sorting also aligns the list with its own label — we render `rawFormat`, so
- *   before this fix `Pacific/Easter` was labelled `-06:00 Easter Island Time …`
- *   while sitting in the `-05:00` group for half the year.
- * - **Membership.** We read the static `rawTimeZones`, not `getTimeZones()`.
- *   `getTimeZones()` resolves every zone through `Intl` and **silently drops**
- *   any the host's ICU cannot format (`getTimeZones.js` returns the accumulator
- *   unchanged when the offset lookup throws). An older runtime would therefore
- *   build a *shorter* enum — the very `Intl` dependency the paragraph above
- *   disclaims. `rawTimeZones` carries all four fields used here, so this costs
- *   nothing: the list is byte-identical on this runtime.
- *
- * `SUPPORTED_TIMEZONES` is pinned by `tests/unit/timezone-options.spec.ts`.
- * Change the membership or the order and that spec goes red — which is the
- * point, because the alternative is finding out from a migration diff.
+ * `tests/unit/timezone-options.spec.ts` pins both membership and order.
  */
 export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   const byValue = new Map<string, TimezoneOption>()
@@ -52,12 +36,8 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   for (const { label, value } of defaultTimezones) {
     if (!byValue.has(value)) byValue.set(value, { label, value })
   }
-  // Impose the order; never inherit one. See the note above.
-  // The tie-break compares code units, NOT `localeCompare` — collation varies with
-  // the host's ICU version, which is the same class of bug this module avoids by
-  // not using `Intl.supportedValuesOf`. IANA names are ASCII, so this is total:
-  // every (rawOffsetInMinutes, name) pair is unique, so no tie ever falls through
-  // to `sort`'s own stability and the input order cannot leak into the output.
+  // Compare code units, never `localeCompare` — collation varies with the host's
+  // ICU version, the same dependency this module exists to avoid.
   const byName = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
   const zones = [...rawTimeZones].sort(
     (a, b) => a.rawOffsetInMinutes - b.rawOffsetInMinutes || byName(a.name, b.name),
