@@ -88,9 +88,17 @@ the migration was generated. `src/lib/timezones/index.ts` now sorts on
 `rawOffsetInMinutes`, which is fixed for a zone, and
 `tests/unit/timezone-options.spec.ts` pins the resulting list by digest.
 
-So a spontaneous reorder now shows up as a **red unit test first**. If you meet
-one here while that spec is green, the pin was edited to match a diff nobody
-read. Do not commit the migration — find out why the list moved.
+So a reorder that the code did not ask for now shows up as a **red unit test
+first**. **A green spec beside a reorder migration has exactly two causes**, and
+they want opposite actions:
+
+- **The committed snapshot is stale** — someone changed the ordering
+  deliberately and the migration is the one-time catch-up. This is what #722
+  itself shipped. **Commit it.**
+- **The pin was edited to match a diff nobody read.** **Do not commit it** —
+  find out why the list moved.
+
+The commit that last touched `src/lib/timezones/index.ts` tells you which.
 
 **A widening still looks exactly like a reorder**, so this check stays. Adding
 one zone also drops and recreates all five enums, and deleting a widening is
@@ -98,10 +106,12 @@ the crash-loop this file exists to prevent. Take the member list the new `.ts`
 writes and the member list in the newest committed `.json` snapshot, and
 compare them as **sets**:
 
-- Same set, different order — a reorder. Expect the spec to be red too. Fix the
-  ordering, do not commit the migration.
-- Any member added or removed — a real change, usually a `@vvo/tzdb` bump. Keep
-  it, and update the pinned digest in the same commit.
+- Same set, different order — a reorder. Use the two cases above.
+- Any member added or removed — a real change. Keep it, and update the pinned
+  digest in the same commit. Usually a `@vvo/tzdb` bump — but confirm that from
+  the lockfile, because a **shorter** list with no dependency change means the
+  module fell back to a host-dependent source. That one is a bug in this
+  checkout, never a schema change, and must not be committed.
 
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 

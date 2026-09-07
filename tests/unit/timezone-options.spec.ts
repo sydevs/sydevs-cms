@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-import { getTimeZones } from '@vvo/tzdb'
+import { rawTimeZones } from '@vvo/tzdb'
 import { defaultTimezones } from 'payload/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,7 +12,9 @@ import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
  * Every `timezone: true` field bakes a Postgres enum from this list, so both the
  * membership and the ORDER are schema. Before #722 the order came straight from
  * `getTimeZones()`, which sorts by current UTC offset — so it moved at every DST
- * boundary and a clean checkout generated a 111 KB no-op migration.
+ * boundary and a clean checkout generated a 111 KB no-op migration. That call
+ * also drops any zone the host's ICU cannot format, so it decided membership
+ * too. The module reads the static `rawTimeZones` now, and these cases pin both.
  *
  * When this goes red, the list changed. Regenerate it deliberately and ship the
  * migration in the same PR. Never update the digest to match a diff you have not
@@ -43,7 +45,7 @@ describe('SUPPORTED_TIMEZONES', () => {
     // are excluded here rather than asserted out of order.
     const seededFirst = new Set(['UTC', ...defaultTimezones.map((t) => t.value)])
     // `rawOffsetInMinutes` is fixed for a zone. `currentTimeOffsetInMinutes` is not.
-    const rank = new Map(getTimeZones().map((z) => [z.name, z.rawOffsetInMinutes]))
+    const rank = new Map(rawTimeZones.map((z) => [z.name, z.rawOffsetInMinutes]))
     const offsets = options
       .filter((o) => !seededFirst.has(o.value))
       .map((o) => rank.get(o.value))
@@ -55,18 +57,45 @@ describe('SUPPORTED_TIMEZONES', () => {
     }
   })
 
-  it('ignores the order getTimeZones() happens to return', async () => {
+  it('ignores the order the tzdb export happens to arrive in', async () => {
     // The real defect: the list inherited its input's order. Feeding the same
     // zones back reversed must change nothing at all.
-    const reversed = [...getTimeZones()].reverse()
-    vi.doMock('@vvo/tzdb', () => ({ getTimeZones: () => reversed }))
+    vi.doMock('@vvo/tzdb', () => ({ rawTimeZones: [...rawTimeZones].reverse() }))
     vi.resetModules()
 
-    const { SUPPORTED_TIMEZONES: shuffled } = await import('@/lib/timezones')
+    const { SUPPORTED_TIMEZONES: reordered } = await import('@/lib/timezones')
 
     // Deliberately NOT compared against the pinned digest — that is the case
     // above. This one fails only when the input's order leaks into the output.
-    expect(shuffled.map((o) => o.value)).toEqual(options.map((o) => o.value))
+    expect(reordered.map((o) => o.value)).toEqual(options.map((o) => o.value))
+  })
+
+  it('actually reads the mocked export, so the case above cannot pass vacuously', async () => {
+    // Without this, a mock that silently stopped applying would leave the
+    // reversal case asserting the real module against itself, forever green.
+    vi.doMock('@vvo/tzdb', () => ({ rawTimeZones: rawTimeZones.slice(0, 2) }))
+    vi.resetModules()
+
+    const { SUPPORTED_TIMEZONES: truncated } = await import('@/lib/timezones')
+
+    expect(truncated.length).toBeLessThan(PINNED_LENGTH)
+  })
+
+  it('never calls getTimeZones(), which drops zones the host ICU cannot format', async () => {
+    // `getTimeZones()` resolves each zone through Intl and silently skips the
+    // ones that throw, so an older runtime would build a shorter enum. Reaching
+    // for it here must be impossible, not merely avoided today.
+    vi.doMock('@vvo/tzdb', () => ({
+      rawTimeZones,
+      getTimeZones: () => {
+        throw new Error('getTimeZones() is host-dependent — read rawTimeZones instead')
+      },
+    }))
+    vi.resetModules()
+
+    const { SUPPORTED_TIMEZONES: viaRaw } = await import('@/lib/timezones')
+
+    expect(digestOf(viaRaw.map((o) => o.value))).toBe(PINNED_DIGEST)
   })
 
   it('returns the bundled IANA zone set', () => {
