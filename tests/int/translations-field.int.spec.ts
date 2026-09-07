@@ -271,9 +271,10 @@ describe('buildTranslationTabs', () => {
     })
 
     // Supplying a `validate` REPLACES Payload's built-in `json` validator, which
-    // is the one bound to `jsonSchema`. So "no validate" is not tidiness — it is
-    // what makes the schema enforced at all.
-    it('sets localized: true, a jsonSchema, and no validate of its own', () => {
+    // is the one bound to `jsonSchema`. The one here therefore COMPOSES it: it
+    // adds back the array check the built-in short-circuits past, then
+    // delegates. A validate that did not delegate would switch the schema off.
+    it('sets localized: true, a jsonSchema, and a validate that composes the built-in', () => {
       const schema: TranslationsSchema = {
         type: 'object',
         properties: {
@@ -292,7 +293,15 @@ describe('buildTranslationTabs', () => {
       }
       expect(field.localized).toBe(true)
       expect(field.jsonSchema).toBeDefined()
-      expect(field.validate).toBeUndefined()
+
+      // `[]` is the gap: Payload's built-in short-circuits on an "empty" value
+      // and counts an empty array as empty, so an array would reach a column
+      // whose generated type is an object.
+      const validate = field.validate as (v: unknown, args: unknown) => unknown
+      expect(validate([], {})).toMatch(/must be a JSON object/)
+      // Anything else is the built-in's answer, not ours — `undefined` is
+      // accepted, which is what the built-in returns for an empty value.
+      expect(validate(undefined, { req: { t: () => '' } })).toBe(true)
     })
 
     it('omits the JSON field when a leaf contains only richText keys', () => {

@@ -48,6 +48,25 @@ function container(doc: Doc, groupField: string | null): Doc | null {
 }
 
 /**
+ * The container to write into, cloned on first use.
+ *
+ * `{ ...doc }` is one level deep, so a nested group's object is shared with the
+ * input document — writing into it would mutate the caller's document, which
+ * this merge promises not to do. Cloning lazily leaves a document with no gaps
+ * untouched.
+ */
+function writableContainer(merged: Doc, groupField: string | null, cloned: Set<string>): Doc | null {
+  if (groupField === null) return merged
+  if (!cloned.has(groupField)) {
+    const group = merged[groupField]
+    if (!isRecord(group)) return null
+    merged[groupField] = { ...group }
+    cloned.add(groupField)
+  }
+  return merged[groupField] as Doc
+}
+
+/**
  * Copy English into every blank or missing key of `doc`, in place on a shallow
  * clone. Pure — no request, no database, no locale logic.
  *
@@ -58,11 +77,13 @@ function container(doc: Doc, groupField: string | null): Doc | null {
  */
 export function mergeEnglish(doc: Doc, english: Doc, lookups: LeafLookup[]): Doc {
   const merged: Doc = { ...doc }
+  const cloned = new Set<string>()
 
   for (const lookup of lookups) {
-    const target = container(merged, lookup.groupField)
     const source = container(english, lookup.groupField)
-    if (!target || !source) continue
+    if (!source) continue
+    const target = writableContainer(merged, lookup.groupField, cloned)
+    if (!target) continue
     if (!Object.hasOwn(target, lookup.fieldName)) continue
 
     // A richText key is its own column: fill the whole value when it is null

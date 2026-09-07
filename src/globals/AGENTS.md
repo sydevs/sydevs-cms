@@ -58,6 +58,14 @@ breaks either is a wrong `hreflang` on every page:
    request at `locale: 'all'` and rejects any selection whose `_status` is
    not `published`.
 
+⚠ **English is exempt from the publish gate, and that is not an oversight.**
+It is mandatory rather than chosen, so gating it is a deadlock, not a gate:
+Payload validates the merged document on **every** save of the global — not
+only when someone edits this field — and the migration that adds per-locale
+`_status` lands every locale as `draft`. Gating English would leave both
+config globals unsaveable after deploy, with an error telling the operator to
+publish the one locale they cannot deselect.
+
 ⚠ **`locale: 'all'` is load-bearing.** A single-locale read resolves
 `_status` through the English fallback, so an untranslated locale reports
 itself published and the gate opens for everything. Only the raw per-locale
@@ -65,7 +73,14 @@ map answers correctly.
 
 `req.context.skipAvailableLocalesCheck` relaxes the publish check for the
 **local API only** — seeds and specs that create a config row before
-anything is published. `en` stays required with it set.
+anything is published. `en` stays required with it set. It is unreachable
+over REST: Payload hard-codes `context: {}` on every REST request.
+
+⚠ **Every partial write to either config global must now carry
+`availableLocales`.** Payload merges the stored value into the field's
+sibling data and validates it, so a `required` field with no stored value
+refuses a write that never mentioned it. `seeds/wemeditate/import.ts` and two
+integration suites each needed a line for this.
 
 **An unconfigured column answers `['en']`** (`readAvailableLocales`,
 `src/lib/translations/availableLocales.ts`), not the ten launch locales the
@@ -202,9 +217,12 @@ Each leaf group's JSON field carries a `jsonSchema` built by
 `{ [k: string]: unknown } | … | null` union, and Ajv enforces the shape on
 write.
 
-- **Never give one of these fields a `validate`.** Supplying one *replaces*
-  Payload's built-in `json` validator — the one bound to `jsonSchema` — so
-  every shape check silently stops running.
+- **A `validate` here must COMPOSE the built-in, never replace it.** Supplying
+  one replaces Payload's built-in `json` validator — the one bound to
+  `jsonSchema` — so a hand-rolled rule switches every shape check off silently.
+  `createStringsJsonField` adds one check (an array, which the built-in
+  short-circuits past because `[]` counts as an "empty" value) and then
+  delegates to `json` from `payload/shared`.
 - **Every property is optional.** Payload validates a stored column on
   every save of its document, so a `required` key would strand a locale
   that predates it, on a save that never touched translations.

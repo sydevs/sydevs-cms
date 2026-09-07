@@ -102,6 +102,33 @@ describe('availableLocales', () => {
     it('accepts English alone', async () => {
       await expect(setAtlasLocales(['en'])).resolves.toBeDefined()
     })
+
+    // The deadlock the exemption exists for. The migration lands every locale
+    // as `draft`, and Payload validates the merged document on every save — so
+    // gating English would make both config globals unsaveable on deploy, while
+    // telling the operator to publish the one locale they cannot deselect.
+    it('accepts English with nothing published, and with the publish check ON', async () => {
+      await payload.updateGlobal({
+        slug: 'sy-atlas-translations',
+        locale: 'en',
+        publishSpecificLocale: 'en',
+        data: { _status: 'draft' } as never,
+        overrideAccess: true,
+      })
+      expect(await localesErrorOrNull(() => setAtlasLocales(['en'], false))).toBeNull()
+    })
+
+    // ...and a partial write that never mentions the field still validates it,
+    // which is how the two other int suites and the WeMeditate seed found out.
+    it('lets an unrelated partial write through once the field has a value', async () => {
+      await expect(
+        payload.updateGlobal({
+          slug: 'sy-atlas-config',
+          data: { defaultZoomLevel: 8 } as never,
+          overrideAccess: true,
+        }),
+      ).resolves.toBeDefined()
+    })
   })
 
   describe('the publish gate', () => {
@@ -151,14 +178,16 @@ describe('availableLocales', () => {
           overrideAccess: true,
         })
 
-      // `en` is published on the ATLAS translations by now, and that must not
-      // count for We Meditate.
-      expect(await localesError(() => setWeb(['en']))).toMatch(/Publish the English translations/)
+      // Dutch published on the ATLAS translations must not count for We
+      // Meditate. English is exempt from the gate, so the case needs a locale
+      // that is actually gated.
+      await publishAtlasLocale('nl')
+      expect(await localesError(() => setWeb(['en', 'nl']))).toMatch(/Dutch/)
 
       await payload.updateGlobal({
         slug: 'wm-web-translations',
-        locale: 'en',
-        publishSpecificLocale: 'en',
+        locale: 'nl',
+        publishSpecificLocale: 'nl',
         data: { _status: 'published' } as never,
         overrideAccess: true,
       })
@@ -166,7 +195,7 @@ describe('availableLocales', () => {
       // which is why the assertion is that `availableLocales` stops objecting —
       // not that the write now succeeds. Filling in a home page, audiences and
       // two page lists would test Payload's `required`, not this field.
-      expect(await localesErrorOrNull(() => setWeb(['en']))).toBeNull()
+      expect(await localesErrorOrNull(() => setWeb(['en', 'nl']))).toBeNull()
     })
   })
 

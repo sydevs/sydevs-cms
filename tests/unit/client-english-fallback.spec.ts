@@ -115,6 +115,16 @@ describe('mergeEnglish', () => {
     expect(doc.common.loading).toBe('')
   })
 
+  // `{ ...doc }` is one level deep, so a nested group's object is shared with
+  // the input unless it is cloned too. The top-level case above passes either
+  // way, which is why this one exists.
+  it('does not mutate a nested group of the document it was given', () => {
+    const doc = { map: { general: {} as Record<string, string>, a11y: {} } }
+    const merged = mergeEnglish(doc, english, LOOKUPS)
+    expect(doc.map.general.zoom_in).toBeUndefined()
+    expect((merged.map as { general: Record<string, string> }).general.zoom_in).toBe('Zoom in')
+  })
+
   it('skips a key English itself leaves blank, rather than writing an empty string', () => {
     const merged = mergeEnglish({ common: {} }, { common: { loading: '  ' } }, LOOKUPS)
     expect(Object.hasOwn(merged.common as object, 'loading')).toBe(false)

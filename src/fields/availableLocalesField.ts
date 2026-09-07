@@ -127,6 +127,17 @@ export function availableLocalesField({
         return 'English must always be available — every other language falls back to it.'
       }
 
+      // English is mandatory, not chosen — the check above refuses a set
+      // without it — so gating it would be a deadlock rather than a gate. The
+      // migration that adds per-locale `_status` lands every locale as `draft`,
+      // and Payload validates the merged document on every save of the global.
+      // Gating English would make both config globals unsaveable on the deploy
+      // that ships this field, while the error told the operator to publish the
+      // one locale they cannot deselect. Every other locale falls back to
+      // English anyway.
+      const gated = locales.filter((locale) => locale !== DEFAULT_LOCALE)
+      if (gated.length === 0) return true
+
       const req = args.req as PayloadRequest | undefined
       if (!req) return true
       if (req.context?.[SKIP_AVAILABLE_LOCALES_CHECK] === true) return true
@@ -134,7 +145,7 @@ export function availableLocalesField({
       const status = await memoizeOnRequest(req, memoKey(translationsSlug), () =>
         readPublishStatus(req, translationsSlug),
       )
-      const missing = unpublishedLocales(status, locales)
+      const missing = unpublishedLocales(status, gated)
       if (missing.length === 0) return true
 
       return missing.length === 1

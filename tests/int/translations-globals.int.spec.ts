@@ -268,5 +268,13 @@ describe('Translations Globals Configuration', () => {
       await expect(write({ common: { loading: 'Loading…' } })).resolves.toBeDefined()
       await expect(write({ common: null })).resolves.toBeDefined()
     })
+
+    // Payload's built-in validator short-circuits on an "empty" value and
+    // counts `[]` as empty, so the schema never sees it. The composed check
+    // ahead of the delegation is what refuses it.
+    it('rejects an array, which the built-in validator alone lets through', async () => {
+      await expect(write({ common: [] })).rejects.toThrow()
+      await expect(write({ common: ['a'] })).rejects.toThrow()
+    })
   })
 })

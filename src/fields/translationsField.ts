@@ -8,7 +8,7 @@ import type {
   UIField,
 } from 'payload'
 
-import { toWords } from 'payload/shared'
+import { json as validateJson, toWords } from 'payload/shared'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
 import { PLURAL_CATEGORIES, pluralStorageKeys } from '@/lib/translations/pluralCategories'
@@ -236,12 +236,18 @@ export function stringsJsonSchema({
  * RichText keys are emitted as sibling richText fields at the same level
  * (see createRichTextField), not packed into this JSON blob.
  *
- * **No `validate` is set, on purpose.** Supplying one *replaces* Payload's
- * built-in `json` validator; leaving it undefined installs that validator bound
- * to the `jsonSchema` below, which enforces exactly what the hand-rolled
- * function used to (unknown keys, non-string values) plus `maxLength` for a
- * `strict` key. See `src/collections/AGENTS.md`, "A JSON column declares its
- * shape".
+ * **The `validate` here COMPOSES Payload's built-in one — it must never
+ * replace it.** Supplying a validate replaces the built-in `json` validator,
+ * which is the one bound to `jsonSchema`, so a hand-rolled rule would switch
+ * the whole schema off with nothing to show for it. The built-in enforces what
+ * the deleted validator did (unknown keys, non-string values) plus `maxLength`
+ * for a `strict` key.
+ *
+ * One rule it does not reach: the built-in short-circuits on an "empty" value,
+ * and `[]` counts as empty (`payload/dist/fields/validations.js`), so an array
+ * would land in a column whose generated type is an object. The old validator
+ * rejected every array, so that check is kept ahead of the delegation.
+ * See `src/collections/AGENTS.md`, "A JSON column declares its shape".
  */
 function createStringsJsonField(
   fieldName: string,
@@ -279,6 +285,10 @@ function createStringsJsonField(
         globalSlug,
         parentGroup,
       },
+    },
+    validate: (value, args) => {
+      if (Array.isArray(value)) return 'Value must be a JSON object'
+      return validateJson(value, args)
     },
   }
 }
