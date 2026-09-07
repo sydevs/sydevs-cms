@@ -20,6 +20,21 @@ export interface TimezoneOption {
  * legacy IANA names the Atlas data uses (`Europe/Kiev`, `Australia/Melbourne`,
  * `America/Belem`, …) resolve, not just the canonical `Europe/Kyiv` /
  * `Australia/Sydney`. Bumping `@vvo/tzdb` widens the enums → needs a migration.
+ *
+ * ⚠ **The order is part of the contract, so we impose it here rather than
+ * inherit it.** `getTimeZones()` returns its zones sorted by
+ * `currentTimeOffsetInMinutes`, which moves at every DST boundary in any zone
+ * this list covers. That made the enum member order a function of the *date the
+ * migration was generated*: a clean checkout generated a 111 KB migration that
+ * dropped and recreated all five `*_tz` enums to reorder them, with no schema
+ * change at all (#722). We sort on `rawOffsetInMinutes`, which is fixed for a
+ * zone, and break ties on `name`. That also matches the label — `rawFormat` is
+ * the raw offset, so before this fix `Pacific/Easter` read `(-06:00)` while
+ * sitting in the `-05:00` group for half the year.
+ *
+ * `SUPPORTED_TIMEZONES` is pinned by `tests/unit/timezone-options.spec.ts`. Change the
+ * membership or the order and that spec goes red — which is the point, because
+ * the alternative is finding out from a migration diff.
  */
 export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   const byValue = new Map<string, TimezoneOption>()
@@ -28,7 +43,14 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   for (const { label, value } of defaultTimezones) {
     if (!byValue.has(value)) byValue.set(value, { label, value })
   }
-  for (const zone of getTimeZones()) {
+  // Sort defensively: never trust `getTimeZones()`'s own order. See the note above.
+  // The tie-break compares code units, NOT `localeCompare` — collation varies with
+  // the host's ICU version, which is the same class of bug this module avoids by
+  // not using `Intl.supportedValuesOf`. IANA names are ASCII, so this is total.
+  const zones = [...getTimeZones()].sort(
+    (a, b) => a.rawOffsetInMinutes - b.rawOffsetInMinutes || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+  )
+  for (const zone of zones) {
     for (const value of [zone.name, ...zone.group]) {
       if (!byValue.has(value)) byValue.set(value, { label: zone.rawFormat, value })
     }
