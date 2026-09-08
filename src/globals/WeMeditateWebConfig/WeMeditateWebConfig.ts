@@ -25,7 +25,11 @@ export const WeMeditateWebConfig: GlobalConfig = {
     },
     availableLocalesField({
       translationsSlug: 'wm-web-translations',
-      surface: 'We Meditate',
+      description:
+        'Languages We Meditate is offered in. Drives the site’s language picker and the ' +
+        'hreflang links on every page. A language can only be selected once the We Meditate ' +
+        'Web translations are published in it — publish that global in the language first. ' +
+        'Publishing all locales at once includes empty ones, so publish deliberately.',
     }),
     {
       name: 'audiences',

@@ -9,15 +9,6 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /**
- * `req.context` key for the per-request publish-status read, one per global.
- * The two config globals never share a request, but keying by slug keeps the
- * field reusable on a third.
- */
-function memoKey(slug: string): string {
-  return `translations:status:${slug}`
-}
-
-/**
  * `req.context` flag that skips the publish check.
  *
  * For the **local API only** — seeds and specs that create a config row before
@@ -86,9 +77,8 @@ function listLabels(locales: LocaleCode[]): string {
 export interface AvailableLocalesFieldOptions {
   /** The translations global whose publish status gates this set. */
   translationsSlug: string
-  /** How the surface is named in the error messages, e.g. "the atlas". */
-  surface: string
-  description?: string
+  /** Admin help text. Each surface writes its own — it names that surface's consumers. */
+  description: string
 }
 
 /**
@@ -108,7 +98,6 @@ export interface AvailableLocalesFieldOptions {
  */
 export function availableLocalesField({
   description,
-  surface,
   translationsSlug,
 }: AvailableLocalesFieldOptions): SelectField {
   return {
@@ -118,14 +107,7 @@ export function availableLocalesField({
     hasMany: true,
     required: true,
     options: getLocaleOptions(),
-    admin: {
-      description:
-        description ??
-        `Languages ${surface} is offered in. A language can only be selected once its ` +
-          'translations are published in it — publish the translations global in that ' +
-          'language first. Publishing all locales at once includes empty ones, so publish ' +
-          'deliberately.',
-    },
+    admin: { description },
     validate: async (value, args) => {
       const builtIn = validateSelect(value, args)
       if (builtIn !== true) return builtIn
@@ -150,15 +132,14 @@ export function availableLocalesField({
       if (!req) return true
       if (req.context?.[SKIP_AVAILABLE_LOCALES_CHECK] === true) return true
 
-      const status = await memoizeOnRequest(req, memoKey(translationsSlug), () =>
+      // Keyed by slug so a third global reusing this field gets its own read.
+      const status = await memoizeOnRequest(req, `translations:status:${translationsSlug}`, () =>
         readPublishStatus(req, translationsSlug),
       )
       const missing = unpublishedLocales(status, gated)
       if (missing.length === 0) return true
 
-      return missing.length === 1
-        ? `Publish the ${listLabels(missing)} translations before offering ${listLabels(missing)}.`
-        : `Publish the translations for ${listLabels(missing)} before offering them.`
+      return `Publish the ${listLabels(missing)} translations before offering them.`
     },
   }
 }

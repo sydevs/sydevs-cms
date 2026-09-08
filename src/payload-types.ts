@@ -5184,7 +5184,7 @@ export interface WmWebConfig {
   id: number;
   homePage: number | Page;
   /**
-   * Languages We Meditate is offered in. A language can only be selected once its translations are published in it — publish the translations global in that language first. Publishing all locales at once includes empty ones, so publish deliberately.
+   * Languages We Meditate is offered in. Drives the site’s language picker and the hreflang links on every page. A language can only be selected once the We Meditate Web translations are published in it — publish that global in the language first. Publishing all locales at once includes empty ones, so publish deliberately.
    */
   availableLocales: (
     | 'en'

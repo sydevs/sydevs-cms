@@ -11,7 +11,6 @@ export const SahajAtlasConfig: GlobalConfig = {
   fields: [
     availableLocalesField({
       translationsSlug: 'sy-atlas-translations',
-      surface: 'the atlas',
       description:
         'Languages the atlas is offered in. Drives the widget\u2019s language picker and the ' +
         'hreflang links on every atlas page. A language can only be selected once the Sahaj ' +
