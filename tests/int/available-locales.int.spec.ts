@@ -7,10 +7,12 @@
  * pure halves are `tests/unit/available-locales.spec.ts` and
  * `tests/unit/client-english-fallback.spec.ts`.
  */
+import type { RestClient } from '../utils/restRequest'
 import type { Payload, TypedLocale } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { createRestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
@@ -49,11 +51,13 @@ describe('availableLocales', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let clientReq: ReturnType<typeof createClientAuthenticatedRequest>
+  let rest: RestClient
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
+    rest = await createRestClient(testEnv)
 
     const client = await testData.createClient(payload, testEnv.adminUser.id)
     clientReq = createClientAuthenticatedRequest(String(client.id), 'unused-in-local-api')
@@ -236,6 +240,43 @@ describe('availableLocales', () => {
     it('leaves an English read untouched', async () => {
       const english = await readAtlas('en', true)
       expect(english.common?.loading).toBe('Loading…')
+    })
+  })
+
+  /**
+   * The one acceptance criterion the local API cannot answer.
+   *
+   * Both config globals gained a sub-table (`<global>_available_locales`), and
+   * the `languages` → `locales` collision this field replaces was a **read-time
+   * Drizzle failure** — the config compiled, the local API was never reached,
+   * and only a REST read surfaced it. So these go through `handleEndpoints`
+   * rather than `payload.findGlobal`.
+   *
+   * The atlas case asserts the stored set comes back, not merely that the key
+   * exists: an assertion that only checked for a 200 would pass against a
+   * global that dropped the column entirely.
+   */
+  describe('over REST', () => {
+    beforeAll(async () => {
+      // `de` is published by the block above, so this is the publish gate ON,
+      // saving a two-locale set — not the skip flag.
+      await setAtlasLocales(['en', 'de'], false)
+    })
+
+    it('returns 200 with the stored set for sy-atlas-config', async () => {
+      const { status, body } = await rest('/api/globals/sy-atlas-config')
+      expect(status).toBe(200)
+      expect(body.availableLocales).toEqual(['en', 'de'])
+    })
+
+    // `wm-web-config` is unconfigured here, which is what production looks like
+    // on the deploy that ships this field. The claim is that the new sub-table
+    // does not break the read — an unset `required` field is a write-time
+    // concern only.
+    it('returns 200 for an unconfigured wm-web-config', async () => {
+      const { status, body } = await rest('/api/globals/wm-web-config')
+      expect(status).toBe(200)
+      expect(body.errors).toBeUndefined()
     })
   })
 })
