@@ -24,6 +24,8 @@
  * See `docs/rules/storage.md` § "Preview / non-production isolation".
  */
 
+import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+
 import { storageLogger } from './storageLogger'
 
 /**
@@ -60,14 +62,11 @@ export const PREVIEW_STREAM_META_VALUE = 'preview'
 
 /**
  * The current Railway environment name, or `undefined` off-Railway (local, CI,
- * test). Reads `process.env` directly so the result reflects the live env and
- * stays trivially testable — the pattern `payload.config.ts` uses for
- * `process.env.NODE_ENV`. Prefers `RAILWAY_ENVIRONMENT_NAME`, falling back to
- * the legacy `RAILWAY_ENVIRONMENT` (`scripts/postinstall.cjs` confirms the
- * latter is set on Railway).
+ * test). Re-exported so this module stays the storage isolation story's one
+ * entry point; the definition lives in `@/lib/env/deploymentEnvironment`,
+ * shared with Sentry's environment tag so the two cannot drift (#733).
  */
-export const railwayEnvironmentName = (): string | undefined =>
-  process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT
+export { railwayEnvironmentName }
 
 /**
  * True only when this deployment is the production Railway environment.
