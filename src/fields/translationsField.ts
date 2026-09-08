@@ -11,7 +11,7 @@ import type {
 import { json as validateJson, toWords } from 'payload/shared'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
-import { PLURAL_CATEGORIES, pluralStorageKeys } from '@/lib/translations/pluralCategories'
+import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
 
 // ============================================================================
 // Types
@@ -47,13 +47,6 @@ interface StringPropertySchema {
    */
   plural?: boolean
 }
-
-/**
- * Re-exported from `@/lib/translations/pluralCategories`, its home since three
- * owners read it. Kept here so existing importers of the field module — and its
- * spec — keep working.
- */
-export { PLURAL_CATEGORIES }
 
 interface RichTextPropertySchema {
   type: 'richText'

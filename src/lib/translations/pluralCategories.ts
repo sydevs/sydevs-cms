@@ -7,9 +7,11 @@
  * drops a translated form — a guard test in `translations-field.int.spec.ts`
  * enforces that sync against this exported constant.
  *
- * It lives here, rather than in `@/fields/translationsField`, because three
- * unrelated owners read it: the field builder (storage keys), the schema walker
- * (which keys a locale must populate), and the email resolver.
+ * It lives here, rather than in `@/fields/translationsField`, because two
+ * unrelated owners read it: the field builder (storage keys) and the schema
+ * walker (which keys a locale must populate). The email resolver derives the
+ * category at runtime from `Intl.PluralRules` instead, so it shares the naming
+ * convention rather than this constant.
  */
 export const PLURAL_CATEGORIES = ['one', 'few', 'many', 'other'] as const
 

@@ -14,8 +14,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
-import { PLURAL_CATEGORIES } from '@/fields/translationsField'
 import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
+import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
 /** The emitted JSON Schema, as much of it as these assertions read. */
 interface JsonSchemaObject {

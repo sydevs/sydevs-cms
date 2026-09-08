@@ -30,7 +30,7 @@ export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
 
 // Translations field - builds tabs from nested JSON schema for translations
-export { buildTranslationTabs, stringsJsonSchema } from './translationsField'
+export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
 // Available locales - the language set a web project offers, gated on published
