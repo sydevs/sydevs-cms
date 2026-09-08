@@ -126,8 +126,6 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                     }
                   : undefined,
                 tags: {
-                  // Same deployment name the SDK-level tag uses, so a preview's
-                  // events never read as production. See #733.
                   environment: deploymentEnvironment(),
                   locale: req.locale,
                   collection: 'collection' in args ? String(args.collection?.slug) : undefined,

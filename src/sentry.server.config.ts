@@ -27,8 +27,6 @@ const tracesSampleRate = Number.isFinite(parsedRate)
 if (dsn) {
   Sentry.init({
     dsn,
-    // Railway previews run NODE_ENV=production too, so the tag comes from the
-    // deployment name instead — see `@/lib/env/deploymentEnvironment` (#733).
     environment: deploymentEnvironment(),
     // Never attach PII to events/spans. Explicit even though it's the
     // @sentry/nextjs default — now that tracing is on, this keeps the

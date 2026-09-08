@@ -29,6 +29,14 @@ export const railwayEnvironmentName = (): string | undefined =>
  * production, `pr-<number>` on a preview. Off-Railway there is no name, and
  * `NODE_ENV` is the honest answer — that is what keeps a local run reporting
  * `development`.
+ *
+ * ⚠ **`undefined` is not a neutral answer to Sentry.** `DEFAULT_ENVIRONMENT`
+ * in `@sentry/core` is the literal string `production`, and `prepareEvent`
+ * applies it (`event.environment || environment || DEFAULT_ENVIRONMENT`), so
+ * returning `undefined` would tag the event with the exact value #733 is
+ * about. Next always sets `NODE_ENV`, so that branch is unreachable in this
+ * app — it is typed `string | undefined` because the environment does not
+ * guarantee otherwise, not because a missing name is safe.
  */
 export const deploymentEnvironment = (): string | undefined =>
   railwayEnvironmentName() ?? process.env.NODE_ENV
