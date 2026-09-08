@@ -36,6 +36,13 @@ export const SKIP_AVAILABLE_LOCALES_CHECK = 'skipAvailableLocalesCheck'
  * fallback from the answer — a single-locale read of an untranslated locale
  * would resolve `_status` to English's and report a locale published that has
  * no rows at all.
+ *
+ * `select` narrows it to the one column the gate reads. Without it this pulls
+ * every translations JSON column in every locale — 12 columns × 19 locale rows
+ * on `sy-atlas-translations` — to answer a question about `_status` alone. The
+ * width matters because the read is not only on save: `@payloadcms/ui`'s
+ * `addFieldStatePromise` runs a field's `validate` with `event: 'onChange'`, so
+ * the admin repeats it on every form-state rebuild of the config global.
  */
 async function readPublishStatus(
   req: PayloadRequest,
@@ -48,6 +55,7 @@ async function readPublishStatus(
     depth: 0,
     draft: false,
     overrideAccess: true,
+    select: { _status: true } as never,
     req: localeIsolatedReq(req),
   })
   return (global as { _status?: unknown })._status
