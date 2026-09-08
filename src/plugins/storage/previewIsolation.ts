@@ -61,14 +61,6 @@ export const PREVIEW_STREAM_META_KEY = 'env'
 export const PREVIEW_STREAM_META_VALUE = 'preview'
 
 /**
- * The current Railway environment name, or `undefined` off-Railway (local, CI,
- * test). Re-exported so this module stays the storage isolation story's one
- * entry point; the definition lives in `@/lib/env/deploymentEnvironment`,
- * shared with Sentry's environment tag so the two cannot drift (#733).
- */
-export { railwayEnvironmentName }
-
-/**
  * True only when this deployment is the production Railway environment.
  *
  * Fail-safe: any other / unknown environment name (a `pr-*` preview, staging,
