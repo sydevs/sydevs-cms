@@ -282,7 +282,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
         }
       }
 
-      await this.writeGlobal(slug, data, locale, { publishSpecificLocale: locale })
+      await this.writeGlobal(slug, data, locale, true)
     }
   }
 
@@ -328,14 +328,14 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     slug: string,
     data: Record<string, unknown>,
     locale: LocaleCode,
-    publishOptions?: { publishSpecificLocale: LocaleCode },
+    publish = false,
   ): Promise<void> {
     const fieldNames = Object.keys(data)
 
     if (this.options.dryRun) {
       await this.logger.info(
         `[dry-run] Would write ${fieldNames.length} field(s) to global "${slug}" (locale=${locale})${
-          publishOptions ? `, publishing ${publishOptions.publishSpecificLocale}` : ''
+          publish ? `, publishing ${locale}` : ''
         }`,
       )
       for (const name of fieldNames) {
@@ -361,16 +361,14 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
         // the state `availableLocales` refuses.
         data: {
           ...data,
-          ...(publishOptions ? { _status: 'published' } : {}),
+          ...(publish ? { _status: 'published' } : {}),
         } as Parameters<typeof this.payload.updateGlobal>[0]['data'],
         locale,
-        ...(publishOptions
-          ? { draft: false, publishSpecificLocale: publishOptions.publishSpecificLocale }
-          : {}),
+        ...(publish ? { draft: false, publishSpecificLocale: locale } : {}),
       })
       await this.logger.success(
         `Updated global "${slug}" with ${fieldNames.length} field(s) (locale=${locale})${
-          publishOptions ? ' — published' : ''
+          publish ? ' — published' : ''
         }`,
       )
       for (const name of fieldNames) {
