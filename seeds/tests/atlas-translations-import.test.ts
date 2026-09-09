@@ -45,7 +45,7 @@ describe('seed: sy-atlas-translations', () => {
       fallbackLocale: false,
       depth: 0,
       overrideAccess: true,
-    }) as Promise<Record<string, never>>
+    }) as unknown as Promise<Record<string, unknown>>
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()

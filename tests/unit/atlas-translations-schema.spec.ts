@@ -19,12 +19,12 @@ import path from 'path'
 
 import { describe, expect, it } from 'vitest'
 
+import schemaJson from '@/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import { EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compose'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
+import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
-import schemaJson from '@/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 
 const SEED_LOCALES = ['cs', 'de', 'en', 'es', 'fr', 'hu', 'nl', 'pt-BR', 'ru', 'uk'] as const
 
@@ -45,7 +45,7 @@ function group(...pathSegments: string[]): Node {
   let node: Leaf | Node = schema
   for (const segment of pathSegments) {
     if (!isNode(node)) throw new Error(`${pathSegments.join('.')} is not a group`)
-    const next = node.properties?.[segment]
+    const next: Leaf | Node | undefined = node.properties?.[segment]
     if (!next) throw new Error(`${pathSegments.join('.')} does not exist in the schema`)
     node = next
   }
@@ -154,8 +154,10 @@ describe('atlas translations schema', () => {
   })
 
   it('makes the widget’s own copy budgets blocking', () => {
-    // These six are `i18n-budgets.test.ts` in sydevs/SahajAtlasWeb: each one
-    // sits in a slot that breaks rather than merely looking untidy.
+    // These seven are `i18n-budgets.test.ts` in sydevs/SahajAtlasWeb: each one
+    // sits in a slot that breaks rather than merely looking untidy. (#706's
+    // acceptance criteria say "six" while its own budget list names seven —
+    // the list is what the widget enforces, so the list is what is pinned.)
     expect(
       Object.fromEntries(
         (
