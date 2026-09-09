@@ -138,10 +138,14 @@ them to `sy-atlas-translations` and `wm-web-translations`, #709 to
   ⚠ "Publish all locales" includes empty ones, which `availableLocales`
   then accepts.
   ⚠ The migration that moves `_status` into `<global>_locales` adds the
-  column with `DEFAULT 'draft'`, so **every locale lands unpublished** and
-  the previous whole-global status is not carried across. For the two web
+  column with `DEFAULT 'draft'`, so **every locale lands unpublished** —
+  English included — and the previous whole-global status is not carried
+  across. English being in that set is what makes a client's published read
+  blank rather than partial: `clientEnglishFallback` reads English with
+  `draft: false` too, so it has nothing to merge from. For the two web
   globals that was a seed step; for `wm-app-translations` it is live app
-  content, so an operator republishes each locale after that deploy.
+  content, so an operator republishes each locale after that deploy, with
+  "Publish in \<Locale\>" rather than the all-locales button above.
 - **An English merge for API clients.** `clientEnglishFallback`
   (`src/lib/translations/clientEnglishFallback.ts`) is an `afterRead` hook
   that fills blank or missing keys from English when
