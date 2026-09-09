@@ -186,11 +186,17 @@ describe('a 403 naming a collection that does not exist', () => {
   })
 })
 
-describe('the custom context function the real config passes', () => {
+describe('a context function shaped like the one the real config passes', () => {
   it('does not drop the fingerprint on its way through', async () => {
-    // `src/payload.config.ts` reshapes `tags` and spreads the rest. Nothing else
-    // proves the new field survives that hop, and a dropped fingerprint fails
-    // silently — the events just group with the anonymous ones again.
+    // A `context` that reshapes `tags` and spreads the rest keeps the new
+    // field, which a dropped fingerprint would fail silently on — the events
+    // would just group with the anonymous ones again.
+    //
+    // ⚠ **This is a replica, not the real callback.** `src/payload.config.ts`
+    // declares its `context` inline and importing that file boots the whole
+    // config, which the unit lane will not do. So this pins the SHAPE, and
+    // `payload.config.ts:281` dropping its spread stays uncovered — check it by
+    // hand when editing that callback.
     await captureError(403, buildRequest(`clients API-Key ${KEY}`), {
       context: ({ defaultContext, req }) => ({
         ...defaultContext,
