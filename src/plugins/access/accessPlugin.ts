@@ -124,7 +124,10 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         const slug = global.slug as ContentSlug
         return {
           ...global,
-          // Apply role-based access control (preserve existing overrides)
+          // Apply role-based access control (preserve existing overrides).
+          // `readVersions` rides along with `update`: the three translations
+          // globals carry drafts, and their version history is edit authority
+          // like every collection's (#719, see accessConfigs.ts).
           access: {
             ...createAccessConfig(slug, ['read', 'update'], bypassPermissions),
             ...global.access,

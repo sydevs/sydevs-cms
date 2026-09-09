@@ -1862,4 +1862,301 @@ describe('Role-Based Access Control', () => {
       expect(refetched.slug).toBe('admin-changed-slug')
     })
   })
+
+  /**
+   * Version history is EDIT authority (#719).
+   *
+   * `findVersions` reads `access.readVersions` and nothing else — the
+   * published-only constraint that guards ordinary client reads never runs on
+   * that path. With `readVersions` unset, Payload's fallback is "is anyone
+   * logged in", which an API key satisfies, so every draft on every versioned
+   * collection was readable by any published client key.
+   *
+   * Fixture assumptions, each checked against the real config rather than
+   * assumed: `pages` and `meditations` both enable `versions.drafts`
+   * (`src/collections/Pages/Pages.ts`, `src/collections/Meditations/Meditations.ts`);
+   * `sahaj-atlas`'s collection list omits `pages` entirely, and
+   * `wemeditate-web`'s includes both `pages` and `meditations`
+   * (`src/plugins/access/config/projects.ts`); `web-translator` grants
+   * `translate` on `pages` and nothing on `meditations`
+   * (`src/plugins/access/config/roles.ts`); `wm-web-translations` enables
+   * drafts and no role grants `update` on it
+   * (`src/globals/WeMeditateWebTranslations/WeMeditateWebTranslations.ts`).
+   */
+  describe('Version history access (readVersions)', () => {
+    const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
+
+    /** The `select` the original #719 probe used to clear the client query gate. */
+    const versionSelect = { version: true } as const
+
+    let versionAdmin: ManagerFixture
+    let unpublishedPage: Awaited<ReturnType<typeof testData.createPage>>
+
+    beforeAll(async () => {
+      versionAdmin = await testData.createManager(payload, {
+        name: 'Admin for Version History Test',
+        type: 'admin' as const,
+      })
+      unpublishedPage = await testData.createPage(payload, { title: 'Unpublished secret' })
+      expect(unpublishedPage._status).toBe('draft')
+    })
+
+    it('denies a client that cannot read the collection at all', async () => {
+      const client = await testData.createClient(payload, versionAdmin.id, {
+        name: 'Atlas Client for Version History Test',
+        roles: ['sahaj-atlas-client'],
+        _status: 'published',
+      })
+
+      // The ordinary read is already Forbidden — this is the baseline the
+      // versions read used to sail straight past.
+      await expect(
+        payload.find({
+          collection: 'pages',
+          select: idOnlySelect(),
+          depth: 0,
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+
+      // The message matters: a bare `toThrow()` here would also pass for a 400
+      // from the client `select` gate, or for an invalid query path — neither of
+      // which is an access decision.
+      await expect(
+        payload.findVersions({
+          collection: 'pages',
+          select: versionSelect,
+          depth: 0,
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('You are not allowed to perform this action.')
+    })
+
+    it('denies a client that may read the collection but not edit it', async () => {
+      // The wider blast radius: this client reads published pages every day.
+      // Read authority must not carry version history with it.
+      const client = await testData.createClient(payload, versionAdmin.id, {
+        name: 'Web Client for Version History Test',
+        roles: ['wemeditate-web-client'],
+        _status: 'published',
+      })
+
+      const published = await payload.find({
+        collection: 'pages',
+        select: idOnlySelect(),
+        depth: 0,
+        user: client,
+        overrideAccess: false,
+      })
+      expect(published.docs.map((doc) => doc.id)).not.toContain(unpublishedPage.id)
+
+      await expect(
+        payload.findVersions({
+          collection: 'pages',
+          select: versionSelect,
+          depth: 0,
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('You are not allowed to perform this action.')
+    })
+
+    it('still returns the rows to an admin manager', async () => {
+      const versions = await payload.findVersions({
+        collection: 'pages',
+        where: { parent: { equals: unpublishedPage.id } },
+        depth: 0,
+        user: managerUser(versionAdmin),
+        overrideAccess: false,
+      })
+
+      expect(versions.totalDocs).toBeGreaterThan(0)
+      expect(versions.docs.map((row) => row.version.title)).toContain('Unpublished secret')
+    })
+
+    it('lets a manager who may edit the collection read its versions', async () => {
+      // `web-translator` holds `translate` on pages, which is update authority
+      // for localized fields — so pages IS a collection they edit.
+      const translator = await testData.createManager(payload, {
+        name: 'Translator for Version History Test',
+        roles: { en: ['web-translator'] },
+      })
+
+      const versions = await payload.findVersions({
+        collection: 'pages',
+        where: { parent: { equals: unpublishedPage.id } },
+        depth: 0,
+        locale: 'en',
+        user: managerUser(translator),
+        overrideAccess: false,
+      })
+
+      expect(versions.totalDocs).toBeGreaterThan(0)
+    })
+
+    it('denies a manager who may read the collection but not edit it', async () => {
+      // The middle case the rule exists for: `app-cards` is inside
+      // `meditations-editor`'s project (so they read it) and carries no grant of
+      // theirs (so they cannot edit it), and it enables drafts.
+      //
+      // NOT `web-translator` on `meditations`, the obvious pairing with the
+      // test above. Payload maps `findVersions` onto the `read` hook operation,
+      // so `filterMeditationsByLocale` appends `{ locale: { equals } }` to the
+      // versions query, where that path does not exist — meditations'
+      // `findVersions` throws QueryError for EVERY caller, `overrideAccess:
+      // true` included. A `rejects.toThrow()` there passes without the fix
+      // (filed separately).
+      const editor = await testData.createManager(payload, {
+        name: 'Read-Only Editor for Version History Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // The ordinary read is permitted — that is what makes this the middle
+      // case rather than a second copy of the denied-outright test above.
+      await expect(
+        payload.find({
+          collection: 'app-cards',
+          select: idOnlySelect(),
+          depth: 0,
+          locale: 'en',
+          user: managerUser(editor),
+          overrideAccess: false,
+        }),
+      ).resolves.toBeTruthy()
+
+      await expect(
+        payload.findVersions({
+          collection: 'app-cards',
+          select: versionSelect,
+          depth: 0,
+          locale: 'en',
+          user: managerUser(editor),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('You are not allowed to perform this action.')
+    })
+
+    it('scopes a document manager to the versions of the documents they manage', async () => {
+      // A `Where` from `update` describes DOCUMENTS; the versions query needs
+      // the document id as `parent`. Untranslated, `{ id: { in: [pageId] } }`
+      // matches version ROWS by their own primary key instead — a wrong answer
+      // that still returns documents, which is why this asserts both halves.
+      const editor = await testData.createManager(payload, {
+        name: 'Page Editor for Version History Test',
+        roles: [],
+      })
+
+      // ⚠ Offset the two sequences first. Page ids and version-row ids are
+      // independent, and in a fresh schema where every page has exactly one
+      // version they line up 1:1 — so the untranslated query returns the RIGHT
+      // rows by coincidence and every assertion below passes with the
+      // translation deleted. Each extra update writes another version row and
+      // breaks the alignment. Verified by deleting the translation and watching
+      // this case go red.
+      const decoy = await testData.createPage(payload, { title: 'Version Row Offset Decoy' })
+      for (const title of ['Offset One', 'Offset Two']) {
+        await payload.update({ collection: 'pages', id: decoy.id, data: { title } })
+      }
+
+      const mine = await testData.createPage(payload, {
+        title: 'Versioned Page I Manage',
+        managers: [editor.id],
+      })
+      const theirs = await testData.createPage(payload, { title: 'Versioned Page I Do Not' })
+
+      // The offset above is a fixture property, so pin it: if page and version
+      // ids ever realign, this case silently stops testing the translation.
+      const allRows = await payload.findVersions({
+        collection: 'pages',
+        depth: 0,
+        pagination: false,
+        overrideAccess: true,
+      })
+      expect(
+        allRows.docs.some((row) => Number(row.id) === mine.id && Number(row.parent) !== mine.id),
+      ).toBe(true)
+
+      const versions = await payload.findVersions({
+        collection: 'pages',
+        depth: 0,
+        pagination: false,
+        locale: 'en',
+        user: managerUser(editor),
+        overrideAccess: false,
+      })
+
+      const parentIds = versions.docs.map((row) => row.parent)
+      expect(parentIds).toContain(mine.id)
+      expect(parentIds).not.toContain(theirs.id)
+      expect(parentIds).not.toContain(decoy.id)
+      expect(parentIds).not.toContain(unpublishedPage.id)
+      expect(new Set(parentIds)).toEqual(new Set([mine.id]))
+    })
+
+    it('applies the same rule to a global', async () => {
+      // accessPlugin's globals branch spreads the same access config, so
+      // `wm-web-translations` gets `readVersions` too. No role grants update on
+      // it, so only the admin bypass reaches its history.
+      await payload.updateGlobal({
+        slug: 'wm-web-translations',
+        data: {},
+        user: managerUser(versionAdmin),
+        overrideAccess: false,
+      })
+
+      const asAdmin = await payload.findGlobalVersions({
+        slug: 'wm-web-translations',
+        depth: 0,
+        user: managerUser(versionAdmin),
+        overrideAccess: false,
+      })
+      expect(asAdmin.totalDocs).toBeGreaterThan(0)
+
+      const client = await testData.createClient(payload, versionAdmin.id, {
+        name: 'Web Client for Global Version History Test',
+        roles: ['wemeditate-web-client'],
+        _status: 'published',
+      })
+
+      await expect(
+        payload.findGlobalVersions({
+          slug: 'wm-web-translations',
+          depth: 0,
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('You are not allowed to perform this action.')
+    })
+
+    it('leaves the live-preview draft exemption intact', async () => {
+      // Preview reads drafts through `find`/`findByID` with `draft: true`,
+      // which resolves against `read` — not through any versions operation. The
+      // fix must not touch it.
+      const client = await testData.createClient(payload, versionAdmin.id, {
+        name: 'Preview Client for Version History Test',
+        roles: ['wemeditate-web-client'],
+        _status: 'published',
+      })
+      const previewReq = createTrustedPreviewRequest(
+        payload,
+        client as unknown as PayloadRequest['user'],
+      )
+
+      const previewed = await payload.findByID({
+        collection: 'pages',
+        id: unpublishedPage.id,
+        draft: true,
+        select: { _status: true },
+        depth: 0,
+        user: client,
+        req: previewReq,
+        overrideAccess: false,
+      })
+
+      expect(previewed.id).toBe(unpublishedPage.id)
+      expect(previewed._status).toBe('draft')
+    })
+  })
 })

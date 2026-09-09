@@ -12,6 +12,8 @@
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
 import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest, Where } from 'payload'
 
+import { appendVersionToQueryKey } from 'payload'
+
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
 import {
@@ -156,7 +158,49 @@ export function createAccessConfig(
     }
   }
 
+  const update = accessConfig.update
+  if (update) accessConfig.readVersions = createReadVersionsAccess(update)
+
   return accessConfig
+}
+
+/**
+ * Version history is EDIT authority, not read authority (#719).
+ *
+ * `findVersions`, `findVersionByID` and `countVersions` — and their globals
+ * twins — read `access.readVersions` and nothing else. The published-only
+ * constraint in the `read` branch above never runs for them. Payload's fallback
+ * for an *unset* `readVersions` is `executeAccess`'s permissive one, "is anyone
+ * logged in", which an API key satisfies: every draft on every versioned
+ * collection was readable by any published client key, including one that
+ * cannot read the collection at all.
+ *
+ * The rule is that anyone who may EDIT a collection may read its versions, and
+ * nobody else. `update` already answers exactly that question — the role table,
+ * the document-manager grant, and the Atlas region-subtree scoping all live
+ * there — so this delegates to it rather than defining a second authority that
+ * can drift out of step with the first.
+ *
+ * ⚠ **The `Where` has to be translated.** `update` returns a query over
+ * DOCUMENTS, and every versions operation combines the access result straight
+ * into a query over the VERSIONS collection without remapping it — there a
+ * document's fields sit under `version.` and its id is `parent`.
+ * `appendVersionToQueryKey` is Payload's own mapping for this, the one
+ * `replaceWithDraftIfAvailable` applies to the `read` result. Skip it and
+ * `{ id: { in: [7] } }` quietly matches version *rows* by their own primary
+ * key — a wrong answer that still returns documents.
+ *
+ * Live preview is unaffected: it reads drafts through `find`/`findByID` with
+ * `draft: true`, which resolves against `read` (see the preview-secret branch
+ * above), never through a versions operation.
+ */
+function createReadVersionsAccess(
+  update: NonNullable<CollectionConfig['access']>['update'],
+): NonNullable<CollectionConfig['access']>['readVersions'] {
+  return async (args) => {
+    const result = await update!(args)
+    return typeof result === 'object' && result !== null ? appendVersionToQueryKey(result) : result
+  }
 }
 
 /**

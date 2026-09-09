@@ -140,6 +140,19 @@ A `managers` (hasMany) or `manager` relationship to `managers` on any collection
 
 Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, events }`), not field introspection, since create/delete are security-sensitive and a stray `managers` field elsewhere must not silently widen access.
 
+### Version history is edit authority (#719)
+
+`createAccessConfig` also produces **`readVersions`**, delegating to the collection's own `update` function — for globals too, via the same spread. Anyone who may edit a collection reads its version history. Nobody else, on every collection and global the plugin touches.
+
+This is not Payload's default, and the default is the permissive one. `findVersions`, `findVersionByID` and `countVersions` consult `access.readVersions` alone — the published-only constraint in the `read` branch never runs for them. With `readVersions` unset, `executeAccess` falls back to "is anyone logged in", which an API key satisfies, so every draft on `pages`, `meditations`, `app-cards`, `events`, `clients` and the three translations globals was readable by any published client key — including one that cannot read the collection at all.
+
+⚠ **A `Where` from `update` must be translated before it reaches a versions query.** `update` returns a query over *documents*; every versions operation combines the access result straight into a query over the *versions* collection without remapping it, where a document's fields sit under `version.` and its id is `parent`. `appendVersionToQueryKey` (exported by `payload`, and what `replaceWithDraftIfAvailable` applies to the `read` result) is the mapping. Skip it and `{ id: { in: [7] } }` matches version *rows* by their own primary key — a wrong answer that still returns documents.
+
+Two consequences worth knowing:
+
+- **A read-only manager no longer sees the History tab.** `/api/access` computes `readVersions` from this same function, so the admin UI follows. That is the intended behaviour change, not a regression.
+- **Live preview is untouched.** It reads drafts through `find`/`findByID` with `draft: true`, which resolves against `read` and the preview-secret branch — never through a versions operation.
+
 ### Self-access
 
 A user can always read and update their own document in their auth collection.
