@@ -16,6 +16,8 @@ import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { serverEnv } from '@/lib/env'
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
+import { classifyAuthAttempt } from './authAttempt'
+
 /**
  * Context object for Sentry error capture
  */
@@ -27,6 +29,11 @@ interface SentryContext {
   tags?: Record<string, string | undefined>
   extra?: Record<string, unknown>
   level?: 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug'
+  /**
+   * Overrides Sentry's default grouping. Set only where two errors that look
+   * alike are different incidents — leave it unset and Sentry groups as usual.
+   */
+  fingerprint?: string[]
 }
 
 export interface SentryPluginOptions {
@@ -118,6 +125,22 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
 
             // Capture 500+ errors and any explicitly configured status codes
             if (status >= 500 || captureErrors.includes(status)) {
+              const attempt = classifyAuthAttempt(
+                req.headers?.get?.('authorization'),
+                Boolean(req.user),
+              )
+
+              // A presented-and-rejected credential is a broken integration, not
+              // traffic. Escalating it only below 500 keeps a server error's own
+              // level and grouping intact — that is a different incident, and the
+              // caller's credential is not what is wrong with it. (#734)
+              const credentialRejected = attempt.outcome === 'rejected' && status < 500
+
+              // Cloudflare sets CF-Connecting-IP at the edge; a direct origin hit
+              // has none. Read the same way as `verifyTurnstileOrFail`.
+              const userAgent = req.headers?.get?.('user-agent') ?? undefined
+              const ip = req.headers?.get?.('cf-connecting-ip') ?? undefined
+
               const defaultContext: SentryContext = {
                 user: req.user
                   ? {
@@ -129,12 +152,54 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                   environment: deploymentEnvironment(),
                   locale: req.locale,
                   collection: 'collection' in args ? String(args.collection?.slug) : undefined,
+                  // `key_fingerprint` is deliberately a tag rather than an extra,
+                  // despite its cardinality: naming WHICH integration is broken is
+                  // the whole point, and only a tag is searchable.
+                  ...(credentialRejected
+                    ? {
+                        auth_outcome: attempt.outcome,
+                        auth_collection: attempt.authCollection,
+                        auth_scheme: attempt.authScheme,
+                        key_fingerprint: attempt.keyFingerprint,
+                      }
+                    : {}),
                 },
                 extra: {
                   status,
                   url: req.url,
+                  ...(credentialRejected ? { userAgent, ip } : {}),
                 },
-                level: status >= 500 ? 'error' : 'warning',
+                level: status >= 500 || credentialRejected ? 'error' : 'warning',
+                // Group by the auth collection, not the key fingerprint: a broken
+                // integration must not be able to open one Sentry issue per key it
+                // presents. The tag above segments within the group.
+                ...(credentialRejected
+                  ? {
+                      fingerprint: [
+                        'credential-rejected',
+                        String(status),
+                        attempt.authCollection ?? 'unknown',
+                      ],
+                    }
+                  : {}),
+              }
+
+              // Mirror to the application log, so a denial stays diagnosable from
+              // Railway without opening Sentry — the same shape
+              // `assertClientOriginAllowed` uses. Deliberately outside the custom
+              // `context` function below: that may reshape the report, but the
+              // denial itself still happened.
+              if (credentialRejected) {
+                req.payload.logger.warn({
+                  msg: 'sentryPlugin: API credential presented and rejected',
+                  status,
+                  url: req.url,
+                  authCollection: attempt.authCollection ?? null,
+                  authScheme: attempt.authScheme ?? null,
+                  keyFingerprint: attempt.keyFingerprint ?? null,
+                  userAgent: userAgent ?? null,
+                  ip: ip ?? null,
+                })
               }
 
               // Apply custom context if provided
@@ -157,6 +222,9 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 }
                 if (finalContext.level) {
                   scope.setLevel(finalContext.level)
+                }
+                if (finalContext.fingerprint) {
+                  scope.setFingerprint(finalContext.fingerprint)
                 }
                 Sentry.captureException(error)
               })

@@ -1,0 +1,194 @@
+/**
+ * The plugin's own wiring, not just the helper it calls.
+ *
+ * A pure spec on `classifyAuthAttempt` cannot see whether `setFingerprint` is
+ * ever reached, or whether the log line is emitted — and unreached code with a
+ * green spec beside it is exactly the shape #734 set out to make visible.
+ */
+import type { Config, PayloadRequest } from 'payload'
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { sentryPlugin, type SentryPluginOptions } from '@/plugins/sentry/sentryPlugin'
+
+const sentry = vi.hoisted(() => ({
+  captureException: vi.fn(),
+  scope: {
+    setUser: vi.fn(),
+    setTag: vi.fn(),
+    setExtra: vi.fn(),
+    setLevel: vi.fn(),
+    setFingerprint: vi.fn(),
+  },
+}))
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: sentry.captureException,
+  withScope: (callback: (scope: typeof sentry.scope) => void) => callback(sentry.scope),
+}))
+
+// The plugin short-circuits without a DSN, and `@/lib/env` parses the real
+// environment. Mocked so the lane never depends on a `.env` value.
+vi.mock('@/lib/env', () => ({
+  serverEnv: { NEXT_PUBLIC_SENTRY_DSN: 'https://key@o1.ingest.de.sentry.io/1' },
+}))
+vi.mock('@/lib/env/deploymentEnvironment', () => ({
+  deploymentEnvironment: () => 'test',
+}))
+
+const KEY = '3f7c1a2b-9d4e-4a10-8b55-6c2e0f9a1d33'
+const USER_AGENT = 'node'
+const IP = '203.0.113.7'
+const URL = 'https://cloud.sydevelopers.com/api/pages/73?depth=2&trash=false'
+
+const logger = { warn: vi.fn(), info: vi.fn() }
+
+const buildRequest = (authorization: string | null, user?: { id: number }): PayloadRequest => {
+  const headers = new Headers({ 'user-agent': USER_AGENT, 'cf-connecting-ip': IP })
+  if (authorization !== null) headers.set('authorization', authorization)
+
+  return {
+    headers,
+    user,
+    locale: 'en',
+    url: URL,
+    payload: { logger },
+  } as unknown as PayloadRequest
+}
+
+/**
+ * Runs the plugin's `afterError` hook the way Payload's route error handler does.
+ *
+ * `captureErrors` mirrors `src/payload.config.ts`, which is what decides that a
+ * 403 reaches this hook at all.
+ */
+const captureError = async (
+  status: number,
+  req: PayloadRequest,
+  options: Partial<SentryPluginOptions> = {},
+) => {
+  const config = sentryPlugin({ captureErrors: [400, 403, 404], ...options })({
+    hooks: {},
+  } as Config)
+  const afterError = config.hooks?.afterError?.[0]
+  if (!afterError) throw new Error('sentryPlugin registered no afterError hook')
+
+  const error = Object.assign(new Error('Forbidden'), { status })
+  await afterError({ error, req } as unknown as Parameters<typeof afterError>[0])
+}
+
+const tags = () => Object.fromEntries(sentry.scope.setTag.mock.calls)
+const extras = () => Object.fromEntries(sentry.scope.setExtra.mock.calls)
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('a 403 with no credential presented', () => {
+  it('keeps its warning level and its default grouping', async () => {
+    await captureError(403, buildRequest(null))
+
+    expect(sentry.captureException).toHaveBeenCalledOnce()
+    expect(sentry.scope.setLevel).toHaveBeenCalledWith('warning')
+    expect(sentry.scope.setFingerprint).not.toHaveBeenCalled()
+    expect(tags()).not.toHaveProperty('key_fingerprint')
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+})
+
+describe('a 403 whose credential authenticated', () => {
+  it('is an ordinary authorisation denial, not a broken integration', async () => {
+    await captureError(403, buildRequest(`clients API-Key ${KEY}`, { id: 12 }))
+
+    expect(sentry.scope.setLevel).toHaveBeenCalledWith('warning')
+    expect(sentry.scope.setFingerprint).not.toHaveBeenCalled()
+    expect(tags()).not.toHaveProperty('auth_outcome')
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+})
+
+describe('a 403 whose credential was rejected', () => {
+  beforeEach(async () => {
+    await captureError(403, buildRequest(`clients API-Key ${KEY}`))
+  })
+
+  it('is captured at error level, in a group of its own', () => {
+    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
+    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
+      'credential-rejected',
+      '403',
+      'clients',
+    ])
+  })
+
+  it('carries the user agent, the request IP, the collection and a key fingerprint', () => {
+    expect(tags()).toMatchObject({
+      auth_outcome: 'rejected',
+      auth_collection: 'clients',
+      auth_scheme: 'API-Key',
+      key_fingerprint: expect.stringMatching(/^[0-9a-f]{12}$/),
+    })
+    expect(extras()).toMatchObject({ userAgent: USER_AGENT, ip: IP, url: URL })
+  })
+
+  it('mirrors the denial to the application log at WARN, with the same fields', () => {
+    expect(logger.warn).toHaveBeenCalledOnce()
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 403,
+        url: URL,
+        authCollection: 'clients',
+        authScheme: 'API-Key',
+        keyFingerprint: tags().key_fingerprint,
+        userAgent: USER_AGENT,
+        ip: IP,
+      }),
+    )
+  })
+
+  it('puts no part of the key into Sentry or the log', () => {
+    const written = JSON.stringify([
+      sentry.scope.setTag.mock.calls,
+      sentry.scope.setExtra.mock.calls,
+      sentry.scope.setFingerprint.mock.calls,
+      logger.warn.mock.calls,
+    ])
+
+    expect(written).not.toContain(KEY)
+    expect(written).not.toContain(KEY.slice(0, 8))
+    expect(written).not.toContain(KEY.slice(-12))
+  })
+})
+
+describe('the custom context function the real config passes', () => {
+  it('does not drop the fingerprint on its way through', async () => {
+    // `src/payload.config.ts` reshapes `tags` and spreads the rest. Nothing else
+    // proves the new field survives that hop, and a dropped fingerprint fails
+    // silently — the events just group with the anonymous ones again.
+    await captureError(403, buildRequest(`clients API-Key ${KEY}`), {
+      context: ({ defaultContext, req }) => ({
+        ...defaultContext,
+        tags: { ...defaultContext.tags, locale: req.locale },
+      }),
+    })
+
+    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
+      'credential-rejected',
+      '403',
+      'clients',
+    ])
+    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
+  })
+})
+
+describe('a 500 whose credential was rejected', () => {
+  it('keeps a server error grouped as a server error', async () => {
+    // The credential is not what is wrong with a 500, and re-grouping it under
+    // `credential-rejected` would bury a real incident.
+    await captureError(500, buildRequest(`clients API-Key ${KEY}`))
+
+    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
+    expect(sentry.scope.setFingerprint).not.toHaveBeenCalled()
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+})
