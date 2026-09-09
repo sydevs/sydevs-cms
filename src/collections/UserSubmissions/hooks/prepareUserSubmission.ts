@@ -2,7 +2,7 @@ import type { CollectionBeforeValidateHook } from 'payload'
 
 import { randomUUID } from 'node:crypto'
 
-import { APIError, ValidationError } from 'payload'
+import { APIError } from 'payload'
 
 import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
@@ -76,10 +76,12 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
     allowedSubmissionKeys(type, formFieldNames),
   )
   if (problems.length > 0) {
-    throw new ValidationError({
-      collection: 'user-submissions',
-      errors: problems.map((message) => ({ path: 'submissionData', message })),
-    })
+    // `APIError`, not `ValidationError`: Payload composes a ValidationError's
+    // top-level message from the field paths ("The following field is invalid:
+    // submissionData") and buries the per-error text, so the offending key —
+    // the one thing an integrator can act on — never reaches the response body
+    // they read. Same envelope the write-guard raises, for the same reason.
+    throw new APIError(problems.join(' '), 400, { code: 'submission_data_invalid' }, true)
   }
 
   // The write-guard cannot scan these pairs selectively — see `URL_EXEMPT_KEYS`
@@ -108,6 +110,11 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   return {
     ...data,
     type,
+    // Always a list, never absent. The plugin's own `sendEmail` afterChange
+    // spreads this value unconditionally, so `undefined` makes it throw on
+    // every form-less submission — a logged error per registration, for a
+    // feature that is switched off.
+    submissionData: Array.isArray(data.submissionData) ? data.submissionData : [],
     uuid: typeof data.uuid === 'string' && data.uuid ? data.uuid : randomUUID(),
     subject: await composeSubject({ data, req, type }),
     ...(senderEmail ? { senderEmail: senderEmail.toLowerCase() } : {}),

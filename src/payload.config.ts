@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url'
 
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
@@ -11,7 +10,6 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
-import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
@@ -22,6 +20,7 @@ import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugi
 import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
+import { formsPlugin } from '@/plugins/formBuilder'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
@@ -31,11 +30,6 @@ import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
-import { formFields } from './collections/Forms/fields'
-import { validateFormAction } from './collections/Forms/hooks/validateFormAction'
-import { userSubmissionFields } from './collections/UserSubmissions/fields'
-import { enforceSubscribeReach } from './collections/UserSubmissions/hooks/enforceSubscribeReach'
-import { prepareUserSubmission } from './collections/UserSubmissions/hooks/prepareUserSubmission'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
 import { globals } from './globals'
@@ -304,37 +298,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,
       }),
-      // Form builder plugin (enabled in all environments).
-      //
-      // The submissions collection is renamed `user-submissions` (#723): it is
-      // the one intake for every public write — contact, subscribe,
-      // registration, proposal — and not every one of those comes from an
-      // authored form. See src/collections/UserSubmissions/.
-      //
-      // `formOverrides.fields` strips the plugin's `emails` array, which
-      // structurally disables its create-time `sendEmail` hook. See
-      // src/collections/Forms/fields.ts.
-      formBuilderPlugin({
-        defaultToEmail: CONTACT_EMAIL,
-        formOverrides: {
-          admin: { group: 'Content', enableRichTextRelationship: true },
-          fields: formFields,
-          hooks: { beforeValidate: [validateFormAction] },
-        },
-        formSubmissionOverrides: {
-          slug: 'user-submissions',
-          labels: { singular: 'User Submission', plural: 'User Submissions' },
-          admin: {
-            group: 'System',
-            useAsTitle: 'subject',
-            defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
-          },
-          fields: userSubmissionFields,
-          // Order matters: the reach check refuses a forbidden target before
-          // `prepareUserSubmission` upserts a `users` row for its sender.
-          hooks: { beforeValidate: [enforceSubscribeReach, prepareUserSubmission] },
-        },
-      }),
+      // Form builder plugin (enabled in all environments). Configured in
+      // `src/plugins/formBuilder`, shared with the test harness.
+      formsPlugin(),
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
       // Note: 'clients' is auto-excluded as a consumer collection; 'managers' excluded to skip admin users
       usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),
