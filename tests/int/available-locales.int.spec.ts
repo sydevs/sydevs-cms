@@ -203,6 +203,57 @@ describe('availableLocales', () => {
     })
   })
 
+  // #709 mounts the same field on the third surface. The case that matters is
+  // not that the field exists — it is that it gates on `wm-app-translations`,
+  // the global that only opted into per-locale `_status` in that issue. Before
+  // it did, `unpublishedLocales` read a plain string and answered
+  // all-or-nothing, so a locale published anywhere would have passed here.
+  describe('the wm-app config carries the same field', () => {
+    const setApp = (locales: string[]) =>
+      payload.updateGlobal({
+        slug: 'wm-app-config',
+        data: { availableLocales: locales } as never,
+        overrideAccess: true,
+      })
+
+    it('refuses a set that omits English', async () => {
+      expect(await localesError(() => setApp(['fr']))).toMatch(/English must always be available/)
+    })
+
+    const publishAppLocale = (locale: TypedLocale) =>
+      payload.updateGlobal({
+        slug: 'wm-app-translations',
+        locale,
+        publishSpecificLocale: locale,
+        data: { _status: 'published' } as never,
+        overrideAccess: true,
+      })
+
+    it('gates on its own translations global, not the atlas one', async () => {
+      // Italian published on the ATLAS translations must not count for the app.
+      // English is exempt from the gate, so this needs a locale that is gated.
+      await publishAtlasLocale('it')
+      expect(await localesError(() => setApp(['en', 'it']))).toMatch(/Italian/)
+
+      await publishAppLocale('it')
+      // The 14 required page relationships still refuse this bare write, so the
+      // claim is that `availableLocales` stops objecting — not that the write
+      // succeeds. Filling those in would test Payload's `required`, not this.
+      expect(await localesErrorOrNull(() => setApp(['en', 'it']))).toBeNull()
+    })
+
+    // The case above passes whether or not `wm-app-translations` sets
+    // `localizeStatus` — verified by reverting the flag and watching all 18
+    // tests stay green. With one status for the whole global, publishing
+    // Italian publishes everything, so this is what tells the two apart:
+    // Italian is published by the case above, Spanish is not.
+    it('publishing one locale does not open the gate for another', async () => {
+      expect(await localesError(() => setApp(['en', 'it', 'es']))).toMatch(/Spanish/)
+      await publishAppLocale('es')
+      expect(await localesErrorOrNull(() => setApp(['en', 'it', 'es']))).toBeNull()
+    })
+  })
+
   describe('the API-client English fallback', () => {
     beforeAll(async () => {
       await publishAtlasLocale('en', { common: { loading: 'Loading…' } })
@@ -240,6 +291,38 @@ describe('availableLocales', () => {
     it('leaves an English read untouched', async () => {
       const english = await readAtlas('en', true)
       expect(english.common?.loading).toBe('Loading…')
+    })
+
+    // The app global gained the hook in #709. Its schema nests sub-groups, so
+    // the merge has to reach `daily.common.retry` — a key inside a JSON field
+    // inside a group — where the atlas cases above only exercise a top-level
+    // leaf. A merge that only handled `groupField: null` would pass every
+    // assertion above and still leave the app blank.
+    it('fills a blank key inside a nested group for wm-app-translations', async () => {
+      const writeApp = (locale: TypedLocale, daily: Record<string, unknown>) =>
+        payload.updateGlobal({
+          slug: 'wm-app-translations',
+          locale,
+          publishSpecificLocale: locale,
+          data: { _status: 'published', daily } as never,
+          overrideAccess: true,
+        })
+
+      await writeApp('en', { common: { retry: 'Try again' } })
+      await writeApp('de', { common: {} })
+
+      const read = (asClient: boolean) =>
+        payload.findGlobal({
+          slug: 'wm-app-translations',
+          locale: 'de',
+          fallbackLocale: false,
+          depth: 0,
+          overrideAccess: true,
+          ...(asClient ? { req: { ...clientReq } as never } : {}),
+        }) as unknown as Promise<{ daily?: { common?: Record<string, string> | null } }>
+
+      expect((await read(true)).daily?.common?.retry).toBe('Try again')
+      expect((await read(false)).daily?.common?.retry).toBeUndefined()
     })
   })
 
