@@ -346,7 +346,14 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     try {
       await this.payload.updateGlobal({
         slug: slug as Parameters<typeof this.payload.updateGlobal>[0]['slug'],
-        data: data as Parameters<typeof this.payload.updateGlobal>[0]['data'],
+        // `publishSpecificLocale` alone selects the single-locale branch but
+        // does not decide the status — the incoming `_status` does. Without
+        // this the write lands and the locale stays `draft`, which is exactly
+        // the state `availableLocales` refuses.
+        data: {
+          ...data,
+          ...(publishOptions ? { _status: 'published' } : {}),
+        } as Parameters<typeof this.payload.updateGlobal>[0]['data'],
         locale,
         ...(publishOptions
           ? { draft: false, publishSpecificLocale: publishOptions.publishSpecificLocale }
