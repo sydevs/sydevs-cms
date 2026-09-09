@@ -50,8 +50,7 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   // `@vvo/tzdb` also omits the POSIX `Etc/GMT*` zones (the Atlas registrations
   // carry e.g. `Etc/GMT-3`). Add the full range. POSIX inverts the sign in the
   // **name**: `Etc/GMT-3` is UTC+3. So the loop counter names the zone and its
-  // negation is the real offset the label states (#729). Deriving the label's
-  // sign from the counter instead mislabels all 27 by double the offset.
+  // negation is the real offset the label states (#729).
   for (let posix = -14; posix <= 12; posix++) {
     const value = posix === 0 ? 'Etc/GMT' : `Etc/GMT${posix < 0 ? posix : `+${posix}`}`
     const utcOffset = -posix
