@@ -360,5 +360,15 @@ describe('availableLocales', () => {
       expect(status).toBe(200)
       expect(body.errors).toBeUndefined()
     })
+
+    // `wm_app_config_available_locales` is the one sub-table this issue adds,
+    // so it is the one the block above did not exercise over REST. Same shape
+    // as `wm-web-config`: its 14 required page relationships are unset here, so
+    // the claim is that the new sub-table does not break the read.
+    it('returns 200 for an unconfigured wm-app-config', async () => {
+      const { status, body } = await rest('/api/globals/wm-app-config')
+      expect(status).toBe(200)
+      expect(body.errors).toBeUndefined()
+    })
   })
 })
