@@ -106,11 +106,17 @@ const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
  *
  * Deliberately not exported. It is the honest domain for indexing `PROJECTS`
  * and the tables below, but it names the same set as the generated
- * `ProjectSlug` — the `satisfies` clause above holds that. So anything this
- * module hands *outward* returns `ProjectSlug`, and a second name for one
- * shape never reaches a call site (`src/types/AGENTS.md`). Parameters keep
- * this name freely: the unions are identical, so a caller holding
- * `ProjectSlug` passes it with no cast.
+ * `ProjectSlug` — the `satisfies` clause above holds that. So a function
+ * *returning* a project to a consumer returns `ProjectSlug`, and a second
+ * name for one shape never reaches a call site (`src/types/AGENTS.md`).
+ *
+ * Parameters keep this name freely: the unions are identical, so a caller
+ * holding `ProjectSlug` passes it with no cast, and `PROJECTS[project]` is
+ * what these functions actually do.
+ *
+ * `getProjectSlugs` is the one return that keeps it, because it *feeds* the
+ * generator: `accessPlugin.ts` builds the `ProjectSlug` jsonSchema from its
+ * output. Declaring it as the type it produces would state the conclusion.
  */
 type InternalProjectSlug = keyof typeof PROJECTS
 
