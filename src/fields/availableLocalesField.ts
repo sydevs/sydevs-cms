@@ -56,11 +56,9 @@ async function readPublishStatus(
  * Which of `locales` are not published, given whatever `_status` came back.
  *
  * A **map** is the `localizeStatus` shape: one status per locale. A plain
- * **string** is a global without the flag, where publish state is
- * all-or-nothing. All three translations globals set the flag since #709, so
- * the string branch has no caller today — it is what keeps the field mountable
- * on a fourth surface before that global opts in, and what it answers if the
- * root `experimental.localizeStatus` flag is ever turned off.
+ * **string** is the shape without that flag — all-or-nothing, and what a read
+ * returns if the root `experimental.localizeStatus` flag is ever off. All three
+ * translations globals set the flag, so that branch has no caller today.
  */
 export function unpublishedLocales(status: unknown, locales: LocaleCode[]): LocaleCode[] {
   if (typeof status === 'string') return status === 'published' ? [] : [...locales]
