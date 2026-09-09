@@ -258,14 +258,16 @@ is presentational only — the data path and column name are unchanged, so no
 migration is involved. Mixing leaf keys and sub-groups at one level is
 deliberately unsupported: declare explicit `general` + `a11y` sub-groups.
 
-A tab or sub-group may set **`"title"`** to name itself. The default is the
-slug in title case, which reads correctly for a slug made of words
-(`page_tags` → "Page Tags") and badly for one that is not (`a11y` → "A11y").
-Reach for it wherever the slug is a shorthand the translator should never
-have to decode — the ten `a11y` groups on `wm-web-translations` all say
-`"title": "Accessibility"`. It is presentational only: the field name, data
-path, and column still come from the slug, so renaming a group here
-migrates nothing.
+A sub-group's label is its slug in title case, which reads correctly for a
+slug made of words (`page_tags` → "Page Tags") and badly for one that is not
+(`a11y` → "A11y"). **`SUBGROUP_PRESENTATION`** in `translationsField.ts` is
+the one place that overrides it, and it carries the collapse rule beside the
+label so both facts about a slug stay together — `a11y` renders as
+"Accessibility" and starts closed. Add an entry there, never a label in a
+schema: a schema-side label would be re-declared in every global that used
+the slug, with nothing pinning the copies equal, and would leave the collapse
+rule stranded on the other side. Presentational only — the field name, data
+path, and column still come from the slug.
 
 ### Per-key character limit (`maxLength`, and `strict`)
 

@@ -73,16 +73,6 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  */
 interface GroupSchema {
   type: 'object'
-  /**
-   * Display name for this tab or sub-group. Defaults to the slug in title
-   * case, which is right for a slug that reads as words (`page_tags` → "Page
-   * Tags") and wrong for one that does not (`a11y` → "A11y"). Set it wherever
-   * the slug is a shorthand the translator should never have to decode.
-   *
-   * Presentational only — the field name, data path, and column all still
-   * come from the slug, so renaming a group here migrates nothing.
-   */
-  title?: string
   description?: string
   properties?: Record<string, LeafPropertySchema | GroupSchema>
   additionalProperties?: boolean
@@ -152,9 +142,28 @@ function createScreenshotField(
   }
 }
 
-/** A group's own `title`, else its slug in title case (`page_tags` -> `Page Tags`). */
-function groupLabel(slug: string, group: GroupSchema): string {
-  return group.title ?? toWords(slug.replace(/_/g, '-'))
+/**
+ * Sub-group slugs the builder presents on its own terms, because the slug is a
+ * shorthand rather than words.
+ *
+ * Everything a sub-group's slug decides about its presentation lives in this
+ * one table. `toWords('a11y')` is "A11y", which tells a translator nothing —
+ * and accessibility strings are long, rarely edited, and would push the
+ * visible copy off the screen, so the group also starts closed. Splitting
+ * those two facts (a label in the schema, a collapse rule here) would leave a
+ * reader checking two places to learn how one group behaves, and every schema
+ * declaring the label again with nothing pinning the copies equal.
+ *
+ * Presentational only: the field name, data path, and column all still come
+ * from the slug.
+ */
+const SUBGROUP_PRESENTATION: Record<string, { initCollapsed: boolean; label: string }> = {
+  a11y: { initCollapsed: true, label: 'Accessibility' },
+}
+
+/** A sub-group's presented name, else its slug in title case (`page_tags` -> `Page Tags`). */
+function groupLabel(slug: string): string {
+  return SUBGROUP_PRESENTATION[slug]?.label ?? toWords(slug.replace(/_/g, '-'))
 }
 
 /** `sy-atlas-translations` + `emails` -> `SyAtlasTranslationsEmails`. */
@@ -410,12 +419,11 @@ export function buildTranslationTabs(
         // exactly as before and no migration is involved.
         const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
           type: 'collapsible',
-          label: groupLabel(subSlug, subSchema),
+          label: groupLabel(subSlug),
           admin: {
             ...(subSchema.description ? { description: subSchema.description } : {}),
-            // Accessibility strings are long, rarely edited, and would push
-            // the visible copy off the screen. Everything else opens.
-            initCollapsed: subSlug === 'a11y',
+            // Everything not named in SUBGROUP_PRESENTATION opens.
+            initCollapsed: SUBGROUP_PRESENTATION[subSlug]?.initCollapsed ?? false,
           },
           fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
         }))
@@ -426,14 +434,14 @@ export function buildTranslationTabs(
           fields: collapsibles,
         }
         return {
-          label: groupLabel(groupSlug, groupSchema),
+          label: groupLabel(groupSlug),
           description: groupSchema.description,
           fields: [groupField],
         }
       }
 
       return {
-        label: groupLabel(groupSlug, groupSchema),
+        label: groupLabel(groupSlug),
         description: groupSchema.description,
         fields: createLeafFields(groupSlug, groupSchema, globalSlug),
       }

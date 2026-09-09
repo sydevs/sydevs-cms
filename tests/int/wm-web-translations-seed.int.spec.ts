@@ -8,11 +8,13 @@
  * `localizeStatus` treats `_status` as a per-locale column. Both are database
  * facts.
  *
- * It matters beyond the seed because `wm-web-config.availableLocales` refuses
- * a locale whose translations are unpublished (#705). English is exempt from
- * that gate, so a publish that silently did nothing would still let `['en']`
- * through — and would only surface when someone tried to add a second
- * language. So the cases below check the publish itself, not just its effect.
+ * The publish needs asserting **directly**, because nothing else observes it.
+ * English is exempt from `availableLocales`'s publish gate — gating the one
+ * locale nobody can deselect would deadlock the save — and a global read
+ * returns the same document whether `draft` is true, false, or unset. So a
+ * publish that silently did nothing would leave every downstream behaviour
+ * looking correct, and show up only as wrong state in the admin. These cases
+ * read `_status`, rather than inferring it from an effect.
  *
  * It runs the real `TranslationsImporter`, which also seeds the app and atlas
  * globals. That is deliberate: a change breaking one of its siblings breaks
@@ -126,7 +128,10 @@ describe('seeding wm-web-translations', () => {
     expect((doc.forms as Record<string, Record<string, string>>).general.submit).toBe('Submit')
   }, 120_000)
 
-  describe('what the publish unlocks on wm-web-config', () => {
+  // The seed leaves `wm-web-config` able to offer English and nothing else.
+  // English passes on its exemption rather than on the publish — that is the
+  // point of asserting `_status` above instead of inferring it from here.
+  describe('what wm-web-config makes of the seeded state', () => {
     const setWebLocales = (locales: string[]) =>
       payload.updateGlobal({
         slug: 'wm-web-config',
@@ -134,11 +139,11 @@ describe('seeding wm-web-translations', () => {
         overrideAccess: true,
       })
 
-    it('accepts English, because the seed published it', async () => {
+    it('accepts English', async () => {
       expect(await localesErrorOrNull(() => setWebLocales(['en']))).toBeNull()
     })
 
-    it('still refuses a language the seed did not publish, and names it', async () => {
+    it('refuses a language the seed did not publish, and names it', async () => {
       const message = await localesErrorOrNull(() => setWebLocales(['en', 'fr']))
       expect(message).toMatch(/French/)
     })

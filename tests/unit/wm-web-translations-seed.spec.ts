@@ -32,13 +32,33 @@ import schemaJson from '../../src/globals/WeMeditateWebTranslations/translations
  */
 const ENGLISH_PLURAL_CATEGORIES = ['one', 'other'] as const
 
-type LeafProp = { type: 'string' | 'richText'; plural?: boolean; description?: string }
-
-const schema = schemaJson as unknown as {
-  properties: Record<string, SchemaNode>
+type LeafProp = {
+  type: 'string' | 'richText'
+  plural?: boolean
+  description?: string
+  maxLength?: number
+  strict?: boolean
 }
 
+const schema = schemaJson as unknown as { properties: Record<string, SchemaNode> }
 const seed = seedFile as unknown as Record<string, unknown>
+
+/**
+ * One declared string key, resolved to everything the assertions need:
+ *
+ * - `seeded` — the storage keys English is expected to fill. One per key,
+ *   or the two English plural forms.
+ * - `allowed` — every storage key the schema permits. The full CLDR family
+ *   for a plural key, so `_few` and `_many` are legal but not required.
+ *
+ * Keeping both here is what makes the English-vs-full-family distinction
+ * visible in one place, rather than as a ternary repeated per assertion.
+ */
+interface DeclaredKey {
+  prop: LeafProp
+  seeded: Array<{ path: string; value: unknown }>
+  allowed: string[]
+}
 
 /** `common.a11y.dismiss`, or `navigation.about_meditation` for a flat tab. */
 function seedPath(groupField: string | null, fieldName: string, innerKey: string): string {
@@ -46,39 +66,43 @@ function seedPath(groupField: string | null, fieldName: string, innerKey: string
 }
 
 function readSeed(groupField: string | null, fieldName: string, innerKey: string): unknown {
-  const leaf = groupField === null ? seed[fieldName] : (seed[groupField] as never)?.[fieldName]
+  const container = groupField === null ? seed : (seed[groupField] as Record<string, unknown>)
+  const leaf = container?.[fieldName]
   if (leaf === null || typeof leaf !== 'object') return undefined
   return (leaf as Record<string, unknown>)[innerKey]
 }
 
-interface DeclaredKey {
-  groupField: string | null
-  fieldName: string
-  key: string
-  prop: LeafProp
-}
-
-/** Every declared string key, with the sub-group it lives in and its schema. */
 function declaredKeys(): DeclaredKey[] {
   const out: DeclaredKey[] = []
   for (const [tabSlug, tabNode] of Object.entries(schema.properties)) {
-    // `expandPlurals: false` — one entry per DECLARED key, so the plural
-    // expectation below is stated once per key rather than once per form.
+    // `expandPlurals: false` — one entry per DECLARED key, so each expectation
+    // is stated once per key rather than once per form.
     for (const lookup of collectLeafLookups(tabSlug, tabNode)) {
-      if (lookup.innerKey === null) continue
+      const { groupField, fieldName, innerKey } = lookup
+      if (innerKey === null) continue
       // A flat tab's keys hang off the tab node. A nested tab's hang off the
       // sub-group node, which `fieldName` names.
       const source =
-        lookup.groupField === null
+        groupField === null
           ? tabNode
-          : ((tabNode.properties ?? {})[lookup.fieldName] as SchemaNode | undefined)
-      const prop = (source?.properties ?? {})[lookup.innerKey] as LeafProp | undefined
+          : ((tabNode.properties ?? {})[fieldName] as SchemaNode | undefined)
+      const prop = (source?.properties ?? {})[innerKey] as LeafProp | undefined
       if (!prop || prop.type !== 'string') continue
+
+      const seededKeys =
+        prop.plural === true
+          ? ENGLISH_PLURAL_CATEGORIES.map((category) => `${innerKey}_${category}`)
+          : [innerKey]
+
       out.push({
-        groupField: lookup.groupField,
-        fieldName: lookup.fieldName,
-        key: lookup.innerKey,
         prop,
+        seeded: seededKeys.map((storageKey) => ({
+          path: seedPath(groupField, fieldName, storageKey),
+          value: readSeed(groupField, fieldName, storageKey),
+        })),
+        allowed: (prop.plural === true ? pluralStorageKeys(innerKey) : [innerKey]).map((storageKey) =>
+          seedPath(groupField, fieldName, storageKey),
+        ),
       })
     }
   }
@@ -94,35 +118,18 @@ describe('seeds/wm-web-translations/data.en.json', () => {
     expect(keys.length).toBeGreaterThan(100)
   })
 
-  describe('covers every key the schema declares', () => {
-    it.each(keys.filter((entry) => entry.prop.plural !== true))(
-      '$groupField.$fieldName.$key',
-      ({ groupField, fieldName, key }) => {
-        const value = readSeed(groupField, fieldName, key)
-        expect(value, seedPath(groupField, fieldName, key)).toBeTypeOf('string')
-      },
-    )
-
-    it.each(keys.filter((entry) => entry.prop.plural === true))(
-      '$groupField.$fieldName.$key (plural)',
-      ({ groupField, fieldName, key }) => {
-        for (const category of ENGLISH_PLURAL_CATEGORIES) {
-          const storageKey = `${key}_${category}`
-          expect(
-            readSeed(groupField, fieldName, storageKey),
-            seedPath(groupField, fieldName, storageKey),
-          ).toBeTypeOf('string')
-        }
-      },
-    )
+  // Collected rather than one case per key: a single failure then names every
+  // missing path at once, instead of the first of 140.
+  it('covers every key the schema declares', () => {
+    const missing = keys
+      .flatMap((entry) => entry.seeded)
+      .filter((entry) => typeof entry.value !== 'string')
+      .map((entry) => entry.path)
+    expect(missing).toEqual([])
   })
 
   it('carries no key the schema does not declare', () => {
-    const allowed = new Set<string>()
-    for (const { groupField, fieldName, key, prop } of keys) {
-      const storageKeys = prop.plural === true ? pluralStorageKeys(key) : [key]
-      for (const storageKey of storageKeys) allowed.add(seedPath(groupField, fieldName, storageKey))
-    }
+    const allowed = new Set(keys.flatMap((entry) => entry.allowed))
 
     const present: string[] = []
     for (const [topKey, topValue] of Object.entries(seed)) {
@@ -145,19 +152,10 @@ describe('seeds/wm-web-translations/data.en.json', () => {
   })
 
   it('leaves no value blank', () => {
-    const blank: string[] = []
-    for (const { groupField, fieldName, key, prop } of keys) {
-      const storageKeys =
-        prop.plural === true
-          ? ENGLISH_PLURAL_CATEGORIES.map((category) => `${key}_${category}`)
-          : [key]
-      for (const storageKey of storageKeys) {
-        const value = readSeed(groupField, fieldName, storageKey)
-        if (typeof value === 'string' && value.trim() === '') {
-          blank.push(seedPath(groupField, fieldName, storageKey))
-        }
-      }
-    }
+    const blank = keys
+      .flatMap((entry) => entry.seeded)
+      .filter(({ value }) => typeof value === 'string' && value.trim() === '')
+      .map(({ path }) => path)
     expect(blank).toEqual([])
   })
 
@@ -165,18 +163,13 @@ describe('seeds/wm-web-translations/data.en.json', () => {
   // never mentions reads as literal text, and gets translated as such.
   it('names every placeholder it uses in that key’s description', () => {
     const unexplained: string[] = []
-    for (const { groupField, fieldName, key, prop } of keys) {
+    for (const { prop, seeded } of keys) {
       const description = prop.description ?? ''
-      const storageKeys =
-        prop.plural === true
-          ? ENGLISH_PLURAL_CATEGORIES.map((category) => `${key}_${category}`)
-          : [key]
-      for (const storageKey of storageKeys) {
-        const value = readSeed(groupField, fieldName, storageKey)
+      for (const { path, value } of seeded) {
         if (typeof value !== 'string') continue
         for (const match of value.matchAll(/%\{(\w+)\}/g)) {
           if (!description.includes(`%{${match[1]}}`)) {
-            unexplained.push(`${seedPath(groupField, fieldName, storageKey)} → %{${match[1]}}`)
+            unexplained.push(`${path} → %{${match[1]}}`)
           }
         }
       }
@@ -189,17 +182,11 @@ describe('seeds/wm-web-translations/data.en.json', () => {
   // `pnpm seed translations` fail on a fresh database.
   it('keeps every strict value inside its own limit', () => {
     const over: string[] = []
-    for (const { groupField, fieldName, key, prop } of keys) {
-      const limit = (prop as { maxLength?: number; strict?: boolean }).maxLength
-      if (!(prop as { strict?: boolean }).strict || typeof limit !== 'number') continue
-      const storageKeys =
-        prop.plural === true
-          ? ENGLISH_PLURAL_CATEGORIES.map((category) => `${key}_${category}`)
-          : [key]
-      for (const storageKey of storageKeys) {
-        const value = readSeed(groupField, fieldName, storageKey)
-        if (typeof value === 'string' && [...value].length > limit) {
-          over.push(`${seedPath(groupField, fieldName, storageKey)} (${[...value].length}/${limit})`)
+    for (const { prop, seeded } of keys) {
+      if (prop.strict !== true || typeof prop.maxLength !== 'number') continue
+      for (const { path, value } of seeded) {
+        if (typeof value === 'string' && [...value].length > prop.maxLength) {
+          over.push(`${path} (${[...value].length}/${prop.maxLength})`)
         }
       }
     }
@@ -207,7 +194,7 @@ describe('seeds/wm-web-translations/data.en.json', () => {
   })
 
   it('agrees with the storage family the field builder expands to', () => {
-    // Guards the assumption the English-only cases above rest on: `one` and
+    // Guards the assumption the English-only expectations rest on: `one` and
     // `other` really are members of the family, so seeding them populates
     // real columns rather than keys nothing reads.
     for (const category of ENGLISH_PLURAL_CATEGORIES) {

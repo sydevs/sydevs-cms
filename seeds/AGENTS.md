@@ -111,11 +111,19 @@ file (`wm-app-translations`, `wm-web-translations`); `sy-atlas-translations`
 still gets values generated from its key names, until #706 replaces them —
 and that PR deletes `generateExampleData` as its last caller.
 
-**`wm-web-translations` is also published in English** (#707). That is not
-tidiness: `wm-web-config.availableLocales` refuses a locale whose
-translations are unpublished, so without the publish nobody could offer
-English at all. Its `_status` is a per-locale column (`localizeStatus`,
-#705), so publishing English leaves every other locale a draft.
+**`wm-web-translations` is also published in English** (#707), so the CMS's
+own answer to "is English published?" matches the copy it holds. Its
+`_status` is a per-locale column (`localizeStatus`, #705), so publishing
+English leaves every other locale a draft.
+
+⚠ **Two things the publish does not do**, both easy to assume:
+
+- It is not what lets `wm-web-config.availableLocales` offer `en`. English is
+  **exempt** from that field's publish gate by design — gating the one locale
+  nobody can deselect would deadlock the save (`src/fields/availableLocalesField.ts`).
+  The gate gates every *other* locale.
+- It does not change what a read returns. A global read comes back identical
+  whether `draft` is true, false, or unset. The publish sets state.
 
 ⚠ **Do not copy that publish onto `wm-app-translations`.** One `_status`
 covers every locale there, so publishing it would claim 19 translated

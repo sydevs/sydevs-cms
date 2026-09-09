@@ -10,11 +10,19 @@
  * field. Other locales are untouched.
  *
  * `wm-web-translations` is additionally **published in English** (#707), so
- * `wm-web-config.availableLocales` can offer `en` — that field refuses a
- * locale whose translations are not published. Its `_status` is per-locale
- * (`localizeStatus`, #705), so publishing `en` leaves every other locale a
- * draft. `wm-app-translations` has one status for all locales, so it keeps
- * the plain update: publishing it here would claim 19 translated locales.
+ * the CMS's own answer to "is English published?" matches the copy it holds.
+ * Its `_status` is per-locale (`localizeStatus`, #705), so publishing `en`
+ * leaves every other locale a draft.
+ *
+ * ⚠ It is NOT what lets `wm-web-config.availableLocales` offer `en`. English
+ * is exempt from that field's publish gate by design — gating the one locale
+ * nobody can deselect would deadlock the save (`availableLocalesField.ts`).
+ * Nor does it change what a read returns: a global read comes back identical
+ * whether `draft` is true, false, or unset. The publish sets state, and state
+ * is what an operator and the admin go by.
+ *
+ * `wm-app-translations` has one status for all locales, so it keeps the plain
+ * update: publishing it here would claim 19 translated locales.
  *
  * Usage:
  *   pnpm seed:dev translations --dry-run
@@ -189,7 +197,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     })
 
     const { _meta: _ignored, ...data } = seed
-    await this.writeGlobal('wm-web-translations', data, { publish: true })
+    await this.writeGlobal('wm-web-translations', data, true)
   }
 
   // --------------------------------------------------------------------------
@@ -209,7 +217,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
   // --------------------------------------------------------------------------
 
   /**
-   * `publish: true` publishes the English locale and nothing else.
+   * `publish` publishes the English locale and nothing else.
    *
    * Under `localizeStatus` (#705) `_status` is itself a localized column, so
    * writing `'published'` at `locale: 'en'` fills only English's cell.
@@ -217,14 +225,18 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
    * `publishSpecificLocale` names the locale being published in the version
    * snapshot. Every other locale stays a draft, which is what
    * `availableLocales` reads to refuse an untranslated language.
+   *
+   * Only a global whose `_status` is localized may be published here. On one
+   * with a single `_status`, this would mark every locale published at once —
+   * see the header. `tests/int/wm-web-translations-seed.int.spec.ts` holds
+   * that line by asserting `wm-app-translations` comes back unpublished.
    */
   private async writeGlobal(
     slug: string,
     data: Record<string, unknown>,
-    options: { publish?: boolean } = {},
+    publish = false,
   ): Promise<void> {
     const fieldNames = Object.keys(data)
-    const publish = options.publish === true
 
     if (this.options.dryRun) {
       await this.logger.info(
@@ -245,12 +257,12 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
       throw new Error('Payload instance not initialised (BaseImporter contract violation)')
     }
 
+    const payloadData = publish ? { ...data, _status: 'published' } : data
+
     try {
       await this.payload.updateGlobal({
         slug: slug as Parameters<typeof this.payload.updateGlobal>[0]['slug'],
-        data: (publish
-          ? { ...data, _status: 'published' }
-          : data) as Parameters<typeof this.payload.updateGlobal>[0]['data'],
+        data: payloadData as Parameters<typeof this.payload.updateGlobal>[0]['data'],
         locale: LOCALE,
         ...(publish ? { draft: false as const, publishSpecificLocale: LOCALE } : {}),
       })
