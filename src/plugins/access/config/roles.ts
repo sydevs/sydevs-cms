@@ -15,11 +15,7 @@ import type { CollectionSlug } from 'payload'
 
 import type { ProjectSlug } from '@/payload-types'
 
-import {
-  getAllProjectCollections,
-  isCollectionVisibleInProject,
-  type InternalProjectSlug,
-} from './projects'
+import { getAllProjectCollections, isCollectionVisibleInProject } from './projects'
 
 // =============================================================================
 // Internal Configuration (NOT exported - use helper functions)
@@ -177,7 +173,7 @@ export function getRoleSlugs(): InternalRoleSlug[] {
  * @param role - Role slug
  * @returns Project slug or undefined
  */
-export function getRoleProject(role: InternalRoleSlug): InternalProjectSlug | undefined {
+export function getRoleProject(role: InternalRoleSlug): ProjectSlug | undefined {
   const roleConfig = ROLES[role]
   return roleConfig?.project
 }
@@ -243,7 +239,7 @@ export function getProjectsFromRoles(
     : (Object.values(roles).flat() as InternalRoleSlug[])
 
   // Map to projects and deduplicate
-  const projects = new Set<InternalProjectSlug>()
+  const projects = new Set<ProjectSlug>()
   for (const role of allRoles) {
     const project = getRoleProject(role)
     if (project) projects.add(project)

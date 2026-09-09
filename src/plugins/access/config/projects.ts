@@ -98,11 +98,21 @@ const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
 const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
 
 // =============================================================================
-// Type Export (for use by roles.ts)
+// Internal Type (module-private — the boundary speaks `ProjectSlug`)
 // =============================================================================
 
-/** Project slug type derived from PROJECTS constant */
-export type InternalProjectSlug = keyof typeof PROJECTS
+/**
+ * Project slug type derived from PROJECTS constant.
+ *
+ * Deliberately not exported. It is the honest domain for indexing `PROJECTS`
+ * and the tables below, but it names the same set as the generated
+ * `ProjectSlug` — the `satisfies` clause above holds that. So anything this
+ * module hands *outward* returns `ProjectSlug`, and a second name for one
+ * shape never reaches a call site (`src/types/AGENTS.md`). Parameters keep
+ * this name freely: the unions are identical, so a caller holding
+ * `ProjectSlug` passes it with no cast.
+ */
+type InternalProjectSlug = keyof typeof PROJECTS
 
 // =============================================================================
 // Computed Lookup Tables (internal only, computed at module load)
