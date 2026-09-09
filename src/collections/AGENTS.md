@@ -295,7 +295,7 @@ code that treats "plain object ⇒ a group to expand" renders the whole row.
 references to _name_, or a proposed manager came out as their id, roles,
 email, and every notification preference.
 
-## A JSON column declares its shape (#659)
+## A JSON column declares its shape (#659, #726)
 
 `type: 'json'` with no `jsonSchema` accepts anything and generates
 `{ [k: string]: unknown } | unknown[] | string | number | boolean | null`.
@@ -304,23 +304,47 @@ validator for writes **and** substitutes the schema into
 `payload-types.ts`, so the column's consumers stop restating its shape by
 hand.
 
+**`jsonFieldSchema` (`src/fields/jsonFieldSchema.ts`) is the one way to
+declare one.** It takes a title and a shape, and derives `uri`,
+`fileMatch`, `$id` and `title` from that title — nothing else may build a
+`jsonSchema` literal, and no `*_SCHEMA_URI` constant exists to import.
+
 ```typescript
 {
-  name: 'metadata',
+  name: 'frames',
   type: 'json',
-  jsonSchema: {
-    uri: LECTURE_METADATA_SCHEMA_URI,
-    fileMatch: [LECTURE_METADATA_SCHEMA_URI],
-    schema: lectureMetadataJsonSchema,   // carries the same $id, plus a `title`
-  },
+  jsonSchema: jsonFieldSchema('MeditationFrames', z.array(z.looseObject({
+    id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
+    timestamp: z.number().describe('Seconds into the meditation.'),
+  }))),
 }
 ```
 
-Four things to know before you write one:
-
-- **A `title` names the generated interface**, and `$id` is the fallback.
-  Reuse one schema across several columns and Payload emits
-  `FileMetadata`, `FileMetadata1`, … — one per usage, same shape.
+- **Declare the shape in Zod, inline at the field**, so a reader sees the
+  column's shape where it is declared. `zod` is already a production
+  dependency. Emission is `draft-04` with `$schema` deleted — leaving
+  `$schema` in makes Ajv 8 throw ``no schema with key or ref
+  "…draft-04/schema#"`` on **every save** of the column, and `draft-07`
+  emits `const`/`propertyNames`, which drift from the rest of the tree.
+- **Zod idioms, and what each emits:** `z.strictObject` →
+  `additionalProperties: false`. `z.looseObject` → `additionalProperties:
+  {}` (the same `[k: string]: unknown` as `true`). `z.literal(true)` →
+  `{ type: 'boolean', enum: [true] }`, which keeps a discriminator.
+  `.describe()` → `description`, which becomes JSDoc on the generated
+  property. `z.int()` also emits the safe-integer bounds; the helper
+  strips them.
+- **The raw `JSONSchema4` overload is the escape hatch**, for what Zod
+  cannot say: `maxProperties` (`UserMessages.context`), and a bare `enum`
+  with no `type` beside it spliced from a const array
+  (`UserMessages.screeningResult`, `Clients.canonical.verification`).
+- **Name a schema at module level only when it is too big to read beside
+  the field** — `ReadinessReport` and `EventQualityReport` — or when the
+  const arrays it splices live elsewhere. Say which, in one line, above it.
+- **A `title` names the generated interface**, and it is the only thing a
+  URI change cannot move. Reuse one schema across several columns and
+  Payload emits `FileMetadata`, `FileMetadata1`, … — one per usage, same
+  shape. Two *different* shapes sharing a title silently merge into one;
+  `tests/unit/json-field-schema-helper.spec.ts` fails when they do.
 - **Every property optional, unless nothing can hold the old shape.**
   Payload validates the column on *every* save of the document, including
   one that never touched it, so a `required` key or
@@ -331,16 +355,17 @@ Four things to know before you write one:
   Payload's loose union verbatim. The column is still nullable in
   Postgres, and the validator skips `null`, `undefined`, `{}` and `[]`
   before reaching Ajv — so code that clears a column casts.
-  **`type: ['object', 'null']` puts it back, but only on a schema with no
+  **`.nullable()` puts it back, but only on a schema with no
   `properties`** (`meditationNodeWeightsFieldSchema`). Add `properties`
   and `generate:types` emits `X & (X | null)`, which is `X` again plus a
   duplicated copy of the whole interface — so there the cast stays.
 - **An open shape can still be typed.** `additionalProperties: true`
   generates `[k: string]: unknown`, so every consumer reading a dynamic
   key needs a hand-written alias to cast to — the second definition this
-  rule exists to delete. Give `additionalProperties` a schema instead
-  (`notificationPreferencesJsonSchema`): the value is described, the keys
-  stay open, and no row is stranded.
+  rule exists to delete. Give `additionalProperties` a schema instead —
+  `z.record(z.string(), <value shape>)`, as
+  `Managers.notificationPreferences` does: the value is described, the
+  keys stay open, and no row is stranded.
 - **Ajv runs in strict mode**, so only standard JSON Schema keywords may
   appear. A custom keyword throws at validate time, not at boot.
 
@@ -388,10 +413,12 @@ columns, and every readiness section all do.
 
 Two consequences worth knowing:
 
-- **Write a union as `oneOf`, not one object with optional keys.** `oneOf`
-  keeps the discriminator, so a reader narrowing on `qualityReport.skipped`
-  gets `checks` non-null. Merged into one object, both arms' keys become
-  optional and the narrowing is gone.
+- **Write a union as a union, not one object with optional keys.**
+  `z.union([...])` emits `anyOf` and keeps the discriminator, so a reader
+  narrowing on `qualityReport.skipped` gets `checks` non-null. Merged into
+  one object, both arms' keys become optional and the narrowing is gone.
+  `anyOf` and `oneOf` accept identically here, because the branches are
+  closed and discriminated, so at most one can ever match.
 - **The generated type still omits `null`.** A hook returning `null` — no
   future occurrence, no locale — is not expressible alongside `properties`
   (see the bullet above), so a consumer still null-checks.

@@ -51,10 +51,24 @@ export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
 ```
 
 This also covers **JSON-schema columns**: a `jsonSchema` field generates an
-interface, named after the schema's `title` (`LectureMetadata`) or, with no
-title, its `$id` (`HttpsSahajcloudDevSchemas…Json`). A hand-written interface
-next to that schema is the same restatement, one level down — import the
-generated one instead, as `nirmalaVidya.ts` and `lectureShape.ts` do.
+interface named after the schema's `title` (`LectureMetadata`). A
+hand-written interface next to that schema is the same restatement, one
+level down — import the generated one instead, as `nirmalaVidya.ts` and
+`lectureShape.ts` do.
+
+**Declare that shape with `jsonFieldSchema` (`src/fields/jsonFieldSchema.ts`),
+in Zod, inline at the field it belongs to** — the one way to declare a JSON
+column's shape, and the reason no `*_SCHEMA_URI` constant exists to import.
+It derives the schema's `uri`, `fileMatch` and `$id` from the title, so the
+title is the only name in play, and it is what the generated interface is
+called. Rules and Zod idioms: `src/collections/AGENTS.md`, "A JSON column
+declares its shape".
+
+⚠ **A Zod type used this way types the column, not a parser.** `z.infer` of
+it is a second definition of the same shape — read the column's type off
+`@/payload-types` like any other. The one place both exist is
+`subtitles.ts`, where one cue literal serves a strict parser for foreign
+data and a loose column schema, and the comment there says so.
 
 ### A derived alias stays local, and is never re-exported
 
