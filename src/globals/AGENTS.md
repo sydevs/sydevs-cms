@@ -263,7 +263,8 @@ slug made of words (`page_tags` → "Page Tags") and badly for one that is not
 (`a11y` → "A11y"). **`SUBGROUP_PRESENTATION`** in `translationsField.ts` is
 the one place that overrides it, and it carries the collapse rule beside the
 label so both facts about a slug stay together — `a11y` renders as
-"Accessibility" and starts closed. Add an entry there, never a label in a
+"Accessibility" and starts closed. Only sub-groups read that table: a tab's
+label is always its slug in title case, whatever the slug. Add an entry there, never a label in a
 schema: a schema-side label would be re-declared in every global that used
 the slug, with nothing pinning the copies equal, and would leave the collapse
 rule stranded on the other side. Presentational only — the field name, data
