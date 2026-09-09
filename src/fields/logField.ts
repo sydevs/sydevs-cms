@@ -1,3 +1,4 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
 
 /**
@@ -107,6 +108,68 @@ export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean
   return log.some((entry) => entry.type === type && entry.key === key)
 }
 
+export const ACTIVITY_LOG_SCHEMA_URI = 'urn:sahajcloud:schema:activity-log'
+
+/**
+ * One cell, as JSON Schema. Mirrors {@link LogCell}.
+ */
+const logCellJsonSchema: JSONSchema4 = {
+  oneOf: [
+    { type: 'string' },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['text'],
+      properties: {
+        label: { type: 'string', description: 'Muted, inline before the text.' },
+        text: { type: 'string' },
+        sub: { type: 'string', description: 'Muted line beneath the text.' },
+      },
+    },
+  ],
+}
+
+/**
+ * The shape every activity log holds. Mirrors {@link LogEntry}.
+ *
+ * `at`, `type` and `cells` are required because they always have been —
+ * `asLog` has rejected an entry missing any of the three since the field
+ * factory shipped (#626), so no stored row can hold a looser shape, and the
+ * "keep every property optional" caution does not bite here.
+ *
+ * `additionalProperties: true` is the machine data the doc comment describes:
+ * a reminder's stage and recipient, a verification's ten fields. It is
+ * genuinely open — each writer owns its own keys — so there is nothing to
+ * describe, and the generated `[k: string]: unknown` is the honest type.
+ */
+export const activityLogJsonSchema: JSONSchema4 = {
+  $id: ACTIVITY_LOG_SCHEMA_URI,
+  title: 'ActivityLog',
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: true,
+    required: ['at', 'type', 'cells'],
+    properties: {
+      at: { type: 'string', description: 'ISO 8601. The first column, and the sort key.' },
+      type: { type: 'string', description: 'Stable slug — matched by jobs, never shown.' },
+      key: { type: 'string', description: 'Exactly-once key, scoped to `type`.' },
+      cells: {
+        type: 'object',
+        additionalProperties: logCellJsonSchema,
+        description: 'What the columns read. Everything outside this is machine data.',
+      },
+    },
+  },
+}
+
+/** The field-level wrapper Payload wants. Shared by every `logField` column. */
+export const activityLogFieldSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: ACTIVITY_LOG_SCHEMA_URI,
+  fileMatch: [ACTIVITY_LOG_SCHEMA_URI],
+  schema: activityLogJsonSchema,
+}
+
 export interface LogFieldOptions {
   /** Defaults to `activityLog`; override only when a document needs two logs. */
   name?: string
@@ -136,14 +199,13 @@ export function logField({
   columns,
   admin = {},
 }: LogFieldOptions): JSONField {
-  // No schema here yet, deliberately. #695 promotes `activityLog` to every
-  // submission type, on a path a client's action reaches, so it decides what
-  // this factory declares. Adding one now would give the column two definitions
-  // to reconcile at that merge. See #659's group B.
   return {
     name,
     type: 'json',
     label,
+    // Declared here, once, so every consumer of the factory inherits it —
+    // `user-submissions.activityLog` included (#695 group B / #659).
+    jsonSchema: activityLogFieldSchema,
     admin: {
       ...admin,
       readOnly: true,

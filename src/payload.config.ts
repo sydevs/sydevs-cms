@@ -31,6 +31,11 @@ import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
+import { formFields } from './collections/Forms/fields'
+import { validateFormAction } from './collections/Forms/hooks/validateFormAction'
+import { userSubmissionFields } from './collections/UserSubmissions/fields'
+import { enforceSubscribeReach } from './collections/UserSubmissions/hooks/enforceSubscribeReach'
+import { prepareUserSubmission } from './collections/UserSubmissions/hooks/prepareUserSubmission'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
 import { globals } from './globals'
@@ -299,14 +304,35 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,
       }),
-      // Form builder plugin (enabled in all environments)
+      // Form builder plugin (enabled in all environments).
+      //
+      // The submissions collection is renamed `user-submissions` (#723): it is
+      // the one intake for every public write — contact, subscribe,
+      // registration, proposal — and not every one of those comes from an
+      // authored form. See src/collections/UserSubmissions/.
+      //
+      // `formOverrides.fields` strips the plugin's `emails` array, which
+      // structurally disables its create-time `sendEmail` hook. See
+      // src/collections/Forms/fields.ts.
       formBuilderPlugin({
         defaultToEmail: CONTACT_EMAIL,
         formOverrides: {
           admin: { group: 'Content', enableRichTextRelationship: true },
+          fields: formFields,
+          hooks: { beforeValidate: [validateFormAction] },
         },
         formSubmissionOverrides: {
-          admin: { group: 'System' },
+          slug: 'user-submissions',
+          labels: { singular: 'User Submission', plural: 'User Submissions' },
+          admin: {
+            group: 'System',
+            useAsTitle: 'subject',
+            defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
+          },
+          fields: userSubmissionFields,
+          // Order matters: the reach check refuses a forbidden target before
+          // `prepareUserSubmission` upserts a `users` row for its sender.
+          hooks: { beforeValidate: [enforceSubscribeReach, prepareUserSubmission] },
         },
       }),
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)

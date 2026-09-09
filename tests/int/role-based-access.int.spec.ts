@@ -881,7 +881,6 @@ describe('Role-Based Access Control', () => {
         'albums',
         'videos',
         'forms',
-        'form-submissions',
       ] as const
 
       webProjectCollections.forEach((collection) => {
