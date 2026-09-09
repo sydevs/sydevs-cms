@@ -104,9 +104,12 @@ describe('SUPPORTED_TIMEZONES', () => {
    * — but a POSIX `Etc/GMT*` zone is a fixed offset with no DST and no ICU
    * naming history, so every host formats it identically.
    */
+  // Any instant works — a POSIX `Etc/GMT*` zone has no DST — so pin one.
+  const INSTANT = new Date(Date.UTC(2026, 0, 1))
+
   const realOffsetOf = (zone: string) => {
     const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
-      .formatToParts(new Date(Date.UTC(2026, 0, 1)))
+      .formatToParts(INSTANT)
       .find((p) => p.type === 'timeZoneName')?.value
     // Some ICU versions render a zero offset as a bare `GMT`.
     return name === 'GMT' ? '+00:00' : name?.replace(/^GMT/, '')
