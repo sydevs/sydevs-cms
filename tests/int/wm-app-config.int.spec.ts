@@ -88,8 +88,9 @@ describe('WeMeditateAppConfig Global', () => {
       const topLevel = globalConfig!.fields
       expect(topLevel.map((f) => ('name' in f ? f.name : f.type))).toContain('availableLocales')
 
+      // `!` rather than a `toBeDefined()` beside it: if no tabs field is found,
+      // reading `.type` below throws and fails this case loudly anyway.
       const tabsField = topLevel.find((f) => f.type === 'tabs')!
-      expect(tabsField).toBeDefined()
 
       if (tabsField.type === 'tabs') {
         expect(tabsField.tabs).toHaveLength(3)

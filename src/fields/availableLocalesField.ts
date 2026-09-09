@@ -123,7 +123,7 @@ export function availableLocalesField({
       // without it — so gating it would be a deadlock rather than a gate. The
       // migration that adds per-locale `_status` lands every locale as `draft`,
       // and Payload validates the merged document on every save of the global.
-      // Gating English would make both config globals unsaveable on the deploy
+      // Gating English would make every config global unsaveable on the deploy
       // that ships this field, while the error told the operator to publish the
       // one locale they cannot deselect. Every other locale falls back to
       // English anyway.

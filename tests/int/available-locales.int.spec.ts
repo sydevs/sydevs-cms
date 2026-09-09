@@ -1,6 +1,6 @@
 /**
- * `availableLocales` on the two config globals, and the API-client English
- * merge that makes offering a locale safe (#705).
+ * `availableLocales` on all three config globals, and the API-client English
+ * merge that makes offering a locale safe (#705, extended to the app by #709).
  *
  * Both need a database, and for the same reason: the field's answer depends on
  * a *stored* per-locale `_status`, and the merge's on a stored English row. The
@@ -85,14 +85,17 @@ describe('availableLocales', () => {
       overrideAccess: true,
     })
 
-  const publishAtlasLocale = (locale: TypedLocale, data: Record<string, unknown> = {}) =>
+  const publishLocale = (slug: string, locale: TypedLocale, data: Record<string, unknown> = {}) =>
     payload.updateGlobal({
-      slug: 'sy-atlas-translations',
+      slug: slug as Parameters<typeof payload.updateGlobal>[0]['slug'],
       locale,
       publishSpecificLocale: locale,
       data: { _status: 'published', ...data } as never,
       overrideAccess: true,
     })
+
+  const publishAtlasLocale = (locale: TypedLocale, data: Record<string, unknown> = {}) =>
+    publishLocale('sy-atlas-translations', locale, data)
 
   describe('the English invariant', () => {
     // Every other locale falls back to English, so a set without it describes a
@@ -109,7 +112,7 @@ describe('availableLocales', () => {
 
     // The deadlock the exemption exists for. The migration lands every locale
     // as `draft`, and Payload validates the merged document on every save — so
-    // gating English would make both config globals unsaveable on deploy, while
+    // gating English would make every config global unsaveable on deploy, while
     // telling the operator to publish the one locale they cannot deselect.
     it('accepts English with nothing published, and with the publish check ON', async () => {
       await payload.updateGlobal({
@@ -216,18 +219,13 @@ describe('availableLocales', () => {
         overrideAccess: true,
       })
 
-    it('refuses a set that omits English', async () => {
-      expect(await localesError(() => setApp(['fr']))).toMatch(/English must always be available/)
-    })
+    const publishAppLocale = (locale: TypedLocale, data: Record<string, unknown> = {}) =>
+      publishLocale('wm-app-translations', locale, data)
 
-    const publishAppLocale = (locale: TypedLocale) =>
-      payload.updateGlobal({
-        slug: 'wm-app-translations',
-        locale,
-        publishSpecificLocale: locale,
-        data: { _status: 'published' } as never,
-        overrideAccess: true,
-      })
+    // The English invariant is deliberately not re-asserted per mount. It is
+    // checked above the `translationsSlug` read in `availableLocalesField.ts`,
+    // so it cannot differ by surface — which is why the `wm-web` block above
+    // carries only its gating case too.
 
     it('gates on its own translations global, not the atlas one', async () => {
       // Italian published on the ATLAS translations must not count for the app.
@@ -329,7 +327,8 @@ describe('availableLocales', () => {
   /**
    * The one acceptance criterion the local API cannot answer.
    *
-   * Both config globals gained a sub-table (`<global>_available_locales`), and
+   * All three config globals gained a sub-table (`<global>_available_locales`),
+   * and
    * the `languages` → `locales` collision this field replaces was a **read-time
    * Drizzle failure** — the config compiled, the local API was never reached,
    * and only a REST read surfaced it. So these go through `handleEndpoints`
