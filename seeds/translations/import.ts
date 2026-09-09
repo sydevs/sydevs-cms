@@ -3,11 +3,18 @@
  *
  * Seeds every translation global with English content:
  *   wm-app-translations  → real copy from seeds/wm-app-translations/data.en.json
- *   wm-web-translations  → example strings derived from the schema key names
+ *   wm-web-translations  → real copy from seeds/wm-web-translations/data.en.json
  *   sy-atlas-translations → example strings derived from the schema key names
  *
  * Idempotent — re-running overwrites the English locale value for every
  * field. Other locales are untouched.
+ *
+ * `wm-web-translations` is additionally **published in English** (#707), so
+ * `wm-web-config.availableLocales` can offer `en` — that field refuses a
+ * locale whose translations are not published. Its `_status` is per-locale
+ * (`localizeStatus`, #705), so publishing `en` leaves every other locale a
+ * draft. `wm-app-translations` has one status for all locales, so it keeps
+ * the plain update: publishing it here would claim 19 translated locales.
  *
  * Usage:
  *   pnpm seed:dev translations --dry-run
@@ -18,7 +25,6 @@ import * as path from 'path'
 
 import atlasSchema from '../../src/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
-import wmWebSchema from '../../src/globals/WeMeditateWebTranslations/translationsSchema.json' with { type: 'json' }
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
   buildWmAppGlobalData,
@@ -102,9 +108,19 @@ function generateExampleData(schema: SchemaRoot): Record<string, unknown> {
 // Seed definitions
 // ============================================================================
 
-const SEED_DATA_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
+const WM_APP_SEED_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
+const WM_WEB_SEED_LOCAL_PATH = 'seeds/wm-web-translations/data.en.json'
 
 const LOCALE = 'en' as const
+
+/**
+ * The wm-web seed file, minus its `_meta` header, IS the `updateGlobal` data:
+ * `<tab>.<sub-group>.<key>` for a nested tab, `<tab>.<key>` for a flat one.
+ * Nothing transforms it, which is the point — a shape mismatch surfaces as a
+ * Payload validation error naming the offending key, not as silently dropped
+ * copy. `tests/unit/wm-web-translations-seed.spec.ts` pins it to the schema.
+ */
+type WmWebSeedFile = { _meta?: unknown } & Record<string, unknown>
 
 // ============================================================================
 // Importer
@@ -116,7 +132,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
 
   protected async import(): Promise<void> {
     await this.seedWmApp()
-    await this.seedFromSchema('wm-web-translations', wmWebSchema as SchemaRoot)
+    await this.seedWmWeb()
     await this.seedFromSchema('sy-atlas-translations', atlasSchema as SchemaRoot)
   }
 
@@ -129,8 +145,8 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
 
     const { loadJsonData } = await import('../lib/dataLoader')
     const seed = await loadJsonData<SeedFile>({
-      localPath: SEED_DATA_LOCAL_PATH,
-      inlineContent: this.options.inlineData?.[SEED_DATA_LOCAL_PATH],
+      localPath: WM_APP_SEED_LOCAL_PATH,
+      inlineContent: this.options.inlineData?.[WM_APP_SEED_LOCAL_PATH],
     })
 
     let data: Record<string, unknown>
@@ -150,7 +166,25 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // --------------------------------------------------------------------------
-  // wm-web-translations / sy-atlas-translations: generated example content
+  // wm-web-translations: real English copy from data.en.json
+  // --------------------------------------------------------------------------
+
+  private async seedWmWeb(): Promise<void> {
+    const { loadJsonData } = await import('../lib/dataLoader')
+    const seed = await loadJsonData<WmWebSeedFile>({
+      localPath: WM_WEB_SEED_LOCAL_PATH,
+      inlineContent: this.options.inlineData?.[WM_WEB_SEED_LOCAL_PATH],
+    })
+
+    const { _meta: _ignored, ...data } = seed
+    await this.writeGlobal('wm-web-translations', data, { publish: true })
+  }
+
+  // --------------------------------------------------------------------------
+  // sy-atlas-translations: generated example content
+  //
+  // Delete `generateExampleData` along with this method when #706 replaces the
+  // atlas schema with real copy — it is then the last caller.
   // --------------------------------------------------------------------------
 
   private async seedFromSchema(slug: string, schema: SchemaRoot): Promise<void> {
@@ -162,12 +196,28 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
   // Shared write helper
   // --------------------------------------------------------------------------
 
-  private async writeGlobal(slug: string, data: Record<string, unknown>): Promise<void> {
+  /**
+   * `publish: true` publishes the English locale and nothing else.
+   *
+   * Under `localizeStatus` (#705) `_status` is itself a localized column, so
+   * writing `'published'` at `locale: 'en'` fills only English's cell.
+   * `draft: false` keeps Payload out of its save-a-draft branch, and
+   * `publishSpecificLocale` names the locale being published in the version
+   * snapshot. Every other locale stays a draft, which is what
+   * `availableLocales` reads to refuse an untranslated language.
+   */
+  private async writeGlobal(
+    slug: string,
+    data: Record<string, unknown>,
+    options: { publish?: boolean } = {},
+  ): Promise<void> {
     const fieldNames = Object.keys(data)
+    const publish = options.publish === true
 
     if (this.options.dryRun) {
       await this.logger.info(
-        `[dry-run] Would write ${fieldNames.length} field(s) to global "${slug}"`,
+        `[dry-run] Would write ${fieldNames.length} field(s) to global "${slug}"` +
+          (publish ? ` and publish locale "${LOCALE}"` : ''),
       )
       for (const name of fieldNames) {
         this.report.incrementCreated()
@@ -186,11 +236,14 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     try {
       await this.payload.updateGlobal({
         slug: slug as Parameters<typeof this.payload.updateGlobal>[0]['slug'],
-        data: data as Parameters<typeof this.payload.updateGlobal>[0]['data'],
+        data: (publish
+          ? { ...data, _status: 'published' }
+          : data) as Parameters<typeof this.payload.updateGlobal>[0]['data'],
         locale: LOCALE,
+        ...(publish ? { draft: false as const, publishSpecificLocale: LOCALE } : {}),
       })
       await this.logger.success(
-        `Updated global "${slug}" with ${fieldNames.length} field(s) (locale=${LOCALE})`,
+        `${publish ? 'Published' : 'Updated'} global "${slug}" with ${fieldNames.length} field(s) (locale=${LOCALE})`,
       )
       for (const name of fieldNames) {
         this.report.incrementUpdated()
