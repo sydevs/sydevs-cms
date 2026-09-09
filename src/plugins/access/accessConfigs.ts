@@ -10,9 +10,16 @@
  */
 
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
-import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest, Where } from 'payload'
+import type {
+  Access,
+  AccessArgs,
+  CollectionConfig,
+  CollectionSlug,
+  PayloadRequest,
+  Where,
+} from 'payload'
 
-import { appendVersionToQueryKey } from 'payload'
+import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
@@ -158,14 +165,12 @@ export function createAccessConfig(
     }
   }
 
-  const update = accessConfig.update
-  if (update) accessConfig.readVersions = createReadVersionsAccess(update)
-
   return accessConfig
 }
 
 /**
- * Version history is EDIT authority, not read authority (#719).
+ * Derive `readVersions` from `update`: version history is EDIT authority, not
+ * read authority (#719).
  *
  * `findVersions`, `findVersionByID` and `countVersions` — and their globals
  * twins — read `access.readVersions` and nothing else. The published-only
@@ -181,25 +186,39 @@ export function createAccessConfig(
  * there — so this delegates to it rather than defining a second authority that
  * can drift out of step with the first.
  *
+ * ⚠ **Apply this to the MERGED access config, after any per-entity override.**
+ * `accessPlugin` spreads a collection's own `access` over the generated one, so
+ * deriving `readVersions` inside `createAccessConfig` would bind it to an
+ * `update` the override had already replaced — reintroducing the drift the
+ * delegation exists to prevent. An entity that sets its own `readVersions`
+ * keeps it.
+ *
  * ⚠ **The `Where` has to be translated.** `update` returns a query over
  * DOCUMENTS, and every versions operation combines the access result straight
  * into a query over the VERSIONS collection without remapping it — there a
  * document's fields sit under `version.` and its id is `parent`.
- * `appendVersionToQueryKey` is Payload's own mapping for this, the one
- * `replaceWithDraftIfAvailable` applies to the `read` result. Skip it and
- * `{ id: { in: [7] } }` quietly matches version *rows* by their own primary
- * key — a wrong answer that still returns documents.
+ * `appendVersionToQueryKey` is Payload's own mapping for this, and pairing it
+ * with `hasWhereAccessResult` is exactly what `replaceWithDraftIfAvailable`
+ * does to the `read` result. Skip it and `{ id: { in: [7] } }` quietly matches
+ * version *rows* by their own primary key — a wrong answer that still returns
+ * documents.
  *
  * Live preview is unaffected: it reads drafts through `find`/`findByID` with
  * `draft: true`, which resolves against `read` (see the preview-secret branch
  * above), never through a versions operation.
  */
-function createReadVersionsAccess(
-  update: NonNullable<CollectionConfig['access']>['update'],
-): NonNullable<CollectionConfig['access']>['readVersions'] {
-  return async (args) => {
-    const result = await update!(args)
-    return typeof result === 'object' && result !== null ? appendVersionToQueryKey(result) : result
+export function withVersionHistoryAccess<T extends { readVersions?: Access; update?: Access }>(
+  access: T,
+): T {
+  const { readVersions, update } = access
+  if (readVersions || !update) return access
+
+  return {
+    ...access,
+    readVersions: async (args) => {
+      const result = await update(args)
+      return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
+    },
   }
 }
 

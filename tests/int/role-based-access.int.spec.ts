@@ -1864,28 +1864,21 @@ describe('Role-Based Access Control', () => {
   })
 
   /**
-   * Version history is EDIT authority (#719).
-   *
-   * `findVersions` reads `access.readVersions` and nothing else — the
-   * published-only constraint that guards ordinary client reads never runs on
-   * that path. With `readVersions` unset, Payload's fallback is "is anyone
-   * logged in", which an API key satisfies, so every draft on every versioned
-   * collection was readable by any published client key.
+   * Version history is EDIT authority (#719) — see `withVersionHistoryAccess`
+   * in `src/plugins/access/accessConfigs.ts` for what the rule is and why.
    *
    * Fixture assumptions, each checked against the real config rather than
-   * assumed: `pages` and `meditations` both enable `versions.drafts`
-   * (`src/collections/Pages/Pages.ts`, `src/collections/Meditations/Meditations.ts`);
-   * `sahaj-atlas`'s collection list omits `pages` entirely, and
-   * `wemeditate-web`'s includes both `pages` and `meditations`
+   * assumed: `pages` and `app-cards` both enable `versions.drafts`
+   * (`src/collections/Pages/Pages.ts`, `src/collections/AppCards/AppCards.ts`);
+   * `sahaj-atlas`'s collection list omits `pages` entirely, `wemeditate-web`'s
+   * includes it, and `wemeditate-app`'s includes `app-cards`
    * (`src/plugins/access/config/projects.ts`); `web-translator` grants
-   * `translate` on `pages` and nothing on `meditations`
-   * (`src/plugins/access/config/roles.ts`); `wm-web-translations` enables
-   * drafts and no role grants `update` on it
+   * `translate` on `pages`, and `meditations-editor` grants nothing on
+   * `app-cards` (`src/plugins/access/config/roles.ts`); `wm-web-translations`
+   * enables drafts and no role grants `update` on it
    * (`src/globals/WeMeditateWebTranslations/WeMeditateWebTranslations.ts`).
    */
   describe('Version history access (readVersions)', () => {
-    const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
-
     /** The `select` the original #719 probe used to clear the client query gate. */
     const versionSelect = { version: true } as const
 
@@ -1968,7 +1961,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         where: { parent: { equals: unpublishedPage.id } },
         depth: 0,
-        user: managerUser(versionAdmin),
+        user: versionAdmin,
         overrideAccess: false,
       })
 
@@ -1989,7 +1982,7 @@ describe('Role-Based Access Control', () => {
         where: { parent: { equals: unpublishedPage.id } },
         depth: 0,
         locale: 'en',
-        user: managerUser(translator),
+        user: translator,
         overrideAccess: false,
       })
 
@@ -2021,7 +2014,7 @@ describe('Role-Based Access Control', () => {
           select: idOnlySelect(),
           depth: 0,
           locale: 'en',
-          user: managerUser(editor),
+          user: editor,
           overrideAccess: false,
         }),
       ).resolves.toBeTruthy()
@@ -2032,7 +2025,7 @@ describe('Role-Based Access Control', () => {
           select: versionSelect,
           depth: 0,
           locale: 'en',
-          user: managerUser(editor),
+          user: editor,
           overrideAccess: false,
         }),
       ).rejects.toThrow('You are not allowed to perform this action.')
@@ -2068,30 +2061,26 @@ describe('Role-Based Access Control', () => {
 
       // The offset above is a fixture property, so pin it: if page and version
       // ids ever realign, this case silently stops testing the translation.
-      const allRows = await payload.findVersions({
+      const collidingRow = await payload.findVersions({
         collection: 'pages',
+        where: { id: { equals: mine.id } },
         depth: 0,
-        pagination: false,
         overrideAccess: true,
       })
-      expect(
-        allRows.docs.some((row) => Number(row.id) === mine.id && Number(row.parent) !== mine.id),
-      ).toBe(true)
+      expect(collidingRow.totalDocs).toBe(1)
+      expect(Number(collidingRow.docs[0]!.parent)).not.toBe(mine.id)
 
       const versions = await payload.findVersions({
         collection: 'pages',
         depth: 0,
         pagination: false,
         locale: 'en',
-        user: managerUser(editor),
+        user: editor,
         overrideAccess: false,
       })
 
       const parentIds = versions.docs.map((row) => row.parent)
-      expect(parentIds).toContain(mine.id)
       expect(parentIds).not.toContain(theirs.id)
-      expect(parentIds).not.toContain(decoy.id)
-      expect(parentIds).not.toContain(unpublishedPage.id)
       expect(new Set(parentIds)).toEqual(new Set([mine.id]))
     })
 
@@ -2102,14 +2091,14 @@ describe('Role-Based Access Control', () => {
       await payload.updateGlobal({
         slug: 'wm-web-translations',
         data: {},
-        user: managerUser(versionAdmin),
+        user: versionAdmin,
         overrideAccess: false,
       })
 
       const asAdmin = await payload.findGlobalVersions({
         slug: 'wm-web-translations',
         depth: 0,
-        user: managerUser(versionAdmin),
+        user: versionAdmin,
         overrideAccess: false,
       })
       expect(asAdmin.totalDocs).toBeGreaterThan(0)
