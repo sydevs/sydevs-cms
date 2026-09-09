@@ -1,6 +1,8 @@
 import type { Block } from 'payload'
 
-const TOC_HEADINGS_SCHEMA_URI = 'urn:sahajcloud:schema:toc-headings'
+import { z } from 'zod'
+
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 
 export const TableOfContentsBlock: Block = {
   slug: 'table-of-contents',
@@ -32,25 +34,16 @@ export const TableOfContentsBlock: Block = {
       // in a `'use client'` module, and this block config is server-side.
       // Entries stay open so a heading gaining a field does not make every
       // existing page unsaveable.
-      jsonSchema: {
-        uri: TOC_HEADINGS_SCHEMA_URI,
-        fileMatch: [TOC_HEADINGS_SCHEMA_URI],
-        schema: {
-          $id: TOC_HEADINGS_SCHEMA_URI,
-          title: 'TableOfContentsHeadings',
-          type: 'array',
-          items: {
-            type: 'object',
-            additionalProperties: true,
-            required: ['slug', 'text', 'level'],
-            properties: {
-              slug: { type: 'string' },
-              text: { type: 'string' },
-              level: { type: 'integer' },
-            },
-          },
-        },
-      },
+      jsonSchema: jsonFieldSchema(
+        'TableOfContentsHeadings',
+        z.array(
+          z.looseObject({
+            slug: z.string(),
+            text: z.string(),
+            level: z.int(),
+          }),
+        ),
+      ),
       admin: {
         description: 'Select headings above to include in the table of contents',
         components: {

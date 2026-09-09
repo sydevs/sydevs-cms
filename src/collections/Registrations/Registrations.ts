@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { legacyMigrationFields, logField } from '@/fields'
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
@@ -93,11 +94,7 @@ export const Registrations: CollectionConfig = {
       // Payload generates the `questions` TS type AND validates on write (an unknown
       // key or non-string answer throws a ValidationError → 400 at the register
       // endpoint, surfaced verbatim rather than a 500).
-      jsonSchema: {
-        uri: 'urn:sahajcloud:schema:registration-questions',
-        fileMatch: ['urn:sahajcloud:schema:registration-questions'],
-        schema: registrationQuestionsJsonSchema,
-      },
+      jsonSchema: jsonFieldSchema('RegistrationQuestions', registrationQuestionsJsonSchema),
       admin: {
         description:
           "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — experience, referral, aspirations, questions).",

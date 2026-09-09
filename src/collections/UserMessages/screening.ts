@@ -50,6 +50,9 @@ export type MessageVerdict = (typeof MESSAGE_VERDICTS)[number]
  * writes here — an unknown key is a bug in the job, not an older server meeting
  * a newer client. `verdict` takes its enum from {@link MESSAGE_VERDICTS}, so the
  * runtime list and the stored contract cannot drift.
+ *
+ * Raw JSON Schema rather than Zod, and named rather than inline: `verdict` is a
+ * bare `enum` spliced from that const array, which is where it belongs.
  */
 export const screeningResultJsonSchema: JSONSchema4 = {
   type: 'object',

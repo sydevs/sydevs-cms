@@ -1,6 +1,8 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
 
+import { jsonFieldSchema } from './jsonFieldSchema'
+
 /**
  * A `systemMeta` JSON field: the namespaced home for system-managed,
  * non-editable, **non-indexable** values on a document — vote tallies, counters,
@@ -27,9 +29,7 @@ import type { JSONField } from 'payload'
  * — an admin form, a partial API patch — can't wipe it.
  */
 export function systemMetaField(options: {
-  /** Unique `$id` for the schema. */
-  uri: string
-  /** Names the generated interface in `payload-types.ts` — without it Payload derives one from `$id`. */
+  /** Names the generated interface in `payload-types.ts`, and derives the schema's URI. */
   title: string
   /** One entry per namespace, e.g. `{ communityFeedback: { … } }`. */
   namespaces: Record<string, JSONSchema4>
@@ -39,17 +39,14 @@ export function systemMetaField(options: {
   return {
     name: 'systemMeta',
     type: 'json',
-    jsonSchema: {
-      uri: options.uri,
-      fileMatch: [options.uri],
-      schema: {
-        $id: options.uri,
-        title: options.title,
-        type: 'object',
-        additionalProperties: false,
-        properties: options.namespaces,
-      },
-    },
+    // The general helper's special case, not a parallel implementation: the
+    // namespaces are the only thing that varies, so the wrapper is derived the
+    // same way every other JSON column's is.
+    jsonSchema: jsonFieldSchema(options.title, {
+      type: 'object',
+      additionalProperties: false,
+      properties: options.namespaces,
+    }),
     access: { update: () => false },
     admin: {
       readOnly: true,

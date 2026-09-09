@@ -5,9 +5,8 @@ import { createElement } from 'react'
 
 import {
   buildDefaultNotificationPreferences,
-  NOTIFICATION_PREFERENCES_SCHEMA_URI,
   NOTIFICATION_TYPES,
-  notificationPreferencesJsonSchema,
+  notificationPreferencesFieldSchema,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
@@ -232,11 +231,7 @@ export const Managers: CollectionConfig = {
               name: 'notificationPreferences',
               type: 'json',
               defaultValue: buildDefaultNotificationPreferences(),
-              jsonSchema: {
-                uri: NOTIFICATION_PREFERENCES_SCHEMA_URI,
-                fileMatch: [NOTIFICATION_PREFERENCES_SCHEMA_URI],
-                schema: notificationPreferencesJsonSchema,
-              },
+              jsonSchema: notificationPreferencesFieldSchema,
               // Composed, not replaced: supplying `validate` takes over from the
               // built-in one, which is what runs the schema above. The extra
               // rule — a method is required unless the frequency is "Never" —

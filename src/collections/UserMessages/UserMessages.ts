@@ -1,6 +1,8 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, FieldAccess } from 'payload'
 
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+
 import { enqueueUserMessageScreening } from './hooks/enqueueUserMessageScreening'
 import { prepareUserMessage } from './hooks/prepareUserMessage'
 import { screeningResultJsonSchema } from './screening'
@@ -43,6 +45,9 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
  * key's value is unbounded. The serialized-length validator that used to cover
  * that was dropped deliberately (review of #653) — the size cap is not worth a
  * hand-written validator beside a schema.
+ *
+ * Raw JSON Schema rather than Zod, and named rather than inline: `maxProperties`
+ * has no Zod equivalent, and the block above is the reasoning it carries.
  */
 const contextJsonSchema: JSONSchema4 = {
   type: 'object',
@@ -133,11 +138,7 @@ export const UserMessages: CollectionConfig = {
       // an unknown key or a bad verdict is a bug in the job rather than an older
       // server meeting a newer client. Generates the type the job and the admin
       // banner both read.
-      jsonSchema: {
-        uri: 'urn:sahajcloud:schema:user-message-screening-result',
-        fileMatch: ['urn:sahajcloud:schema:user-message-screening-result'],
-        schema: screeningResultJsonSchema,
-      },
+      jsonSchema: jsonFieldSchema('UserMessageScreeningResult', screeningResultJsonSchema),
       access: systemFieldAccess,
       admin: {
         readOnly: true,
@@ -184,11 +185,7 @@ export const UserMessages: CollectionConfig = {
       // block, each row omitted when its value is absent.
       name: 'context',
       type: 'json',
-      jsonSchema: {
-        uri: 'urn:sahajcloud:schema:user-message-context',
-        fileMatch: ['urn:sahajcloud:schema:user-message-context'],
-        schema: contextJsonSchema,
-      },
+      jsonSchema: jsonFieldSchema('UserMessageContext', contextJsonSchema),
       admin: { readOnly: true },
     },
     {

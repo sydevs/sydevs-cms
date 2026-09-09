@@ -1,6 +1,8 @@
 import type { JSONSchema4 } from 'json-schema'
 
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { ClientCanonicalVerification } from '@/payload-types'
+
 
 import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
@@ -21,10 +23,6 @@ import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
  * `verified` below — written solely by the verification job from what it
  * observed on the live page — is what a canonical URL may be built from.
  */
-
-/** `$id` / `fileMatch` key Payload names the generated type from. */
-export const CANONICAL_VERIFICATION_SCHEMA_URI =
-  'urn:sahajcloud:schema:client-canonical-verification'
 
 /** Definitive failures — the embed is genuinely not working. These count. */
 export const VERIFICATION_FAILURE_REASONS = ['dns', 'http', 'marker-absent'] as const
@@ -51,7 +49,7 @@ export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_R
  *
  * The chain is one-directional and worth stating, because it is easy to read the
  * wrong way round: the const arrays above are spliced into
- * {@link canonicalVerificationJsonSchema} below, Payload generates
+ * {@link canonicalVerificationFieldSchema} below, Payload generates
  * `ClientCanonicalVerification` from that schema's `title`, and these three
  * aliases derive from the generated type. So the arrays are the single source
  * and this file cannot drift from the column (#671).
@@ -93,10 +91,16 @@ const domainSchema: JSONSchema4 = {
  * The `domain` pattern is the same bare-host rule the admin field used to
  * enforce with `canonicalDomainValidate`. It moved here because the host is now
  * job-written rather than typed — the guard belongs where the write happens.
+ *
+ * **Raw JSON Schema, not Zod — this is what the escape hatch is for.** Three
+ * properties are bare `enum`s spliced from the const arrays above with no
+ * `type` beside them, and `verified` is `['object', 'null']` rather than a
+ * union. Zod cannot emit either form, and `ClientCanonicalVerification` plus
+ * the three aliases below are generated from this shape (#671), so restating it
+ * in Zod would move a type nothing asked to move. Named rather than inline for
+ * the same reason: those const arrays live here.
  */
-export const canonicalVerificationJsonSchema: JSONSchema4 = {
-  $id: CANONICAL_VERIFICATION_SCHEMA_URI,
-  title: 'ClientCanonicalVerification',
+export const canonicalVerificationFieldSchema = jsonFieldSchema('ClientCanonicalVerification', {
   type: 'object',
   additionalProperties: false,
   required: ['verified', 'failureCount', 'attempts'],
@@ -134,7 +138,7 @@ export const canonicalVerificationJsonSchema: JSONSchema4 = {
       },
     },
   },
-}
+})
 
 /** What one verification run concluded. */
 export type VerificationResult =

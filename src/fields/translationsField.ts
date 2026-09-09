@@ -13,6 +13,8 @@ import { json as validateJson, toWords } from 'payload/shared'
 import { basicRichTextEditor } from '@/lib/richEditor'
 import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
 
+import { jsonFieldSchema } from './jsonFieldSchema'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -152,8 +154,6 @@ function pascalCase(...segments: (string | undefined)[]): string {
     .join('')
 }
 
-const SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
-
 /**
  * The JSON Schema for one leaf group's strings blob.
  *
@@ -187,7 +187,6 @@ export function stringsJsonSchema({
   parentGroup?: string
   stringProps: [string, StringPropertySchema][]
 }): NonNullable<JSONField['jsonSchema']> {
-  const uri = [SCHEMA_URI_BASE, globalSlug, parentGroup, fieldName].filter(Boolean).join('/')
   const title = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
 
   const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> = {}
@@ -204,17 +203,14 @@ export function stringsJsonSchema({
     }
   }
 
-  return {
-    uri,
-    fileMatch: [uri],
-    schema: {
-      $id: uri,
-      title,
-      type: 'object',
-      additionalProperties: allowAdditional,
-      properties,
-    },
-  }
+  // Raw JSON Schema rather than Zod: `additionalProperties` is a per-group
+  // boolean rather than a fixed shape, and the properties are built from the
+  // group's own entries at config time.
+  return jsonFieldSchema(title, {
+    type: 'object',
+    additionalProperties: allowAdditional,
+    properties,
+  })
 }
 
 /**

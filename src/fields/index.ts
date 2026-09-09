@@ -19,7 +19,10 @@ export type {
 } from './publicUrlFields'
 
 // File metadata - the shared sidebar column on the four upload collections
-export { fileMetadataField, FILE_METADATA_SCHEMA_URI } from './fileMetadataField'
+export { fileMetadataField } from './fileMetadataField'
+
+// JSON field schema - the one way to declare a JSON column's shape
+export { jsonFieldSchema, kebabCase } from './jsonFieldSchema'
 
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'

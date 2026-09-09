@@ -1,11 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
-import {
-  CANONICAL_VERIFICATION_SCHEMA_URI,
-  canonicalVerificationJsonSchema,
-} from '@/lib/clients/verification'
+import { canonicalVerificationFieldSchema } from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { abuseScoreFieldSchema, calculateAbuseScore } from '@/plugins/usage'
@@ -188,11 +186,7 @@ export const Clients: CollectionConfig = {
                   // Written only by the VerifyEmbeds job (and verify-on-demand) from
                   // what was observed on the live page — never by a client report, so
                   // a forged report can nominate a mount but never reshape a public URL.
-                  jsonSchema: {
-                    uri: CANONICAL_VERIFICATION_SCHEMA_URI,
-                    fileMatch: [CANONICAL_VERIFICATION_SCHEMA_URI],
-                    schema: canonicalVerificationJsonSchema,
-                  },
+                  jsonSchema: canonicalVerificationFieldSchema,
                   admin: {
                     readOnly: true,
                     condition: canonicalEnabled,
@@ -225,15 +219,7 @@ export const Clients: CollectionConfig = {
                   name: 'embedMetadata',
                   type: 'json',
                   label: 'Discovered Embeds',
-                  jsonSchema: {
-                    uri: 'urn:sahajcloud:schema:client-embed-metadata',
-                    fileMatch: ['urn:sahajcloud:schema:client-embed-metadata'],
-                    schema: {
-                      $id: 'urn:sahajcloud:schema:client-embed-metadata',
-                      title: 'ClientEmbedMetadata',
-                      ...embedMetadataJsonSchema,
-                    },
-                  },
+                  jsonSchema: jsonFieldSchema('ClientEmbedMetadata', embedMetadataJsonSchema),
                   admin: {
                     readOnly: true,
                     description:

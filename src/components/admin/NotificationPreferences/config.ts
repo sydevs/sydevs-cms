@@ -7,9 +7,11 @@
  * change. The helpers are pure (no React, no Payload) so they can be reused
  * by the field's `defaultValue`/`validate` and unit-tested directly.
  */
-import type { JSONSchema4 } from 'json-schema'
+import { z } from 'zod'
 
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { NotificationPreferences } from '@/payload-types'
+
 
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
@@ -20,9 +22,6 @@ export interface NotificationType {
   description: string
   frequencyOptions: string[]
 }
-
-export const NOTIFICATION_PREFERENCES_SCHEMA_URI =
-  'urn:sahajcloud:schema:notification-preferences'
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
   {
@@ -131,25 +130,18 @@ export function buildDefaultNotificationPreferences(
  * string rather than against `frequencyOptions` — dropping an option would
  * otherwise strand every manager still on it.
  */
-export const notificationPreferencesJsonSchema: JSONSchema4 = {
-  $id: NOTIFICATION_PREFERENCES_SCHEMA_URI,
-  title: 'NotificationPreferences',
-  // Stays `'object'`. `type: ['object', 'null']` is the honest statement — the
-  // column is nullable — and it works on a schema with no `properties`
-  // (`meditationNodeWeightsFieldSchema`). Here it emits `X & (X | null)`, which
-  // is `X` again plus a duplicate of the whole interface. See
-  // `src/collections/AGENTS.md`.
-  type: 'object',
-  additionalProperties: {
-    type: 'object',
+export const notificationPreferencesFieldSchema = jsonFieldSchema(
+  'NotificationPreferences',
+  // Not `.nullable()`. Saying the column is nullable is the honest statement, and
+  // it works on a schema with no `properties` (`meditationNodeWeightsFieldSchema`).
+  // Here it emits `X & (X | null)`, which is `X` again plus a duplicate of the
+  // whole interface. See `src/collections/AGENTS.md`.
+  z.record(
+    z.string(),
     // The value stays open for the same reason the keys do.
-    additionalProperties: true,
-    properties: {
-      frequency: { type: 'string' },
-      method: { type: 'string' },
-    },
-  },
-}
+    z.looseObject({ frequency: z.string().optional(), method: z.string().optional() }),
+  ),
+)
 
 /**
  * Every configured preference requires a delivery method unless its frequency

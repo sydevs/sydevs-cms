@@ -1,6 +1,10 @@
-import type { CollectionSlug, JSONField, TaskConfig, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
 
+import { z } from 'zod'
+
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { ImageTag } from '@/types/tags'
+
 
 import {
   discoverReferencesForCollection,
@@ -44,24 +48,6 @@ type CleanupResult = {
  * or field knowledge required. Adding new collections with file/image references
  * requires no changes to this job.
  */
-const TEST_DATE_RANGE_SCHEMA_URI = 'urn:sahajcloud:schema:cleanup-test-date-range'
-
-const testDateRangeJsonSchema: NonNullable<JSONField['jsonSchema']> = {
-  uri: TEST_DATE_RANGE_SCHEMA_URI,
-  fileMatch: [TEST_DATE_RANGE_SCHEMA_URI],
-  schema: {
-    $id: TEST_DATE_RANGE_SCHEMA_URI,
-    title: 'CleanupTestDateRange',
-    type: 'object',
-    additionalProperties: false,
-    required: ['rangeStart', 'rangeEnd'],
-    properties: {
-      rangeStart: { type: 'string' },
-      rangeEnd: { type: 'string' },
-    },
-  },
-}
-
 export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   retries: 2,
   label: 'Cleanup Orphaned Media',
@@ -75,7 +61,10 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       name: 'testDateRange',
       type: 'json',
       required: false,
-      jsonSchema: testDateRangeJsonSchema,
+      jsonSchema: jsonFieldSchema(
+        'CleanupTestDateRange',
+        z.strictObject({ rangeStart: z.string(), rangeEnd: z.string() }),
+      ),
     },
     {
       name: 'maxOperations',

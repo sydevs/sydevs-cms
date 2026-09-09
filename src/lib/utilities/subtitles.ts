@@ -1,9 +1,6 @@
-import type { JSONSchema4 } from 'json-schema'
-import type { JSONField } from 'payload'
-
 import { z } from 'zod'
 
-export const SUBTITLES_SCHEMA_URI = 'urn:sahajcloud:schema:subtitles'
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 
 /**
  * Parser for subtitle payloads arriving from **outside** the CMS — the
@@ -11,43 +8,22 @@ export const SUBTITLES_SCHEMA_URI = 'urn:sahajcloud:schema:subtitles'
  * written. Payload validates the stored column itself (see
  * `subtitlesFieldSchema` below), so this is not a second gate on writes.
  *
- * It mirrors `subtitlesJsonSchema`. `tests/unit/subtitles.spec.ts` pins the two
- * against one fixture set in both directions, so the mirror cannot drift
- * silently. They part company on empty values only, which an optional column
- * accepts either way.
+ * It is the same cue shape the column declares below — one literal, read in two
+ * modes. `tests/unit/subtitles.spec.ts` pins the pair against one fixture set in
+ * both directions. They part company on empty values only, which an optional
+ * column accepts either way.
  */
-export const subtitlesZodSchema = z.array(
-  z.object({
-    content: z.string(),
-    startTimeMs: z.number(),
-    endTimeMs: z.number(),
-    durationMs: z.number().optional(),
-  }),
-)
+const subtitleCue = {
+  content: z.string(),
+  startTimeMs: z.number(),
+  endTimeMs: z.number(),
+  durationMs: z.number().optional(),
+}
+
+/** Strips an unknown key, which is what a parser of foreign data should do. */
+export const subtitlesZodSchema = z.array(z.object(subtitleCue))
 
 export type Subtitles = z.infer<typeof subtitlesZodSchema>
-
-/** Mirrors `subtitlesZodSchema` — see the note above. */
-export const subtitlesJsonSchema: JSONSchema4 = {
-  $id: SUBTITLES_SCHEMA_URI,
-  title: 'Subtitles',
-  type: 'array',
-  items: {
-    type: 'object',
-    properties: {
-      content: { type: 'string' },
-      startTimeMs: { type: 'number' },
-      endTimeMs: { type: 'number' },
-      durationMs: { type: 'number' },
-    },
-    required: ['content', 'startTimeMs', 'endTimeMs'],
-    // Open, because the validator this replaced was. Zod's default object mode
-    // ignores an unknown key, so a cue carrying one has always been accepted
-    // and stored. Closing the shape would make such a row fail every later
-    // save of its document, including one that never touched the subtitles.
-    additionalProperties: true,
-  },
-}
 
 /**
  * Wired onto every `subtitles` column as the field's `jsonSchema`, which makes
@@ -60,9 +36,13 @@ export const subtitlesJsonSchema: JSONSchema4 = {
  * shape: Payload's built-in `json` validator skips `null`, `undefined`, `[]`
  * and `{}` exactly as the old `isEmpty` guard did
  * (`payload/dist/fields/validations.js`).
+ *
+ * `looseObject`, not `object`: the stored column keeps an unknown key, because
+ * the validator this replaced did. Closing the shape would make a cue written
+ * under an earlier one fail every later save of its document, including one
+ * that never touched the subtitles.
  */
-export const subtitlesFieldSchema: JSONField['jsonSchema'] = {
-  uri: SUBTITLES_SCHEMA_URI,
-  fileMatch: [SUBTITLES_SCHEMA_URI],
-  schema: subtitlesJsonSchema,
-}
+export const subtitlesFieldSchema = jsonFieldSchema(
+  'Subtitles',
+  z.array(z.looseObject(subtitleCue)),
+)

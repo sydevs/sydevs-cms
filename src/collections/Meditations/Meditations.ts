@@ -1,8 +1,10 @@
 import type { CollectionConfig, JSONField, JSONFieldValidation, Validate } from 'payload'
 
 import { json as jsonFieldValidation } from 'payload/shared'
+import { z } from 'zod'
 
 import { hideUntilCreated, mediaField } from '@/fields'
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
@@ -39,8 +41,6 @@ import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeW
  * Each call maps 1:1 to this native join field config:
  *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
-export const TAG_ASSIGNMENTS_SCHEMA_URI = 'urn:sahajcloud:schema:meditation-tag-assignments'
-
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
  * this meditation, reduced to what `TagAssignmentField` renders.
@@ -50,27 +50,18 @@ export const TAG_ASSIGNMENTS_SCHEMA_URI = 'urn:sahajcloud:schema:meditation-tag-
  * sites share one `$id`, so Payload emits `TagAssignments`, `TagAssignments1`,
  * … — one interface per usage, same shape.
  */
-const tagAssignmentsFieldSchema: JSONField['jsonSchema'] = {
-  uri: TAG_ASSIGNMENTS_SCHEMA_URI,
-  fileMatch: [TAG_ASSIGNMENTS_SCHEMA_URI],
-  schema: {
-    $id: TAG_ASSIGNMENTS_SCHEMA_URI,
-    title: 'TagAssignments',
-    type: 'array',
-    items: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'title'],
-      properties: {
-        // Narrower than `MeditationFrames`'s id on purpose: nothing posts this
-        // column back, so the only writer is the hook below, which reads a
-        // numeric `user-choices` primary key.
-        id: { type: 'integer', description: 'The UserChoice document id.' },
-        title: { type: 'string', description: 'The tag title, in the read locale.' },
-      },
-    },
-  },
-}
+const tagAssignmentsFieldSchema = jsonFieldSchema(
+  'TagAssignments',
+  z.array(
+    z.strictObject({
+      // Narrower than `MeditationFrames`'s id on purpose: nothing posts this
+      // column back, so the only writer is the hook below, which reads a
+      // numeric `user-choices` primary key.
+      id: z.int().describe('The UserChoice document id.'),
+      title: z.string().describe('The tag title, in the read locale.'),
+    }),
+  ),
+)
 
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
   // Virtual: written by the hook below, never stored. The schema exists for the
