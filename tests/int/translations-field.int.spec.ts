@@ -160,6 +160,23 @@ describe('buildTranslationTabs', () => {
       ])
     })
 
+    // SUBGROUP_PRESENTATION is named for sub-groups and documented as
+    // sub-group-only (`src/globals/AGENTS.md`), so a tab must not read it. A
+    // shared helper made the two indistinguishable, and nothing said so.
+    it('never applies SUBGROUP_PRESENTATION to a top-level tab', () => {
+      const schema: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          a11y: {
+            type: 'object',
+            properties: { marker: { type: 'string', description: 'm' } },
+          },
+        },
+      }
+
+      expect(buildTranslationTabs(schema, 'test')[0].label).toBe('A11y')
+    })
+
     it('emits TranslationsRow as the Field component, with schemaEntries + globalSlug in admin.custom', () => {
       const schema: TranslationsSchema = {
         type: 'object',

@@ -161,9 +161,19 @@ const SUBGROUP_PRESENTATION: Record<string, { initCollapsed: boolean; label: str
   a11y: { initCollapsed: true, label: 'Accessibility' },
 }
 
-/** A sub-group's presented name, else its slug in title case (`page_tags` -> `Page Tags`). */
-function groupLabel(slug: string): string {
-  return SUBGROUP_PRESENTATION[slug]?.label ?? toWords(slug.replace(/_/g, '-'))
+/** A slug in title case (`page_tags` -> `Page Tags`). Every tab's label. */
+function slugLabel(slug: string): string {
+  return toWords(slug.replace(/_/g, '-'))
+}
+
+/**
+ * A sub-group's presented name, else `slugLabel`.
+ *
+ * Only sub-groups read the table, so a tab that one day shares a slug with an
+ * entry keeps its own title-case label and its own open state.
+ */
+function subGroupLabel(slug: string): string {
+  return SUBGROUP_PRESENTATION[slug]?.label ?? slugLabel(slug)
 }
 
 /** `sy-atlas-translations` + `emails` -> `SyAtlasTranslationsEmails`. */
@@ -419,7 +429,7 @@ export function buildTranslationTabs(
         // exactly as before and no migration is involved.
         const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
           type: 'collapsible',
-          label: groupLabel(subSlug),
+          label: subGroupLabel(subSlug),
           admin: {
             ...(subSchema.description ? { description: subSchema.description } : {}),
             // Everything not named in SUBGROUP_PRESENTATION opens.
@@ -434,14 +444,14 @@ export function buildTranslationTabs(
           fields: collapsibles,
         }
         return {
-          label: groupLabel(groupSlug),
+          label: slugLabel(groupSlug),
           description: groupSchema.description,
           fields: [groupField],
         }
       }
 
       return {
-        label: groupLabel(groupSlug),
+        label: slugLabel(groupSlug),
         description: groupSchema.description,
         fields: createLeafFields(groupSlug, groupSchema, globalSlug),
       }
