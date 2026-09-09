@@ -57,8 +57,10 @@ async function readPublishStatus(
  *
  * A **map** is the `localizeStatus` shape: one status per locale. A plain
  * **string** is a global without the flag, where publish state is
- * all-or-nothing — so the field stays usable on `wm-app-config` later, before
- * that global opts in.
+ * all-or-nothing. All three translations globals set the flag since #709, so
+ * the string branch has no caller today — it is what keeps the field mountable
+ * on a fourth surface before that global opts in, and what it answers if the
+ * root `experimental.localizeStatus` flag is ever turned off.
  */
 export function unpublishedLocales(status: unknown, locales: LocaleCode[]): LocaleCode[] {
   if (typeof status === 'string') return status === 'published' ? [] : [...locales]
