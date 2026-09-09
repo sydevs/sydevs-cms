@@ -232,26 +232,13 @@ export const Managers: CollectionConfig = {
               name: 'notificationPreferences',
               type: 'json',
               defaultValue: buildDefaultNotificationPreferences(),
-              // Open keys, typed value. Every key is a notification-type key, and
-              // retiring a type must not block a save: Payload validates this
-              // column on every save of a manager, and the field component
-              // spreads an unknown key back, so a closed shape would strand the
-              // row rather than let the admin clear it. Saying what the *value*
-              // holds is what makes the generated interface usable — an open
-              // value generates `[k: string]: unknown`, which is why every
-              // consumer reading `prefs[key]?.method` used to need a
-              // hand-written alias to cast to (#659).
-              //
-              // Deliberately no per-key `properties`: they validated exactly
-              // what this does, and TypeScript refuses the combination — an
-              // optional named property includes `undefined`, which is not
-              // assignable to an index signature that does not, so
-              // `payload-types.ts` itself fails `tsc` with TS2411. Requiring the
-              // four keys would fix that and strand every row missing one.
-              // `NOTIFICATION_TYPES` stays the source of truth for which keys
-              // the admin renders, and the frequency is checked as a string
-              // rather than against `frequencyOptions` — dropping an option
-              // would otherwise strand every manager still on it.
+              // Open keys, typed value. `NOTIFICATION_TYPES` stays the source
+              // of truth for which keys the admin renders, and the frequency is
+              // checked as a string rather than against `frequencyOptions`:
+              // retiring a type or an option must not strand the managers still
+              // on it. Why there are no per-key `properties`, and why the value
+              // is typed at all, are in `src/collections/AGENTS.md` under "A
+              // JSON column declares its shape".
               jsonSchema: jsonFieldSchema(
                 'NotificationPreferences',
                 z.record(

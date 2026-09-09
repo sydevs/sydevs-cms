@@ -382,6 +382,12 @@ declare one.** It takes a title and a shape, and derives `uri`,
   `z.record(z.string(), <value shape>)`, as
   `Managers.notificationPreferences` does: the value is described, the
   keys stay open, and no row is stranded.
+- **Do not name the known keys beside an open value.** Per-key
+  `properties` validate exactly what the value shape already does, and
+  TypeScript refuses the combination: an optional named property includes
+  `undefined`, which is not assignable to an index signature that does
+  not, so `payload-types.ts` itself fails `tsc` with TS2411. Making those
+  keys `required` silences the compiler and strands every row missing one.
 - **Ajv runs in strict mode**, so only standard JSON Schema keywords may
   appear. A custom keyword throws at validate time, not at boot.
 
