@@ -30,6 +30,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "dismiss": {
@@ -167,6 +168,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "error_icon": {
@@ -240,6 +242,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "filter_label": {
@@ -302,6 +305,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "mute_voice": {
@@ -367,6 +371,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "related_meditations_loading": {
@@ -415,6 +420,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "classes_heading": {
@@ -476,6 +482,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "submitting": {
@@ -543,6 +550,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "play": {
@@ -684,6 +692,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "search_label": {
@@ -743,6 +752,7 @@
         },
         "a11y": {
           "type": "object",
+          "title": "Accessibility",
           "description": "Not shown on screen; read by screen readers",
           "properties": {
             "enter_fullscreen": {

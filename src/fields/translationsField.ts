@@ -73,6 +73,16 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  */
 interface GroupSchema {
   type: 'object'
+  /**
+   * Display name for this tab or sub-group. Defaults to the slug in title
+   * case, which is right for a slug that reads as words (`page_tags` → "Page
+   * Tags") and wrong for one that does not (`a11y` → "A11y"). Set it wherever
+   * the slug is a shorthand the translator should never have to decode.
+   *
+   * Presentational only — the field name, data path, and column all still
+   * come from the slug, so renaming a group here migrates nothing.
+   */
+  title?: string
   description?: string
   properties?: Record<string, LeafPropertySchema | GroupSchema>
   additionalProperties?: boolean
@@ -140,6 +150,11 @@ function createScreenshotField(
       },
     },
   }
+}
+
+/** A group's own `title`, else its slug in title case (`page_tags` -> `Page Tags`). */
+function groupLabel(slug: string, group: GroupSchema): string {
+  return group.title ?? toWords(slug.replace(/_/g, '-'))
 }
 
 /** `sy-atlas-translations` + `emails` -> `SyAtlasTranslationsEmails`. */
@@ -395,7 +410,7 @@ export function buildTranslationTabs(
         // exactly as before and no migration is involved.
         const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
           type: 'collapsible',
-          label: toWords(subSlug.replace(/_/g, '-')),
+          label: groupLabel(subSlug, subSchema),
           admin: {
             ...(subSchema.description ? { description: subSchema.description } : {}),
             // Accessibility strings are long, rarely edited, and would push
@@ -411,14 +426,14 @@ export function buildTranslationTabs(
           fields: collapsibles,
         }
         return {
-          label: toWords(groupSlug.replace(/_/g, '-')),
+          label: groupLabel(groupSlug, groupSchema),
           description: groupSchema.description,
           fields: [groupField],
         }
       }
 
       return {
-        label: toWords(groupSlug.replace(/_/g, '-')),
+        label: groupLabel(groupSlug, groupSchema),
         description: groupSchema.description,
         fields: createLeafFields(groupSlug, groupSchema, globalSlug),
       }
