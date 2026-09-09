@@ -19,6 +19,13 @@ describe('classifyAuthAttempt', () => {
     expect(classify(`clients API-Key ${KEY}`, true)).toEqual({ outcome: 'authenticated' })
   })
 
+  it('reports a cookie-authenticated caller as authenticated, not anonymous', () => {
+    // A manager logged into the admin panel sends no `Authorization` header at
+    // all. Asking "is there a header?" before "did anyone authenticate?" files
+    // their 403 under `anonymous` — the one outcome it is not.
+    expect(classify(null, true)).toEqual({ outcome: 'authenticated' })
+  })
+
   it('reports a header that did not authenticate as rejected, naming the collection', () => {
     const attempt = classify(`clients API-Key ${KEY}`)
 

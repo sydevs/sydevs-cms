@@ -10,11 +10,19 @@
  */
 import { createHash } from 'node:crypto'
 
-/** How the request's credential fared, from the error hook's point of view. */
+/**
+ * How the request's credential fared, from the error hook's point of view.
+ *
+ * Only `rejected` changes what the hook reports. The other two are the two
+ * distinct ways an error is NOT one, kept apart because they are the pair the
+ * signal has to tell itself from: `sentry-auth-attempt.spec.ts` pins that
+ * neither escalates, and a report that stopped distinguishing them is #734
+ * back again.
+ */
 export type AuthOutcome =
-  /** No `Authorization` header. An anonymous read — ordinary traffic. */
+  /** Nobody authenticated, and no `Authorization` header. Ordinary traffic. */
   | 'anonymous'
-  /** A header that authenticated. The caller is known and was denied on access control. */
+  /** A caller Payload authenticated, by any strategy — a cookie included. */
   | 'authenticated'
   /** A header that did NOT authenticate. Always a broken integration. */
   | 'rejected'
@@ -95,10 +103,13 @@ export const classifyAuthAttempt = (
   hasUser: boolean,
   isKnownCollection: (slug: string) => boolean,
 ): AuthAttempt => {
-  const parsed = parseAuthorization(authorization ?? '')
-
-  if (!parsed) return { outcome: 'anonymous' }
+  // `hasUser` is asked first so the label matches the caller. Tested the other
+  // way round, a cookie-authenticated manager's 403 carries no `Authorization`
+  // header and would report as `anonymous` — the one outcome it is not.
   if (hasUser) return { outcome: 'authenticated' }
+
+  const parsed = parseAuthorization(authorization ?? '')
+  if (!parsed) return { outcome: 'anonymous' }
 
   const authCollection =
     parsed.authCollection && isKnownCollection(parsed.authCollection)
