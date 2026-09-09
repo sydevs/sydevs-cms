@@ -101,6 +101,31 @@ automatically — printing per-batch progress as it goes.
 | meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
 | tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
 | atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, registrations, clients |
+| translations | `pnpm seed translations` | None                                      | the three translations globals (English) |
+
+### `translations` publishes, and only for We Meditate
+
+`pnpm seed translations` writes English into all three translations globals
+from one importer. Two of the three take real copy from a `data.en.json`
+file (`wm-app-translations`, `wm-web-translations`); `sy-atlas-translations`
+still gets values generated from its key names, until #706 replaces them —
+and that PR deletes `generateExampleData` as its last caller.
+
+**`wm-web-translations` is also published in English** (#707). That is not
+tidiness: `wm-web-config.availableLocales` refuses a locale whose
+translations are unpublished, so without the publish nobody could offer
+English at all. Its `_status` is a per-locale column (`localizeStatus`,
+#705), so publishing English leaves every other locale a draft.
+
+⚠ **Do not copy that publish onto `wm-app-translations`.** One `_status`
+covers every locale there, so publishing it would claim 19 translated
+languages from an English-only file.
+
+A `plural: true` key is stored as its CLDR family (`<key>_one`/`_few`/
+`_many`/`_other`), and since #705 the column's JSON Schema declares exactly
+those names — so seed data must write the expanded keys, never the declared
+one. English populates `_one` and `_other`; it has no `few` or `many` form,
+and `pluralize()` falls back to `other`.
 
 **Seed order** for a full seed:
 

@@ -124,9 +124,13 @@ const LOCALE = 'en' as const
 /**
  * The wm-web seed file, minus its `_meta` header, IS the `updateGlobal` data:
  * `<tab>.<sub-group>.<key>` for a nested tab, `<tab>.<key>` for a flat one.
- * Nothing transforms it, which is the point — a shape mismatch surfaces as a
- * Payload validation error naming the offending key, not as silently dropped
- * copy. `tests/unit/wm-web-translations-seed.spec.ts` pins it to the schema.
+ * Nothing transforms it, which is the point — a key the schema does not
+ * declare is refused by name rather than silently dropped.
+ *
+ * That refusal reaches inside a leaf group only. Payload ignores an unknown
+ * TOP-LEVEL key on a global, so `_meta` would pass through unnoticed either
+ * way — it is stripped for the reader's sake, not the database's. The pin on
+ * the file's own contents is `tests/unit/wm-web-translations-seed.spec.ts`.
  */
 type WmWebSeedFile = { _meta?: unknown } & Record<string, unknown>
 

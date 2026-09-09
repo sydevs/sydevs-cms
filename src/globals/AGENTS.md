@@ -113,9 +113,26 @@ All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
 the global. Versions: max 3.
 
-- WeMeditate Web tabs: Common, Navigation
+- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
+  Meditation, Lecture, Map, Forms, Media, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Region, Event, Registration, Share, Emails
+
+The Web tabs are in the site's **reading order**, not grouped by data type —
+a translator works down a page. Every tab that carries screen-reader-only
+copy declares explicit `general` + `a11y` sub-groups (#707), so the visible
+strings stay together and the invisible ones start collapsed. `navigation`
+and `footer` have none, so they stay flat.
+
+Two conventions hold across that schema, and adding a key means honouring
+both:
+
+- **An `a11y` key's description begins "Not shown on screen; read by screen
+  readers."** It is the only cue a translator has that nobody will ever see
+  the string, and the tone that follows from it is different.
+- **`%{count}` is reserved for the number that selects the plural form.** A
+  string needing a second number uses its own name — `map.classes_shown` is
+  `%{shown}` of `%{count}`, and only `%{count}` picks one/other.
 
 Three things distinguish `sy-atlas-translations` and `wm-web-translations`
 from `wm-app-translations` (#705):
@@ -240,6 +257,15 @@ one. A sub-group named `a11y` starts collapsed; everything else opens. This
 is presentational only — the data path and column name are unchanged, so no
 migration is involved. Mixing leaf keys and sub-groups at one level is
 deliberately unsupported: declare explicit `general` + `a11y` sub-groups.
+
+A tab or sub-group may set **`"title"`** to name itself. The default is the
+slug in title case, which reads correctly for a slug made of words
+(`page_tags` → "Page Tags") and badly for one that is not (`a11y` → "A11y").
+Reach for it wherever the slug is a shorthand the translator should never
+have to decode — the ten `a11y` groups on `wm-web-translations` all say
+`"title": "Accessibility"`. It is presentational only: the field name, data
+path, and column still come from the slug, so renaming a group here
+migrates nothing.
 
 ### Per-key character limit (`maxLength`, and `strict`)
 
