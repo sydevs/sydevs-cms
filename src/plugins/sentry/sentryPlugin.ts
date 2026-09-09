@@ -143,10 +143,8 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
               let clientIp: string | undefined
 
               // A presented-and-rejected credential is a broken integration, not
-              // traffic — but only below 500. A server error's own level and
-              // grouping are already right, and the caller's credential is not
-              // what is wrong with it, so nothing auth-related is even computed
-              // there. (#734)
+              // traffic — but only below 500. The caller's credential is not what
+              // is wrong with a 500, so nothing auth-related is computed there.
               const rejected =
                 status < 500
                   ? classifyAuthAttempt(
@@ -163,24 +161,19 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 // hit has none. Read the same way as `verifyTurnstileOrFail`.
                 //
                 // ⚠ **Trust it only as far as the edge.** A caller reaching the
-                // Railway origin directly can set this header to anything, so
-                // treat it as a lead, never as identification. The key
-                // fingerprint is the field that actually names an integration.
+                // Railway origin directly can set this header to anything. The
+                // key fingerprint is what actually names an integration.
                 const userAgent = req.headers?.get?.('user-agent') ?? undefined
                 const ip = req.headers?.get?.('cf-connecting-ip') ?? undefined
 
                 level = 'error'
-                // The IP goes on Sentry's own `user.ip_address`, never into an
-                // `extra`: `sentry.server.config.ts` sets `sendDefaultPii:
-                // false`, and both that flag and the project's "Prevent Storing
-                // of IP Addresses" setting act on this field alone. In an
-                // `extra` it would be opaque free-form context — retained for
-                // the full window, past every scrubber, with no way to turn it
-                // off but a redeploy.
+                // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`.**
+                // `sendDefaultPii: false` and the project's "Prevent Storing of
+                // IP Addresses" setting both act on that field alone; an `extra`
+                // is opaque context no scrubber reaches.
                 clientIp = ip
-                // `key_fingerprint` is deliberately a tag rather than an extra,
-                // despite its cardinality: naming WHICH integration is broken is
-                // the whole point, and only a tag is searchable.
+                // A tag, not an extra, despite its cardinality: naming WHICH
+                // integration is broken is the point, and only a tag is searchable.
                 Object.assign(tags, {
                   auth_outcome: rejected.outcome,
                   auth_collection: rejected.authCollection,
