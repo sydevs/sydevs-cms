@@ -172,50 +172,14 @@ export function createAccessConfig(
  * Derive `readVersions` from `update`: version history is EDIT authority, not
  * read authority (#719).
  *
- * `findVersions`, `findVersionByID` and `countVersions` — and their globals
- * twins — read `access.readVersions` and nothing else. The published-only
- * constraint in the `read` branch above never runs for them. Payload's fallback
- * for an *unset* `readVersions` is `executeAccess`'s permissive one, "is anyone
- * logged in", which an API key satisfies: every draft on every versioned
- * collection was readable by any published client key, including one that
- * cannot read the collection at all.
+ * Payload's fallback for an *unset* `readVersions` is the permissive one — "is
+ * anyone logged in" — which an API key satisfies. Why `update` is the authority
+ * to delegate to, and what was readable before: "Version history is edit
+ * authority" in `docs/rules/access.md`.
  *
- * The rule is that anyone who may EDIT a collection may read its versions, and
- * nobody else. `update` already answers exactly that question — the role table,
- * the document-manager grant, and the Atlas region-subtree scoping all live
- * there — so this delegates to it rather than defining a second authority that
- * can drift out of step with the first.
- *
- * ⚠ **Apply this to the MERGED access config, after any per-entity override.**
- * `accessPlugin` spreads a collection's own `access` over the generated one, so
- * deriving `readVersions` inside `createAccessConfig` would bind it to an
- * `update` the override had already replaced — reintroducing the drift the
- * delegation exists to prevent. An entity that sets its own `readVersions`
- * keeps it.
- *
- * ⚠ **The `Where` has to be translated.** `update` returns a query over
- * DOCUMENTS, and every versions operation combines the access result straight
- * into a query over the VERSIONS collection without remapping it — there a
- * document's fields sit under `version.` and its id is `parent`.
- * `appendVersionToQueryKey` is Payload's own mapping for this, and pairing it
- * with `hasWhereAccessResult` is exactly what `replaceWithDraftIfAvailable`
- * does to the `read` result. Skip it and `{ id: { in: [7] } }` quietly matches
- * version *rows* by their own primary key — a wrong answer that still returns
- * documents.
- *
- * ⚠ **`args.id` is dropped, and must be.** `findVersionByID` calls access with
- * the VERSION ROW's primary key, not the document's — two independent
- * sequences. Forwarded to `update`, every id-sensitive branch reads it as a
- * document id and answers about the wrong document: the self-access bypass
- * grants a client row `N` of `_clients_v` because its own id is `N`, and
- * `userManagesDocument` grants any row whose number happens to match a page the
- * caller manages. Dropping it makes `update` answer at the list level, and
- * `findVersionByID` then ANDs that `Where` with `{ id: { equals: <row> } }`
- * itself — the same decision, reached correctly, with no extra query.
- *
- * Live preview is unaffected: it reads drafts through `find`/`findByID` with
- * `draft: true`, which resolves against `read` (see the preview-secret branch
- * above), never through a versions operation.
+ * ⚠ Wrap the MERGED access config, after any per-entity override. Deriving this
+ * inside `createAccessConfig` binds `readVersions` to an `update` the override
+ * has already replaced.
  */
 export function withVersionHistoryAccess<T extends { readVersions?: Access; update?: Access }>(
   access: T,
@@ -225,8 +189,15 @@ export function withVersionHistoryAccess<T extends { readVersions?: Access; upda
 
   return {
     ...access,
+    // ⚠ Drop the id. `findVersionByID` passes the VERSION ROW's primary key,
+    // not the document's, so every id-sensitive branch of `update` would answer
+    // about the wrong document. Dropped, `update` answers at the list level and
+    // `findVersionByID` ANDs the row id back on itself.
     readVersions: async ({ id: _versionRowId, ...args }) => {
       const result = await update(args)
+      // ⚠ Translate the `Where`. `update` queries DOCUMENTS; this one runs over
+      // VERSIONS, where a document's fields sit under `version.` and its id is
+      // `parent`.
       return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
     },
   }
