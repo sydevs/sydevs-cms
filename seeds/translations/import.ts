@@ -35,7 +35,7 @@ import {
 } from '../wm-app-translations/lexicalConverter'
 
 // ============================================================================
-// Example-data generator (for wm-web and sy-atlas)
+// Example-data generator (sy-atlas only, until #706)
 // ============================================================================
 
 type LeafProp = { type: 'string' | 'richText'; plural?: boolean }
