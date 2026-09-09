@@ -115,10 +115,13 @@ export function checkSubmissionData(
 
   const problems: string[] = []
 
+  // Returns immediately rather than reporting and carrying on: the caller joins
+  // every problem into one response message, so walking a 100k-entry array
+  // would answer with 100k sentences about a request already refused.
   if (entries.length > MAX_SUBMISSION_DATA_ENTRIES) {
-    problems.push(
+    return [
       `A submission may carry at most ${MAX_SUBMISSION_DATA_ENTRIES} answers; this one has ${entries.length}.`,
-    )
+    ]
   }
 
   const seen = new Set<string>()
@@ -173,6 +176,12 @@ export function checkSubmissionData(
  * as the message body is what makes the exemption need spelling out — the
  * write-guard's `urlScanFields` walks a path's every string leaf, so it cannot
  * tell one pair from another. See `policies.ts`.
+ *
+ * ⚠ **A constraint on whatever renders these pairs.** Exempt does not mean
+ * harmless: `error` holds up to 5000 characters a sender chose, links included.
+ * Nothing renders `submissionData` as HTML today — the admin shows textareas —
+ * so there is no live hazard, but Phase 2's delivery templates must not turn
+ * these five keys into anchors.
  */
 export const URL_EXEMPT_KEYS: ReadonlySet<string> = new Set([
   'path',

@@ -34,14 +34,44 @@ function blockTypes(fields: Form['fields']): Set<string> {
  * Note `message` is *not* a message field: the plugin's `message` block is
  * static rich text the author writes, not an input the visitor fills.
  */
-export const validateFormAction: CollectionBeforeValidateHook<Form> = ({ data, originalDoc }) => {
+export const validateFormAction: CollectionBeforeValidateHook<Form> = ({
+  data,
+  operation,
+  originalDoc,
+}) => {
   if (!data) return data
 
-  // A partial update carries only what changed, so read each value from the
-  // patch first and fall back to the stored document.
-  const actionType = data.actionType ?? originalDoc?.actionType
-  const fields = data.fields ?? originalDoc?.fields
-  const client = data.client ?? originalDoc?.client
+  // ⚠ **On update, `data` is already merged with the stored document**, so it
+  // holds the effective value of every field whether the patch named it or not.
+  // Two consequences, and both were wrong before:
+  //
+  // - `data.client ?? originalDoc?.client` is not a merge — it is a second one
+  //   on top of Payload's, and it reads an explicitly cleared relationship
+  //   (normalised to `null`) as the old value. The one save that breaks the
+  //   rule would have passed it. Read `data` alone.
+  // - `'fields' in data` cannot tell whether the patch touched the field list,
+  //   because the merge puts it there either way. Compare against
+  //   `originalDoc` instead.
+  const actionType = data.actionType
+  const fields = data.fields
+  const client = data.client
+
+  // ⚠ **Only a save that changes what this rule governs is judged by it.**
+  // Every form predating `actionType` back-fills to `contact` through the
+  // column default, and a legacy one may hold no message field — so judging
+  // every save would refuse a coordinator renaming such a form, citing a field
+  // list they never touched, and leave the row unsaveable in the admin for
+  // good.
+  if (operation === 'update' && originalDoc) {
+    const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+    if (
+      same(actionType, originalDoc.actionType) &&
+      same(fields, originalDoc.fields) &&
+      same(client, originalDoc.client)
+    ) {
+      return data
+    }
+  }
 
   if (!actionType) return data
 

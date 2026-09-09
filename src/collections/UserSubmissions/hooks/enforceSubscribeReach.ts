@@ -14,6 +14,11 @@ import { relationId } from '@/lib/utilities/relationId'
  */
 const UNRESTRICTED_SUBSCRIBE_ROLES = new Set(['wemeditate-web-client', 'wemeditate-app-client'])
 
+// Note `wemeditate-app-client` holds no `user-submissions` create grant today,
+// so its exemption is unreachable. Listed anyway: the set says which roles are
+// trusted with any client's list, and that answer should not depend on which
+// of them currently happens to post.
+
 /**
  * beforeValidate: a restricted client may only create a `subscribe` submission
  * against a form whose `client` is itself.

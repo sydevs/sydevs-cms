@@ -54,21 +54,39 @@ export const formsPlugin = (): Plugin => async (config) => {
  *
  * `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }`
  * — a collection's own `access` wins, by design, so a hand-written override is
- * never clobbered. The form-builder plugin always supplies one
- * (`read: ({ req: { user } }) => !!user`), which is not an override anybody
- * chose here: it grants read to **any authenticated user, every API client
- * included**. Left in place it outranks the role table, the per-row manager
- * scope, and `RESTRICTED_COLLECTIONS` alike, on a table of unscreened stranger
- * messages and registrant addresses. `access: {}` hands the collection back to
- * RBAC. `tests/int/user-submissions-access.int.spec.ts` reads rows back through
+ * never clobbered. The form-builder plugin always supplies one, and it is not
+ * an override anybody chose here. All three of its entries matter:
+ *
+ * - **`create: () => true`** — an *anonymous*, unauthenticated create. The
+ *   write guard only inspects writes by an authenticated client, so this is
+ *   also a captcha-free one. This is the entry that most needs clearing.
+ * - **`read: ({ req: { user } }) => !!user`** — read for any authenticated
+ *   user, every API client included, on a table of unscreened stranger
+ *   messages and registrant addresses. It outranks the role table, the per-row
+ *   manager scope and `RESTRICTED_COLLECTIONS` alike.
+ * - **`update: () => false`** — nothing could ever update a submission.
+ *   Clearing it hands `update` to the roles that hold it, which is a real
+ *   behaviour change from `form-submissions` and the reason `type`,
+ *   `status` and the rest carry field-level access.
+ *
+ * `access: {}` hands the collection back to RBAC.
+ * `tests/int/user-submissions-access.int.spec.ts` reads rows back through
  * `overrideAccess: false` rather than asserting the grants, which is what
  * catches this.
  *
  * `forms` keeps its plugin `access` (`read: () => true`): a public site renders
  * a form anonymously, so that one IS the intended rule.
  *
- * ⚠ The plugin's `sendEmail` afterChange hook is removed above, and stripping
- * `emails` is not enough on its own.
+ * ⚠ Both the clear and the hook removal key on the literal slug
+ * `user-submissions`. Renaming the collection without changing them silently
+ * restores the anonymous create above.
+ *
+ * ⚠ The plugin's `sendEmail` afterChange hook is removed above — as
+ * `afterChange: []`, which discards the whole array — and stripping `emails` is
+ * not enough on its own. `sendEmail` is the only afterChange the plugin
+ * registers and this repo adds none, so nothing else is lost today; a future
+ * `formSubmissionOverrides.hooks.afterChange` would be, so add it here rather
+ * than there.
  *
  * That hook runs on **every** create, ahead of anything this repo registers,
  * and its first act is to load `data.form` and spread `data.submissionData`.

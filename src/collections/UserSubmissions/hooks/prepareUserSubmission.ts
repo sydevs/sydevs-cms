@@ -4,9 +4,11 @@ import { randomUUID } from 'node:crypto'
 
 import { APIError } from 'payload'
 
+
 import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
+import type { Form } from '@/payload-types'
 
 import {
   allowedSubmissionKeys,
@@ -14,7 +16,8 @@ import {
   readSubmissionValue,
   urlScannablePairs,
 } from '../submissionData'
-import { FORM_BACKED_TYPES, TYPE_LABELS, type SubmissionType } from '../types'
+import { FORM_BACKED_TYPES, SUBMISSION_TYPES, TYPE_LABELS, type SubmissionType } from '../types'
+
 
 /** Said when an address has no usable local part (`"..."@example.org`). */
 const FALLBACK_NAME = 'Submitter'
@@ -55,6 +58,14 @@ const MAX_SUBJECT = 300
  *   text there.
  * - **a client-created row always starts at `pending`** (belt-and-braces with
  *   the field-level access lockdown).
+ *
+ * ⚠ **Create only, so every bound here is a create-time bound.** The key
+ * allow-list, the URL scan and the length caps do not run on an update. No
+ * client holds update, so the only writer that reaches an existing row is a
+ * manager or a job — but that does mean `submissionData` is unbounded from the
+ * moment the row exists, and a manager editing one is trusted rather than
+ * checked. Widening this to `update` is Phase 2's business, alongside the jobs
+ * that will write these rows.
  */
 export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   data,
@@ -64,12 +75,42 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   if (!data) return data
   if (operation !== 'create') return data
 
-  const type = (typeof data.type === 'string' ? data.type : 'contact') as SubmissionType
+  // Checked, not cast. This hook runs before Payload validates the select's
+  // options, so an unrecognised string reaches `TYPE_SUBMISSION_KEYS[type]` and
+  // spreads `undefined` — a `TypeError`, which surfaces as a 500 `Something
+  // went wrong.` and pages Sentry once per attempt, where the caller should
+  // have got a 400 naming the field.
+  const raw = typeof data.type === 'string' ? data.type : 'contact'
+  if (!SUBMISSION_TYPES.includes(raw as SubmissionType)) {
+    throw new APIError(
+      `\`${raw}\` is not a submission type.`,
+      400,
+      { code: 'submission_data_invalid' },
+      true,
+    )
+  }
+  const type = raw as SubmissionType
   const fromClient = req.user?.collection === 'clients'
 
-  const formFieldNames = FORM_BACKED_TYPES.includes(type)
-    ? await authoredFieldNames(req, data.form)
-    : []
+  // The form is the authority on what a submission against it *is*. `type`
+  // arrives in the body, and the reach check keys on it — so without this a
+  // restricted client posts against another client's subscribe form while
+  // calling the row a `contact`, and `enforceSubscribeReach` never runs.
+  // Refused rather than silently corrected: a caller and a form disagreeing
+  // about what is being submitted is a bug in the caller, and quietly
+  // rewriting it would hide it.
+  const form = FORM_BACKED_TYPES.includes(type) ? await loadForm(req, data.form) : null
+
+  if (form?.actionType != null && form.actionType !== type) {
+    throw new APIError(
+      `This form accepts ${form.actionType} submissions, not ${type}.`,
+      400,
+      { code: 'submission_type_mismatch' },
+      true,
+    )
+  }
+
+  const formFieldNames = authoredFieldNames(form)
 
   const problems = checkSubmissionData(
     data.submissionData,
@@ -125,8 +166,8 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
 }
 
 /**
- * The field names the authored form declares, so `submissionData` accepts what
- * that form actually asks.
+ * Load the form a submission names, once, for the two questions that need it:
+ * what it says the submission *is*, and which fields its author declared.
  *
  * Read without forwarding `req`. A form is committed state — this never needs
  * the caller's uncommitted writes — and a nested read that joins the caller's
@@ -134,26 +175,37 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
  * (`src/collections/AGENTS.md`). `disableErrors` keeps a bad `form` id the
  * relationship validator's business, not this hook's.
  */
-async function authoredFieldNames(
+async function loadForm(
   req: Parameters<CollectionBeforeValidateHook>[0]['req'],
   form: unknown,
-): Promise<string[]> {
+): Promise<Form | null> {
   const formId = relationId(form)
-  if (formId == null) return []
+  if (formId == null) return null
 
-  const doc = await req.payload
-    .findByID({
-      collection: 'forms',
-      id: formId,
-      depth: 0,
-      overrideAccess: true,
-      disableErrors: true,
-    })
-    .catch(() => null)
+  // `disableErrors` already returns null for a form that does not exist, which
+  // is the relationship validator's business rather than this hook's. There is
+  // deliberately no `.catch` beyond it: the fallback here is an empty allow-list,
+  // which is not neutral — it would refuse a valid submission with "`x` is not a
+  // field this submission accepts", blaming the integrator for a transient
+  // database error and recording the real cause nowhere.
+  return (await req.payload.findByID({
+    collection: 'forms',
+    id: formId,
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+  })) as Form | null
+}
 
-  if (!doc || !Array.isArray(doc.fields)) return []
+/**
+ * The field names the form's author declared, so `submissionData` accepts what
+ * that form actually asks rather than a list restated here — an author adds a
+ * field whenever they like.
+ */
+function authoredFieldNames(form: Form | null): string[] {
+  if (!form || !Array.isArray(form.fields)) return []
 
-  return doc.fields
+  return form.fields
     .map((block) => (block as { name?: unknown }).name)
     .filter((name): name is string => typeof name === 'string' && name.length > 0)
 }
@@ -194,6 +246,19 @@ async function composeSubject({
   return truncate(eventTitle ? `Update: ${eventTitle}` : 'New event proposal')
 }
 
+/**
+ * One document's title, for the subject line.
+ *
+ * ⚠ **An event's title is only read when the event is published.** `event` is
+ * client-writable and not tied to `type`, and this read elevates — so without
+ * the check a create-only client could name any event id, get its title echoed
+ * back in the create response's `subject`, and read out the titles of draft and
+ * soft-deleted listings one row at a time. That is precisely the narrowing
+ * `createAccessConfig` applies to a client's own reads of a drafts-enabled
+ * collection, and a subject line must not route around it.
+ *
+ * `forms` needs no such check: a form is publicly readable by design.
+ */
 async function titleOf(
   req: Parameters<CollectionBeforeValidateHook>[0]['req'],
   collection: 'forms' | 'events',
@@ -202,18 +267,19 @@ async function titleOf(
   const id = relationId(value)
   if (id == null) return ''
 
-  const doc = await req.payload
-    .findByID({
-      collection,
-      id,
-      depth: 0,
-      select: { title: true },
-      overrideAccess: true,
-      disableErrors: true,
-    })
-    .catch(() => null)
+  const doc = await req.payload.findByID({
+    collection,
+    id,
+    depth: 0,
+    select: collection === 'events' ? { title: true, _status: true } : { title: true },
+    overrideAccess: true,
+    disableErrors: true,
+  })
 
-  return typeof doc?.title === 'string' ? doc.title.trim() : ''
+  if (!doc) return ''
+  if (collection === 'events' && (doc as { _status?: string })._status !== 'published') return ''
+
+  return typeof doc.title === 'string' ? doc.title.trim() : ''
 }
 
 function truncate(value: string): string {

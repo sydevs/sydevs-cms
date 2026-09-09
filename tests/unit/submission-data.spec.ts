@@ -5,6 +5,7 @@ import {
   checkSubmissionData,
   DEFAULT_MAX_VALUE_LENGTH,
   MAX_SUBMISSION_DATA_ENTRIES,
+  MAX_SUBMISSION_DATA_KEY_LENGTH,
   readSubmissionValue,
   urlScannablePairs,
   VALUE_MAX_LENGTHS,
@@ -104,13 +105,34 @@ describe('checkSubmissionData', () => {
     expect(problems[0]).toContain('message')
   })
 
+  it('refuses an over-long key', () => {
+    const problems = checkSubmissionData(
+      [{ field: 'x'.repeat(MAX_SUBMISSION_DATA_KEY_LENGTH + 1), value: 'hi' }],
+      allowed,
+    )
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('not a valid field name')
+  })
+
+  it('does not throw on a type outside the union', () => {
+    // `allowedSubmissionKeys` spreads `TYPE_SUBMISSION_KEYS[type]`, so an
+    // unrecognised key spreads `undefined` and throws a TypeError — which the
+    // hook would surface as a 500 rather than a 400. `prepareUserSubmission`
+    // checks the value before it gets here; this pins that the hazard is real
+    // so nobody removes that check as redundant.
+    expect(() => allowedSubmissionKeys('bogus' as never)).toThrow()
+  })
+
   it('bounds the number of entries', () => {
     const entries = Array.from({ length: MAX_SUBMISSION_DATA_ENTRIES + 1 }, (_, i) => ({
       field: 'name',
       value: `x${i}`,
     }))
     const problems = checkSubmissionData(entries, allowed)
-    expect(problems.some((problem) => problem.includes('at most'))).toBe(true)
+    // Exactly one, not one per row: the caller joins every problem into one
+    // response, so a huge array must not produce a huge message.
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('at most')
   })
 
   it('bounds a value at the key-specific length', () => {

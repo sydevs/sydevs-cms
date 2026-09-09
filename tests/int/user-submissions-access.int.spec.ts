@@ -37,8 +37,10 @@ describe('User submissions access', () => {
   let recipient: Manager
   let otherManager: Manager
   let client: Client
+  let adminManager: Manager
   let addressedForm: Form
   let otherForm: Form
+  let subscribeForm: Form
 
   const managerReq = (manager: Manager): PayloadRequest =>
     ({
@@ -82,6 +84,11 @@ describe('User submissions access', () => {
       email: 'other-manager@example.com',
       roles: ['atlas-manager'],
     })
+    adminManager = await testData.createManager(payload, {
+      name: 'Submissions Admin',
+      email: 'submissions-admin@example.com',
+      type: 'admin',
+    })
     client = await testData.createClient(payload, recipient.id, {
       name: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
@@ -107,6 +114,21 @@ describe('User submissions access', () => {
     addressedForm = await form('Addressed to me', recipient)
     otherForm = await form('Addressed to someone else', otherManager)
 
+    // Its own form: a submission's `type` must agree with the form's
+    // `actionType`, so a subscribe row cannot be seeded against a contact form.
+    subscribeForm = (await payload.create({
+      collection: 'forms',
+      data: {
+        title: 'Newsletter',
+        actionType: 'subscribe',
+        client: client.id,
+        confirmationType: 'redirect',
+        redirect: { url: '/thanks' },
+        fields: [{ blockType: 'email', name: 'email', label: 'Email' }],
+      } as never,
+      overrideAccess: true,
+    })) as Form
+
     await seed({
       type: 'contact',
       form: addressedForm.id,
@@ -121,7 +143,7 @@ describe('User submissions access', () => {
     })
     await seed({ type: 'proposal', senderEmail: 'proposer@example.com', proposed: { title: 'New' } })
     await seed({ type: 'registration', senderEmail: 'registrant@example.com' })
-    await seed({ type: 'subscribe', form: addressedForm.id, senderEmail: 'sub@example.com' })
+    await seed({ type: 'subscribe', form: subscribeForm.id, senderEmail: 'sub@example.com' })
   })
 
   afterAll(async () => {
@@ -229,6 +251,21 @@ describe('User submissions access', () => {
       expect(docs).toHaveLength(1)
       expect(docs[0]!.submissions?.docs ?? []).toHaveLength(0)
 
+      // ⚠ The positive half, and the zero above means nothing without it.
+      // `?? []` cannot tell "the join was filtered to nothing" from "the join
+      // does not populate on a non-override read at all" — so read a sender
+      // whose only row IS in scope, and require it to come back.
+      const inScope = await payload.find({
+        collection: 'users',
+        where: { email: { equals: 'proposer@example.com' } },
+        depth: 1,
+        limit: 1,
+        overrideAccess: false,
+        req: managerReq(recipient),
+      })
+      expect(inScope.docs).toHaveLength(1)
+      expect(inScope.docs[0]!.submissions?.docs ?? []).toHaveLength(1)
+
       async function asAdminRead() {
         return asUser({ overrideAccess: true })
       }
@@ -245,11 +282,23 @@ describe('User submissions access', () => {
         ),
       ).toBe(true)
 
-      const { totalDocs } = await payload.count({
+      // Read AS the admin, not around access — `overrideAccess: true` skips the
+      // very rules this case is named for and would only prove the seed ran.
+      const { docs } = await payload.find({
         collection: 'user-submissions',
-        overrideAccess: true,
+        depth: 0,
+        pagination: false,
+        overrideAccess: false,
+        req: {
+          payload,
+          headers: new Headers(),
+          user: { ...adminManager, collection: 'managers' },
+          locale: 'en',
+          context: {},
+        } as unknown as PayloadRequest,
       })
-      expect(totalDocs).toBe(5)
+      expect(docs).toHaveLength(5)
+      expect(new Set(docs.map((doc) => doc.type)).size).toBe(4)
     })
   })
 })

@@ -436,6 +436,130 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
   })
 
+  describe('the type discriminator', () => {
+    it('refuses an unrecognised type with a 400, not a 500', async () => {
+      // The hook runs before Payload validates the select's options, so an
+      // unchecked cast reached `TYPE_SUBMISSION_KEYS[type]` and spread
+      // `undefined` — a TypeError, surfaced as `Something went wrong.` and
+      // paging Sentry once per attempt.
+      await expect(send({ type: 'bogus', senderEmail: 'a@example.com' })).rejects.toThrow(/bogus/)
+    })
+
+    it("refuses a type that disagrees with the form's actionType", async () => {
+      // The form is the authority on what a submission against it is. Without
+      // this, a restricted client posts against another client's subscribe form
+      // while calling the row a `contact`, and the reach check never runs.
+      await expect(
+        send({
+          type: 'contact',
+          form: subscribeForm.id,
+          senderEmail: 'mislabelled@example.com',
+          submissionData: [{ field: 'message', value: 'Calling this a contact.' }],
+        }),
+      ).rejects.toThrow(/subscribe/)
+    })
+
+    it('is immutable once the row exists', async () => {
+      // Every access rule and retention window keys on `type`, and a manager
+      // holds update. `admin.readOnly` is the admin UI only.
+      //
+      // The manager has to be one the row is actually reachable by, or the
+      // per-row scope refuses the update first and this proves nothing about
+      // the field. So: an atlas-manager who is the form's own recipient.
+      const meddler = await testData.createManager(payload, {
+        name: 'Meddling Manager',
+        email: 'meddler@example.com',
+        roles: ['atlas-manager'],
+      })
+
+      const ownForm = (await payload.create({
+        collection: 'forms',
+        data: {
+          title: 'Addressed to the meddler',
+          actionType: 'contact',
+          recipient: meddler.id,
+          confirmationType: 'redirect',
+          redirect: { url: '/thanks' },
+          fields: [
+            { blockType: 'email', name: 'email', label: 'Email' },
+            { blockType: 'textarea', name: 'message', label: 'Message' },
+          ],
+        } as never,
+        overrideAccess: true,
+      })) as Form
+
+      const doc = await send({
+        type: 'contact',
+        form: ownForm.id,
+        senderEmail: 'immutable@example.com',
+        submissionData: [{ field: 'message', value: 'Should stay a contact.' }],
+      })
+
+      const after = (await payload.update({
+        collection: 'user-submissions',
+        id: doc.id,
+        data: { type: 'proposal' } as never,
+        overrideAccess: false,
+        req: {
+          payload,
+          headers: new Headers(),
+          user: { ...meddler, collection: 'managers' },
+          locale: 'en',
+          context: {},
+        } as unknown as PayloadRequest,
+      })) as UserSubmission
+      // The write went through (so the scope did let them in) and `type` is
+      // unchanged — which is the property under test.
+      expect(after.senderEmail).toBe('immutable@example.com')
+      expect(after.type).toBe('contact')
+    })
+  })
+
+  describe('the audit trail', () => {
+    it('refuses a client-forged activityLog', async () => {
+      // `logField` promised in prose that it is never API-writable, and said so
+      // nowhere the server reads. `activityLog` renders in the admin as
+      // system-written history, so a forged delivery record would read as fact.
+      const doc = await send({
+        type: 'contact',
+        form: contactForm.id,
+        senderEmail: 'forger2@example.com',
+        submissionData: [{ field: 'message', value: 'Forging a history.' }],
+        activityLog: [
+          {
+            at: '2026-01-01T00:00:00.000Z',
+            type: 'delivery',
+            cells: { activity: 'Delivered — screening passed' },
+          },
+        ],
+      })
+      expect(doc.activityLog ?? []).toHaveLength(0)
+    })
+  })
+
+  describe('subject composition', () => {
+    it('does not echo the title of an unpublished event', async () => {
+      // `event` is client-writable, and `titleOf` elevates — so without the
+      // published check a create-only client could name any event id and read
+      // its title back out of `subject`, one row at a time, routing around the
+      // published-only narrowing its own reads get.
+      const draft = await testData.createEvent(payload, { manager: manager.id })
+      await payload.update({
+        collection: 'events',
+        id: draft.id,
+        data: { _status: 'draft' } as never,
+        overrideAccess: true,
+      })
+
+      const doc = await send({
+        type: 'registration',
+        event: draft.id,
+        senderEmail: 'prober@example.com',
+      })
+      expect(doc.subject).not.toContain(draft.title)
+    })
+  })
+
   describe('the captcha gate', () => {
     it('refuses a create with no Turnstile token', async () => {
       await expect(

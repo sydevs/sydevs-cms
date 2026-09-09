@@ -602,6 +602,9 @@ export type SupportedTimezones =
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
 export type ScheduleUpcomingDates = string[];
+/**
+ * @maxItems 500
+ */
 export type ActivityLog = {
   /**
    * ISO 8601. The first column, and the sort key.

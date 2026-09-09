@@ -65,6 +65,12 @@ const typeField: Field = {
   index: true,
   options: SUBMISSION_TYPES.map((value) => ({ label: TYPE_LABELS[value], value })),
   enumName: 'enum_user_submissions_type',
+  // Settable on create — it is how a caller chooses the intake — and immutable
+  // after. `admin.readOnly` is the admin UI only, and every access rule and
+  // retention window keys on this column: `managerSubmissionScope` narrows a
+  // manager's reads by it, and a manager holds `update`. A system writer
+  // needing to change it passes `overrideAccess`.
+  access: { update: () => false },
   admin: { readOnly: true },
 }
 

@@ -152,6 +152,11 @@ export const activityLogJsonSchema: JSONSchema4 = {
   $id: ACTIVITY_LOG_SCHEMA_URI,
   title: 'ActivityLog',
   type: 'array',
+  // `appendLogEntry` trims to `DEFAULT_LOG_LIMIT` on every append, but that is
+  // the writers' discipline, not the column's. The bound belongs here too, or a
+  // single write that bypasses the helper stores an unbounded array. Generous
+  // enough that no legitimate log approaches it.
+  maxItems: 500,
   items: {
     type: 'object',
     additionalProperties: true,
@@ -211,6 +216,24 @@ export function logField({
     // Declared here, once, so every consumer of the factory inherits it —
     // `user-submissions.activityLog` included (#695 group B / #659).
     jsonSchema: activityLogFieldSchema,
+    // ⚠ `admin.readOnly` is the admin UI only, and the docblock's promise that
+    // this is "never writable through the API" was until now just that — a
+    // promise. It did not matter while `activityLog` sat on collections no API
+    // client could write; `user-submissions` accepts public creates, so a
+    // client could have posted a forged delivery history that the admin table
+    // renders as system-written fact.
+    //
+    // **Clients, not everyone.** `systemMetaField`'s flat `update: () => false`
+    // is wrong here: the admin verify action deliberately writes the log with
+    // `overrideAccess: false`, so that the manager's own permissions on the
+    // event are what gate it (`Events/lifecycle/verify.ts`). Denying every
+    // caller silently drops the entry from that write — the entry being the
+    // record of who verified the listing. Jobs and hooks pass `overrideAccess`
+    // and skip this either way.
+    access: {
+      create: ({ req }) => req.user?.collection !== 'clients',
+      update: ({ req }) => req.user?.collection !== 'clients',
+    },
     admin: {
       ...admin,
       readOnly: true,

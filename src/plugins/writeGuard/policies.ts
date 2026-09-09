@@ -92,8 +92,14 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       // "every pair except those three"; a hook that already knows each pair's
       // key can, and it uses the same `checkNoUrls` and raises the same
       // `urls_not_allowed` failure.
+      // ⚠ `subject` is deliberately absent, though `user-messages` scans it.
+      // There it is a client-writable column; here it carries
+      // `systemFieldAccess`, and Payload deletes an access-denied field in the
+      // *field* beforeValidate pass — which runs before this collection hook —
+      // so for the only callers this guard inspects the value is always gone.
+      // The subject a sender actually writes travels in `submissionData`, and
+      // `urlScannablePairs` covers it there.
       urlScanFields: [
-        'subject',
         'proposed.description',
         'proposed.contactName',
         'proposed.address',
