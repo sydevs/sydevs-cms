@@ -166,6 +166,13 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 const userAgent = req.headers?.get?.('user-agent') ?? undefined
                 const ip = req.headers?.get?.('cf-connecting-ip') ?? undefined
 
+                // ⚠ **Accepted risk: this level is caller-triggerable.** Any
+                // anonymous caller can raise a captured 400/403/404 to `error`
+                // by sending a junk `Authorization` header. Grouping stays
+                // bounded by the collection check, so the cost is event quota
+                // and alert noise, never one Sentry issue per value. #734
+                // leaves routing to a Sentry-side rule on `auth_outcome`, which
+                // is where to mute this — not by dropping the level. (#734)
                 level = 'error'
                 // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`.**
                 // `sendDefaultPii: false` and the project's "Prevent Storing of
