@@ -25,6 +25,7 @@ import * as path from 'path'
 
 import atlasSchema from '../../src/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
+import { pluralStorageKeys } from '../../src/lib/translations/pluralCategories'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
   buildWmAppGlobalData,
@@ -37,7 +38,7 @@ import {
 // Example-data generator (for wm-web and sy-atlas)
 // ============================================================================
 
-type LeafProp = { type: 'string' | 'richText' }
+type LeafProp = { type: 'string' | 'richText'; plural?: boolean }
 type GroupNode = { type: 'object'; properties?: Record<string, LeafProp | GroupNode> }
 type SchemaRoot = { type: 'object'; properties?: Record<string, GroupNode> }
 
@@ -86,7 +87,14 @@ function generateExampleData(schema: SchemaRoot): Record<string, unknown> {
       if (isGroup(child)) {
         walkNode(child, [...segments, key])
       } else if (child.type === 'string') {
-        stringKeys[key] = toLabel(key)
+        // A `plural: true` key is STORED as its CLDR family, and since #705
+        // the column's JSON Schema declares those names and nothing else — so
+        // writing the declared key is writing a property the schema rejects.
+        // `sy-atlas-translations.emails.sessions_count` is the one such key
+        // today, and it made `pnpm seed translations` fail outright.
+        for (const storageKey of child.plural === true ? pluralStorageKeys(key) : [key]) {
+          stringKeys[storageKey] = toLabel(key)
+        }
       } else if (child.type === 'richText') {
         data[`${leafSlug}_${key}`] = makeLexical(toLabel(key))
       }
