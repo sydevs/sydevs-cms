@@ -23,7 +23,7 @@ import * as path from 'path'
 
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import wmWebSchema from '../../src/globals/WeMeditateWebTranslations/translationsSchema.json' with { type: 'json' }
-import { EVENT_TITLE_DEFAULTS, EVENT_TITLE_SLOTS } from '../../src/lib/eventTitle/compose'
+import { EVENT_TITLE_DEFAULTS } from '../../src/lib/eventTitle/compose'
 import { EMAIL_STRING_DEFAULTS } from '../../src/lib/translations/emailStrings'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
@@ -112,11 +112,6 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined
-}
-
-/** The English auto-title templates, keyed by slot, in their declared order. */
-function pickSlots(defaults: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(EVENT_TITLE_SLOTS.map((slot) => [slot, defaults[slot] as string]))
 }
 
 /**
@@ -280,7 +275,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
           if (emails) data.emails = emails
 
           const storedEvent = asRecord(stored.doc?.event)
-          const title = fillBlanks(storedEvent?.title, pickSlots(EVENT_TITLE_DEFAULTS))
+          const title = fillBlanks(storedEvent?.title, EVENT_TITLE_DEFAULTS)
           if (title) {
             data.event = { ...(asRecord(data.event) ?? {}), title }
           }
