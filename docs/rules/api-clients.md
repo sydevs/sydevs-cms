@@ -132,6 +132,21 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 ⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
+### `POST /api/user-submissions` — the unified intake
+
+One collection accepts every public write, discriminated by `type`: `contact`, `subscribe`, `registration`, `proposal` (#723). Turnstile, the disposable-email check and the URL scan apply to all four — the guard runs before anything reads `type`, so a policy relaxed for one type would be reachable by claiming to be that type.
+
+Two refusals are specific to it, both 400 with the message naming what to fix:
+
+| `errors[0].code` | Means |
+| --- | --- |
+| `submission_data_invalid` | A `submissionData` pair carries a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
+| `subscribe_target_forbidden` | A `subscribe` row named a form belonging to another client. Only the We Meditate roles may target any form |
+
+`urls_not_allowed` also reaches `submissionData`, with one deliberate exemption: `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on.
+
+Clients hold **create only**, with no update of any kind and no read at any depth or scope.
+
 ## Query parameter validation
 
 An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected.
