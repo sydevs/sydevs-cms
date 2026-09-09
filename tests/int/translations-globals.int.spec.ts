@@ -308,7 +308,7 @@ describe('Translations Globals Configuration', () => {
       await expect(write({ compact: null })).resolves.toBeDefined()
     })
 
-    // #706 turned six advisory budgets strict, so the limit is emitted into
+    // #706 turned seven advisory budgets strict, so the limit is emitted into
     // the column's JSON Schema and Payload refuses the write itself.
     it('rejects a strict key over its maxLength', async () => {
       await expect(

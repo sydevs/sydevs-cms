@@ -267,15 +267,23 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
       // English alone carries the two live groups, and only to fill a key that
       // is blank today. A translated value already in the CMS always wins, and
       // no other locale sends these groups at all.
+      //
+      // A read that FAILED is not a read that came back empty. Filling from
+      // defaults on a failure would write English over an editor's own copy,
+      // wholesale — so a failed read omits both groups instead, exactly as
+      // every other locale does.
       if (locale === DEFAULT_LOCALE) {
         const stored = await this.readAtlasGlobal(slug, locale)
-        const emails = fillBlanks(stored?.emails, EMAIL_STRING_DEFAULTS)
-        if (emails) data.emails = emails
 
-        const storedEvent = asRecord(stored?.event)
-        const title = fillBlanks(storedEvent?.title, pickSlots(EVENT_TITLE_DEFAULTS))
-        if (title) {
-          data.event = { ...(asRecord(data.event) ?? {}), title }
+        if (stored.ok) {
+          const emails = fillBlanks(stored.doc?.emails, EMAIL_STRING_DEFAULTS)
+          if (emails) data.emails = emails
+
+          const storedEvent = asRecord(stored.doc?.event)
+          const title = fillBlanks(storedEvent?.title, pickSlots(EVENT_TITLE_DEFAULTS))
+          if (title) {
+            data.event = { ...(asRecord(data.event) ?? {}), title }
+          }
         }
       }
 
@@ -283,12 +291,19 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /** Reads the stored atlas global for one locale, with no English fallback. */
+  /**
+   * Reads the stored atlas global for one locale, with no English fallback.
+   *
+   * `ok` distinguishes "there was nothing there" from "we could not look".
+   * Only the caller can decide what the second means, and here it means: touch
+   * nothing.
+   */
   private async readAtlasGlobal(
     slug: string,
     locale: AtlasLocale,
-  ): Promise<Record<string, unknown> | null> {
-    if (this.options.dryRun || !this.payload) return null
+  ): Promise<{ ok: true; doc: Record<string, unknown> | undefined } | { ok: false }> {
+    // A dry run writes nothing, so there is nothing to preserve.
+    if (this.options.dryRun || !this.payload) return { ok: false }
 
     try {
       const stored = await this.payload.findGlobal({
@@ -297,17 +312,16 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
         fallbackLocale: false,
         depth: 0,
       })
-      return asRecord(stored) ?? null
+      return { ok: true, doc: asRecord(stored) }
     } catch (error) {
       // A global that has never been written reads as empty rather than
-      // failing, so this only fires on a real database problem. Seeding a
-      // blank locale is still correct, so warn and carry on.
+      // failing, so this only fires on a real database problem.
       this.addWarning(
-        `Could not read ${slug} (locale=${locale}) before seeding: ${
+        `Could not read ${slug} (locale=${locale}); leaving its emails and event.title alone: ${
           error instanceof Error ? error.message : String(error)
         }`,
       )
-      return null
+      return { ok: false }
     }
   }
 

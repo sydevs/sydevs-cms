@@ -13,7 +13,7 @@
  */
 import type { Payload } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
 import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
@@ -163,5 +163,45 @@ describe('seed: sy-atlas-translations', () => {
     for (const locale of ATLAS_LOCALES) {
       expect(all._status[locale], locale).toBe('published')
     }
+  }, 180_000)
+
+  // A read that failed and a read that came back empty look identical to
+  // `fillBlanks`, and the difference is the whole of the live data: treating a
+  // failure as "everything is blank" writes English defaults over an editor's
+  // own copy, wholesale.
+  it('touches neither live group when the pre-seed read fails', async () => {
+    const CUSTOM_HEADING = 'You are registered — written by hand'
+
+    await payload.updateGlobal({
+      slug: SLUG,
+      locale: 'en',
+      data: { emails: { confirmation_heading: CUSTOM_HEADING } } as never,
+      overrideAccess: true,
+    })
+
+    const findGlobal = payload.findGlobal.bind(payload)
+    const spy = vi
+      .spyOn(payload, 'findGlobal')
+      .mockImplementation(async (args: Parameters<typeof payload.findGlobal>[0]) => {
+        if (args.slug === SLUG && args.locale === 'en' && args.fallbackLocale === false) {
+          throw new Error('simulated database failure')
+        }
+        return findGlobal(args)
+      })
+
+    try {
+      await runSeed()
+    } finally {
+      spy.mockRestore()
+    }
+
+    const en = await read('en')
+    expect((en.emails as Record<string, string>).confirmation_heading).toBe(CUSTOM_HEADING)
+    expect((en.event as Record<string, Record<string, string>>).title.morning).toBe(
+      EN_MORNING_TITLE,
+    )
+    // The locale's own translations still landed — only the two live groups
+    // are held back.
+    expect((en.countries as Record<string, string>).title).toBe('Free Meditation Classes')
   }, 180_000)
 })

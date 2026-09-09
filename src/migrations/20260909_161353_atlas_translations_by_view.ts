@@ -158,4 +158,14 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_event_actions";
   ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_calendar";
   ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_compact";`)
+
+  // The mirror of `up`'s one hand-edit, and needed for the same reason. By the
+  // time this runs those three columns hold the NEW key sets, which the old
+  // schema rejects just as flatly — so a rollback without this leaves every
+  // seeded locale unsaveable.
+  await db.execute(sql`
+  UPDATE "sy_atlas_translations_locales"
+     SET "event_recurrence" = NULL, "registration_form" = NULL, "share" = NULL;
+  UPDATE "_sy_atlas_translations_v_locales"
+     SET "version_event_recurrence" = NULL, "version_registration_form" = NULL, "version_share" = NULL;`)
 }
