@@ -213,20 +213,22 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 })
               }
 
+              // The two arms are mutually exclusive: `clientIp` is set only on
+              // the rejected branch, which requires no `req.user`. So a rejected
+              // caller's `user` carries the IP alone — the absent `id` is what
+              // still says nobody authenticated, and `auth_outcome` says so
+              // outright.
               const user = req.user
                 ? {
                     id: String(req.user.id),
                     email: 'email' in req.user ? String(req.user.email) : undefined,
                   }
                 : clientIp
-                  ? // No authenticated user, so `user` carries the IP alone. The
-                    // absent `id` is what still says nobody authenticated, and
-                    // the `auth_outcome` tag says it outright.
-                    {}
+                  ? { ip_address: clientIp }
                   : undefined
 
               const defaultContext: SentryContext = {
-                user: user && clientIp ? { ...user, ip_address: clientIp } : user,
+                user,
                 tags,
                 extra,
                 level,
