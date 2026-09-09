@@ -52,7 +52,9 @@ const buildRequest = (authorization: string | null, user?: { id: number }): Payl
     user,
     locale: 'en',
     url: URL,
-    payload: { logger },
+    // `collections` is how the hook bounds the caller-supplied slug. Keyed by
+    // slug, the shape Payload builds it in.
+    payload: { logger, collections: { clients: {}, managers: {} } },
   } as unknown as PayloadRequest
 }
 
@@ -157,6 +159,23 @@ describe('a 403 whose credential was rejected', () => {
     expect(written).not.toContain(KEY)
     expect(written).not.toContain(KEY.slice(0, 8))
     expect(written).not.toContain(KEY.slice(-12))
+  })
+})
+
+describe('a 403 naming a collection that does not exist', () => {
+  it('groups under `unknown`, so a caller cannot mint a Sentry issue per word', async () => {
+    // The slug is a word out of the request header and it reaches a grouping
+    // fingerprint. Unbounded, spraying `Authorization: <random> API-Key x`
+    // would open one Sentry issue per value — the very thing grouping by
+    // collection rather than by key fingerprint exists to prevent.
+    await captureError(403, buildRequest(`made-up-slug API-Key ${KEY}`))
+
+    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
+      'credential-rejected',
+      '403',
+      'unknown',
+    ])
+    expect(tags().auth_collection).toBeUndefined()
   })
 })
 

@@ -27,8 +27,9 @@ export type AuthOutcome =
 export interface AuthAttempt {
   outcome: AuthOutcome
   /**
-   * The auth collection slug, only for the pinned `<slug> API-Key <key>` shape
-   * where position 0 is a collection slug by definition, never key material.
+   * The auth collection, set only when the header named a real one. Position 0
+   * of the pinned `<slug> API-Key <key>` shape is a collection slug by
+   * convention, never key material — but it is still a word the caller chose.
    */
   authCollection?: string
   /** The header's auth scheme, or `unknown` when it is not one we recognise. */
@@ -44,7 +45,7 @@ export interface AuthAttempt {
  * header's first word can BE the credential — and echoing it would leak the
  * key this module exists to keep out of the logs.
  */
-const KNOWN_SCHEMES = ['api-key', 'bearer', 'basic', 'digest', 'jwt'] as const
+const KNOWN_SCHEMES: readonly string[] = ['api-key', 'bearer', 'basic', 'digest', 'jwt']
 
 /** 12 hex characters: enough to tell two integrations apart, far too few to attack. */
 const FINGERPRINT_LENGTH = 12
@@ -59,7 +60,7 @@ export const credentialFingerprint = (credential: string): string =>
   createHash('sha256').update(credential).digest('hex').slice(0, FINGERPRINT_LENGTH)
 
 const namedScheme = (word: string): string =>
-  KNOWN_SCHEMES.includes(word.toLowerCase() as (typeof KNOWN_SCHEMES)[number]) ? word : 'unknown'
+  KNOWN_SCHEMES.includes(word.toLowerCase()) ? word : 'unknown'
 
 /**
  * Split an `Authorization` header into the parts that are safe to report.
@@ -72,8 +73,10 @@ const namedScheme = (word: string): string =>
 const parseAuthorization = (
   header: string,
 ): { authCollection?: string; authScheme?: string; credential: string } | null => {
-  const parts = header.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return null
+  const trimmed = header.trim()
+  if (!trimmed) return null
+
+  const parts = trimmed.split(/\s+/)
 
   if (parts.length >= 3 && parts[1].toLowerCase() === 'api-key') {
     return {
@@ -98,19 +101,31 @@ const parseAuthorization = (
  * the credential. Attribution fields are returned only for that case — there is
  * nothing to attribute when nobody presented anything, and an authenticated
  * caller is already named by the Sentry `user`.
+ *
+ * `isKnownCollection` bounds the one caller-controlled field. Position 0 of the
+ * header reaches a Sentry **fingerprint**, so unchecked it would let any caller
+ * mint one Sentry issue per word it invents — the exact unbounded grouping the
+ * fingerprint is shaped to avoid. Only the config layer knows the real slugs,
+ * so it answers, and an unrecognised word is reported as no collection at all.
  */
 export const classifyAuthAttempt = (
   authorization: string | null | undefined,
   hasUser: boolean,
+  isKnownCollection: (slug: string) => boolean,
 ): AuthAttempt => {
-  const parsed = authorization ? parseAuthorization(authorization) : null
+  const parsed = parseAuthorization(authorization ?? '')
 
   if (!parsed) return { outcome: 'anonymous' }
   if (hasUser) return { outcome: 'authenticated' }
 
+  const authCollection =
+    parsed.authCollection && isKnownCollection(parsed.authCollection)
+      ? parsed.authCollection
+      : undefined
+
   return {
     outcome: 'rejected',
-    authCollection: parsed.authCollection,
+    authCollection,
     authScheme: parsed.authScheme,
     keyFingerprint: credentialFingerprint(parsed.credential),
   }

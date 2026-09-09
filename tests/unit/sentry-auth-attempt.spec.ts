@@ -4,19 +4,23 @@ import { classifyAuthAttempt, credentialFingerprint } from '@/plugins/sentry/aut
 
 const KEY = '3f7c1a2b-9d4e-4a10-8b55-6c2e0f9a1d33'
 
+/** Stands in for the real collection list the plugin reads off `req.payload`. */
+const isKnownCollection = (slug: string) => slug === 'clients' || slug === 'managers'
+
+const classify = (authorization: string | null | undefined, hasUser = false) =>
+  classifyAuthAttempt(authorization, hasUser, isKnownCollection)
+
 describe('classifyAuthAttempt', () => {
   it.each([null, undefined, '', '   '])('reports no header (%p) as anonymous', (header) => {
-    expect(classifyAuthAttempt(header, false)).toEqual({ outcome: 'anonymous' })
+    expect(classify(header)).toEqual({ outcome: 'anonymous' })
   })
 
   it('reports a header that authenticated as authenticated, with nothing to attribute', () => {
-    const attempt = classifyAuthAttempt(`clients API-Key ${KEY}`, true)
-
-    expect(attempt).toEqual({ outcome: 'authenticated' })
+    expect(classify(`clients API-Key ${KEY}`, true)).toEqual({ outcome: 'authenticated' })
   })
 
   it('reports a header that did not authenticate as rejected, naming the collection', () => {
-    const attempt = classifyAuthAttempt(`clients API-Key ${KEY}`, false)
+    const attempt = classify(`clients API-Key ${KEY}`)
 
     expect(attempt.outcome).toBe('rejected')
     expect(attempt.authCollection).toBe('clients')
@@ -24,8 +28,18 @@ describe('classifyAuthAttempt', () => {
     expect(attempt.keyFingerprint).toMatch(/^[0-9a-f]{12}$/)
   })
 
+  it('names no collection for a slug that is not a real one', () => {
+    // The slug reaches a Sentry fingerprint. Unbounded, any caller could mint
+    // one Sentry issue per word it invents.
+    const attempt = classify(`not-a-collection API-Key ${KEY}`)
+
+    expect(attempt.outcome).toBe('rejected')
+    expect(attempt.authCollection).toBeUndefined()
+    expect(attempt.authScheme).toBe('API-Key')
+  })
+
   it('names no collection for a scheme that is not the API-key format', () => {
-    const attempt = classifyAuthAttempt(`Bearer ${KEY}`, false)
+    const attempt = classify(`Bearer ${KEY}`)
 
     expect(attempt.outcome).toBe('rejected')
     expect(attempt.authCollection).toBeUndefined()
@@ -35,16 +49,16 @@ describe('classifyAuthAttempt', () => {
   it('refuses to echo an unrecognised scheme word, which may be the credential itself', () => {
     // A two-token header whose first word is not a known scheme: reporting it
     // verbatim is how key material leaks out through the "scheme" field.
-    expect(classifyAuthAttempt(`${KEY} something`, false).authScheme).toBe('unknown')
-    expect(classifyAuthAttempt(KEY, false).authScheme).toBeUndefined()
+    expect(classify(`${KEY} something`).authScheme).toBe('unknown')
+    expect(classify(KEY).authScheme).toBeUndefined()
   })
 
   it('never returns the credential or any substring of it', () => {
     const serialised = JSON.stringify([
-      classifyAuthAttempt(`clients API-Key ${KEY}`, false),
-      classifyAuthAttempt(`Bearer ${KEY}`, false),
-      classifyAuthAttempt(KEY, false),
-      classifyAuthAttempt(`${KEY} extra`, false),
+      classify(`clients API-Key ${KEY}`),
+      classify(`Bearer ${KEY}`),
+      classify(KEY),
+      classify(`${KEY} extra`),
     ])
 
     expect(serialised).not.toContain(KEY)
@@ -56,7 +70,7 @@ describe('classifyAuthAttempt', () => {
   it('tolerates a malformed API-key header without treating the key as a slug', () => {
     // `<slug> API-Key` with nothing after it: there is no key, so the trailing
     // word is the credential and the slug must not be reported as one.
-    const attempt = classifyAuthAttempt('clients API-Key', false)
+    const attempt = classify('clients API-Key')
 
     expect(attempt.outcome).toBe('rejected')
     expect(attempt.authCollection).toBeUndefined()
