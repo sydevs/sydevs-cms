@@ -200,6 +200,41 @@ describe('User submissions access', () => {
     })
   })
 
+  describe('the Users join', () => {
+    it('does not hand a manager rows the per-row scope withholds', async () => {
+      // `Users.submissions` is a join on `user-submissions.user`, and
+      // `atlas-manager` holds `users: ['read']` — so if a join ran outside the
+      // joined collection's access, reading a registrant would return every
+      // submission they ever sent, contact messages addressed to somebody else
+      // included. That is the leak worth asserting; the join's usefulness is
+      // not.
+      const asUser = (options: { overrideAccess: boolean; req?: PayloadRequest }) =>
+        payload.find({
+          collection: 'users',
+          where: { email: { equals: 'theirs@example.com' } },
+          depth: 1,
+          limit: 1,
+          ...options,
+        })
+
+      // The control. Without it a zero below could mean the join never
+      // populates, which would prove nothing about access at all.
+      const asAdmin = await asAdminRead()
+      expect(asAdmin.docs).toHaveLength(1)
+      expect(asAdmin.docs[0]!.submissions?.docs ?? []).toHaveLength(1)
+
+      const { docs } = await asUser({ overrideAccess: false, req: managerReq(recipient) })
+      // The manager really can read the registrant — so the empty join below
+      // is the access layer's doing, not a missing row.
+      expect(docs).toHaveLength(1)
+      expect(docs[0]!.submissions?.docs ?? []).toHaveLength(0)
+
+      async function asAdminRead() {
+        return asUser({ overrideAccess: true })
+      }
+    })
+  })
+
   describe('admins', () => {
     it('read everything', async () => {
       const admin = { id: 3, collection: 'managers', type: 'admin' } as never

@@ -176,6 +176,19 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       expect(doc.form).toBeFalsy()
     })
 
+    it('gates the proposed patch against the live Events config', async () => {
+      // `proposed` is applied to an Event by Phase 3's accept path, so an
+      // ungated public POST is a write to Events with a manager's authority
+      // behind it. Reuses `event-submissions`' own gate.
+      await expect(
+        send({
+          type: 'proposal',
+          senderEmail: 'forger@example.com',
+          proposed: { title: 'Legit', verificationStage: 'verified' },
+        }),
+      ).rejects.toThrow(/verificationStage/)
+    })
+
     it('accepts a proposal submission', async () => {
       const doc = await send({
         type: 'proposal',

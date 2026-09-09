@@ -606,11 +606,11 @@ export type ActivityLog = {
   /**
    * ISO 8601. The first column, and the sort key.
    */
-  at: string;
+  at?: string;
   /**
    * Stable slug — matched by jobs, never shown.
    */
-  type: string;
+  type?: string;
   /**
    * Exactly-once key, scoped to `type`.
    */
@@ -618,7 +618,7 @@ export type ActivityLog = {
   /**
    * What the columns read. Everything outside this is machine data.
    */
-  cells: {
+  cells?: {
     [k: string]:
       | string
       | {

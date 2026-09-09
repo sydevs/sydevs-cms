@@ -132,10 +132,16 @@ const logCellJsonSchema: JSONSchema4 = {
 /**
  * The shape every activity log holds. Mirrors {@link LogEntry}.
  *
- * `at`, `type` and `cells` are required because they always have been —
- * `asLog` has rejected an entry missing any of the three since the field
- * factory shipped (#626), so no stored row can hold a looser shape, and the
- * "keep every property optional" caution does not bite here.
+ * **Every property optional, and no `required` list**, even though
+ * `appendLogEntry` has always written all three of `at`, `type` and `cells`.
+ * Payload runs this validator on **every save of the document**, including one
+ * that never touches the log — so a `required` key makes any row holding an
+ * older entry permanently unsaveable, and this column predates the factory: it
+ * was Registrations' `reminderLog`, whose entries were reminders with no
+ * `cells` at all. Type checks on the properties that *are* present still
+ * apply, which is the half worth having; demanding presence is the half that
+ * strands a row. (Payload's type generation ignores `required` here anyway, so
+ * nothing is lost downstream.)
  *
  * `additionalProperties: true` is the machine data the doc comment describes:
  * a reminder's stage and recipient, a verification's ten fields. It is
@@ -149,7 +155,6 @@ export const activityLogJsonSchema: JSONSchema4 = {
   items: {
     type: 'object',
     additionalProperties: true,
-    required: ['at', 'type', 'cells'],
     properties: {
       at: { type: 'string', description: 'ISO 8601. The first column, and the sort key.' },
       type: { type: 'string', description: 'Stable slug — matched by jobs, never shown.' },

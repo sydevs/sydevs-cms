@@ -2,6 +2,7 @@ import type { Plugin } from 'payload'
 
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 
+import { validateProposal } from '@/collections/EventSubmissions/hooks/validateProposal'
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
@@ -100,6 +101,19 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
       fields: userSubmissionFields,
       // Order matters: the reach check refuses a forbidden target before
       // `prepareUserSubmission` upserts a `users` row for its sender.
-      hooks: { beforeValidate: [enforceSubscribeReach, prepareUserSubmission] },
+      //
+      // `validateProposal` is `event-submissions`' own gate, reused. `proposed`
+      // is a patch of real Events fields, so an ungated public POST stores what
+      // Phase 3's accept path would later apply to an Event with a manager's
+      // authority behind it — a submitter who could set `verificationStage` or
+      // `registrationNotificationEmail` would be minting a verified listing, or
+      // redirecting registrants' answers to an inbox of their choosing. The
+      // gate derives its allowlist from the live Events config, so there is
+      // nothing here to keep in step. It moves to a shared home in Phase 3,
+      // when `event-submissions` is deleted; duplicating it now would give the
+      // rule two definitions to reconcile at that merge.
+      hooks: {
+        beforeValidate: [validateProposal, enforceSubscribeReach, prepareUserSubmission],
+      },
     },
   })(config)
