@@ -22,7 +22,7 @@ import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
  * discriminator — a reader that has narrowed on `skipped === false` gets
  * `checks` non-null.
  */
-export const eventQualityReportZodSchema = z.union([
+const eventQualityReportZodSchema = z.union([
   z.strictObject({
     skipped: z.literal(true),
     reason: z

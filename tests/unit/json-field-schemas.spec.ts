@@ -52,11 +52,14 @@ function jsonField(fields: Field[], name: string): JSONField {
 const req = { t: (key: string) => key } as never
 
 function runSchema(field: JSONField, value: unknown): true | string {
-  return jsonFieldValidation(value as never, {
-    ...field,
-    req,
-    required: false,
-  } as never) as true | string
+  return jsonFieldValidation(
+    value as never,
+    {
+      ...field,
+      req,
+      required: false,
+    } as never,
+  ) as true | string
 }
 
 /** Call the field's own `validate`, which is what a save actually runs. */
@@ -189,9 +192,9 @@ describe('Managers.notificationPreferences', () => {
     // signature is usable at a dynamic key — which is what deleted the
     // hand-written aliases and their four consumer casts. The value stays
     // open, for the same reason the top level does.
-    expect(
-      runFieldValidate(field, { a_retired_type: { frequency: 'Never', extra: 'kept' } }),
-    ).toBe(true)
+    expect(runFieldValidate(field, { a_retired_type: { frequency: 'Never', extra: 'kept' } })).toBe(
+      true,
+    )
     expect(runFieldValidate(field, { a_retired_type: 'Never' })).not.toBe(true)
   })
 
@@ -263,9 +266,9 @@ describe('virtual columns', () => {
   it('types AppCards.viewSchedule as the hook returns it', () => {
     const field = jsonField(AppCards.fields, 'viewSchedule')
     expect(field.jsonSchema?.schema.title).toBe('AppCardViewSchedule')
-    expect(runSchema(field, { timezone: 'Europe/Amsterdam', schedule: { '00:00': 'default' } })).toBe(
-      true,
-    )
+    expect(
+      runSchema(field, { timezone: 'Europe/Amsterdam', schedule: { '00:00': 'default' } }),
+    ).toBe(true)
     // A view name the hook cannot emit, and the timezone the hook always sets.
     expect(runSchema(field, { timezone: 'UTC', schedule: { '00:00': 'unknown' } })).not.toBe(true)
     expect(runSchema(field, { schedule: { '00:00': 'default' } })).not.toBe(true)
@@ -348,7 +351,9 @@ describe('virtual columns', () => {
         groups: [{ type: 'errored', key: 'x', error: 'boom', passing: true, counter: null }],
       }),
     ).not.toBe(true)
-    expect(runSchema(field, { ...report, groups: [{ type: 'documents', key: 'x' }] })).not.toBe(true)
+    expect(runSchema(field, { ...report, groups: [{ type: 'documents', key: 'x' }] })).not.toBe(
+      true,
+    )
   })
 })
 

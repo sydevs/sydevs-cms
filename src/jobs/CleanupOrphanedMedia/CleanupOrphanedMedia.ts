@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { ImageTag } from '@/types/tags'
 
-
 import {
   discoverReferencesForCollection,
   extractIdsFromDocument,

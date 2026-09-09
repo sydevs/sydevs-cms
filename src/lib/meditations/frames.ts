@@ -23,7 +23,6 @@ import { z } from 'zod'
 import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { KeyframeDefinition } from '@/types/frames'
 
-
 /**
  * What `Meditations.frames` holds: a list of keyframes, each naming a frame and
  * when it appears.

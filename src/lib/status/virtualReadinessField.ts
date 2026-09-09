@@ -33,7 +33,7 @@ const documentReportSchema = z.strictObject({
  * under an earlier shape. `readiness-field.spec.ts` pins the two definitions
  * to each other.
  */
-export const readinessReportZodSchema = z.strictObject({
+const readinessReportZodSchema = z.strictObject({
   groups: z.array(
     z.union([
       z.strictObject({

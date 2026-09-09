@@ -322,31 +322,45 @@ declare one.** It takes a title and a shape, and derives `uri`,
 
 - **Declare the shape in Zod, inline at the field**, so a reader sees the
   column's shape where it is declared. `zod` is already a production
-  dependency. Emission is `draft-04` with `$schema` deleted — leaving
-  `$schema` in makes Ajv 8 throw ``no schema with key or ref
-  "…draft-04/schema#"`` on **every save** of the column, and `draft-07`
-  emits `const`/`propertyNames`, which drift from the rest of the tree.
+  dependency. Emission targets `draft-7`, because **Ajv 8** is what
+  compiles the schema — not the `JSONSchema4` type the field is declared
+  as, which never reaches a validator. Target `draft-04` instead and Ajv
+  rejects the schema outright the first time someone writes `.positive()`,
+  `.gt()` or `.lt()`: draft-04 spells those as `exclusiveMinimum: true`,
+  and the save then fails naming a keyword nobody wrote.
 - **Zod idioms, and what each emits:** `z.strictObject` →
   `additionalProperties: false`. `z.looseObject` → `additionalProperties:
-  {}` (the same `[k: string]: unknown` as `true`). `z.literal(true)` →
-  `{ type: 'boolean', enum: [true] }`, which keeps a discriminator.
+{}` (the same `[k: string]: unknown` as `true`). `z.literal(true)` →
+  `{ type: 'boolean', const: true }`, which keeps a discriminator.
   `.describe()` → `description`, which becomes JSDoc on the generated
   property. `z.int()` also emits the safe-integer bounds; the helper
-  strips them.
-- **The raw `JSONSchema4` overload is the escape hatch**, for what Zod
-  cannot say: `maxProperties` (`UserMessages.context`), and a bare `enum`
-  with no `type` beside it spliced from a const array
-  (`UserMessages.screeningResult`, `Clients.canonical.verification`).
+  strips them, because Ajv enforces them and a column that accepts `1e21`
+  today must keep doing so.
+- **The raw `JSONSchema4` overload is for a shape assembled as data** — a
+  `properties` map built by `Object.fromEntries` (`stringsJsonSchema`), or
+  `enum`s spliced from an exported const array
+  (`Clients.canonical.verification`, `UserMessages.screeningResult`,
+  `Clients.embedMetadata`). Round-tripping such a shape through Zod only
+  to convert it back buys nothing. It is **not** a list of things Zod
+  cannot express: Zod reaches `maxProperties` through `.meta()`, and its
+  `enum`/`.nullable()` forms generate the same TypeScript as the bare
+  ones. Assembly, not expressiveness, is the test.
 - **Name a schema at module level only when it is too big to read beside
-  the field** — `ReadinessReport` and `EventQualityReport` — or when the
-  const arrays it splices live elsewhere. Say which, in one line, above it.
+  the field** — `ReadinessReport` and `EventQualityReport` — or when it
+  splices const arrays from elsewhere. Say which, in one line, above it.
+- **A schema belongs at its field, not in a module a client component
+  imports.** Declaring one pulls `zod` and a `toJSONSchema` call into
+  whatever chunk the module lands in, and an admin `'use client'`
+  component reaching it ships both to the browser to describe a shape only
+  the server validates. `Clients.canonical.verification` and
+  `Managers.notificationPreferences` sit at their fields for that reason.
 - **A `title` names the generated interface**, and it is the only thing a
   URI change cannot move. Reuse one schema across several columns and
   Payload emits `FileMetadata`, `FileMetadata1`, … — one per usage, same
-  shape. Two *different* shapes sharing a title silently merge into one;
+  shape. Two _different_ shapes sharing a title silently merge into one;
   `tests/unit/json-field-schema-helper.spec.ts` fails when they do.
 - **Every property optional, unless nothing can hold the old shape.**
-  Payload validates the column on *every* save of the document, including
+  Payload validates the column on _every_ save of the document, including
   one that never touched it, so a `required` key or
   `additionalProperties: false` can make a row written under an earlier
   shape unsaveable. Close the shape only where a single internal writer
@@ -355,10 +369,12 @@ declare one.** It takes a title and a shape, and derives `uri`,
   Payload's loose union verbatim. The column is still nullable in
   Postgres, and the validator skips `null`, `undefined`, `{}` and `[]`
   before reaching Ajv — so code that clears a column casts.
-  **`.nullable()` puts it back, but only on a schema with no
-  `properties`** (`meditationNodeWeightsFieldSchema`). Add `properties`
-  and `generate:types` emits `X & (X | null)`, which is `X` again plus a
-  duplicated copy of the whole interface — so there the cast stays.
+  **`.nullable()` puts it back, and unlike the hand-written form it is
+  safe with `properties`.** Zod emits `anyOf: [ {…}, { type: 'null' } ]`,
+  which generates a clean `X | null`. The old hazard belonged to
+  `type: ['object', 'null']`, which emitted `X & (X | null)` — `X` again
+  plus a duplicate of the whole interface. Say a column is nullable when
+  it is, rather than casting at every reader.
 - **An open shape can still be typed.** `additionalProperties: true`
   generates `[k: string]: unknown`, so every consumer reading a dynamic
   key needs a hand-written alias to cast to — the second definition this
@@ -380,7 +396,7 @@ import { json as jsonFieldValidation } from 'payload/shared'
 validate: (value, options) => {
   const shape = jsonFieldValidation(value, options)
   if (shape !== true) return shape
-  return myCrossKeyRule(value)   // what no schema can state
+  return myCrossKeyRule(value) // what no schema can state
 }
 ```
 
@@ -397,7 +413,7 @@ definition.
 
 ### A virtual column takes a schema too, and it can be closed
 
-`virtual: true` changes what the schema is *for*, not whether to write one.
+`virtual: true` changes what the schema is _for_, not whether to write one.
 Nothing stores the column, so the Ajv validator has nothing to gate — but
 `generate:types` still reads the schema, and without one the column's type
 is the loose union above. "Typed at its source" types the **hook**, never
@@ -466,11 +482,11 @@ carries ten such fields, and the rule the other way round rendered a
 fourteen-column table of raw enum values.
 
 | Key     | Meaning                                                                |
-| ------- | ------------------------------------------------------------------------ |
-| `at`    | ISO timestamp. Always the first column, and what the log sorts by.       |
-| `type`  | Stable slug (`session-reminder`, `verification`) — matched, not shown.   |
-| `key`   | Exactly-once key, scoped to `type`.                                      |
-| `cells` | What the columns read. Everything else is data.                          |
+| ------- | ---------------------------------------------------------------------- |
+| `at`    | ISO timestamp. Always the first column, and what the log sorts by.     |
+| `type`  | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
+| `key`   | Exactly-once key, scoped to `type`.                                    |
+| `cells` | What the columns read. Everything else is data.                        |
 
 Nothing is hidden by not having a column: every row's trailing **⋯** opens
 the whole entry as JSON in a popover, which is where a reminder's stage,
@@ -583,14 +599,14 @@ Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`, `hy`,
 `src/plugins/access/filterAvailableLocales.ts` controls which locales
 appear in the admin locale selector:
 
-| User                             | Locales shown                                                    |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| Unauthenticated                  | English only (login page)                                          |
-| Admin managers                   | All 19                                                              |
-| API clients                      | All (the filter only applies to the admin UI)                      |
-| Regular managers                 | Exactly the locales where they have ≥ 1 role, most roles first     |
-| Managers with roles in no locale | English only                                                        |
-| Inactive managers                | English only                                                        |
+| User                             | Locales shown                                                  |
+| -------------------------------- | -------------------------------------------------------------- |
+| Unauthenticated                  | English only (login page)                                      |
+| Admin managers                   | All 19                                                         |
+| API clients                      | All (the filter only applies to the admin UI)                  |
+| Regular managers                 | Exactly the locales where they have ≥ 1 role, most roles first |
+| Managers with roles in no locale | English only                                                   |
+| Inactive managers                | English only                                                   |
 
 A manager with `{ en: ['translator'], cs: ['meditations-editor'] }` sees
 English + Czech, not German/French/etc.
@@ -619,7 +635,7 @@ single-locale document:
 - A `locale` select field with all 19 options, default `en`.
 - `filterMeditationsByLocale` (a beforeOperation hook in
   `src/collections/Meditations/hooks/`) adds `{ locale: { equals:
-  req.locale } }` to `find`/`count` operations.
+req.locale } }` to `find`/`count` operations.
 - `findByID` returns the specific doc regardless of locale.
 - `locale=all` bypasses filtering.
 
@@ -651,14 +667,14 @@ Live preview integrates with the We Meditate Web frontend
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
-| Block               | Notes                                                                                                                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                 |
-| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                          |
-| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                         |
-| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                               |
-| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                    |
-| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                 |
+| Block               | Notes                                                                                                                                                                                                                                                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                    |
+| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                            |
+| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                           |
+| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                 |
+| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                      |
+| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                   |
 | `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives, via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid) |
 
 Custom block icons → see `src/lib/richEditor/blocks/AGENTS.md`.
@@ -915,11 +931,11 @@ formatToParts → manual extraction → ZonedDateTime.from`. The
 ### Stored-value conventions
 
 | Field            | Stored values                                          | RFC 5545 alignment                                      |
-| ---------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
-| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'`                       | matches `freq` directly                                     |
-| `weekdays`       | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'`   | matches `byDay`                                              |
-| `weekdayOfMonth` | `'MO'`–`'SU'`                                            | matches RFC 5545 day codes                                   |
-| `weekNumber`     | `'1'`–`'4'`, `'-1'`                                      | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`)      |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------- |
+| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'`                     | matches `freq` directly                                 |
+| `weekdays`       | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | matches `byDay`                                         |
+| `weekdayOfMonth` | `'MO'`–`'SU'`                                          | matches RFC 5545 day codes                              |
+| `weekNumber`     | `'1'`–`'4'`, `'-1'`                                    | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
 
 ### `ScheduleSummary` (afterInput component)
 

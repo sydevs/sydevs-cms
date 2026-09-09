@@ -1,12 +1,13 @@
 import type { Field, JSONField } from 'payload'
 
-import { json as jsonFieldValidation } from 'payload/shared'
+import { json as jsonFieldValidation, toKebabCase } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { collections } from '@/collections'
-import { jsonFieldSchema, kebabCase } from '@/fields/jsonFieldSchema'
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import { globals } from '@/globals'
+import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
 
 /**
  * #726: one helper builds every `jsonSchema` in `src/`, deriving `uri`,
@@ -20,21 +21,15 @@ import { globals } from '@/globals'
 const req = { t: (key: string) => key } as never
 
 function runSchema(schema: NonNullable<JSONField['jsonSchema']>, value: unknown): unknown {
-  return jsonFieldValidation(value as never, {
-    jsonSchema: schema,
-    req,
-    required: false,
-  } as never)
+  return jsonFieldValidation(
+    value as never,
+    {
+      jsonSchema: schema,
+      req,
+      required: false,
+    } as never,
+  )
 }
-
-describe('kebabCase', () => {
-  it('splits PascalCase, and splits an acronym before its trailing word', () => {
-    expect(kebabCase('TableOfContentsHeadings')).toBe('table-of-contents-headings')
-    expect(kebabCase('Subtitles')).toBe('subtitles')
-    expect(kebabCase('APIKey')).toBe('api-key')
-    expect(kebabCase('SyncLectureMetadataIds')).toBe('sync-lecture-metadata-ids')
-  })
-})
 
 describe('jsonFieldSchema', () => {
   it('derives all four fields from the title alone', () => {
@@ -83,26 +78,24 @@ describe('jsonFieldSchema', () => {
       expect(runSchema(built, { a: 7 })).not.toBe(true)
     })
 
-    it('fails to validate at all when $schema is left in', () => {
-      // The defect the deletion prevents, reintroduced: Ajv 8 resolves
-      // `$schema` as a meta-schema reference it does not carry, and throws
-      // `no schema with key or ref "…draft-04/schema#"`. That throw happens on
-      // every save of a schema-bearing column, so leaving it in breaks writes
-      // rather than validation. Anything but a clean `true` here is the bug.
-      const built = jsonFieldSchema('ProbeShapeWithSchema', z.strictObject({ a: z.string() }))
-      const poisoned = {
-        ...built,
-        schema: { ...built.schema, $schema: 'http://json-schema.org/draft-04/schema#' },
-      }
+    it('emits an exclusive bound Ajv can actually compile', () => {
+      // This pins the emission TARGET, which is the one setting with a failure
+      // mode nothing else catches. Ajv 8 carries no draft-04 meta-schema and
+      // spells exclusive bounds as numbers:
+      //
+      //   draft-04  .positive() -> { minimum: 0, exclusiveMinimum: true }
+      //             Ajv: schema is invalid: data/exclusiveMinimum must be number
+      //   draft-7   .positive() -> { exclusiveMinimum: 0 }
+      //
+      // Under draft-04 the throw lands on every save of the column, naming a
+      // keyword nobody wrote. Switching the target back turns this case red.
+      const built = jsonFieldSchema('ProbeBounds', z.strictObject({ n: z.number().positive() }))
+      const n = (built.schema.properties as Record<string, Record<string, unknown>>).n
 
-      let outcome: unknown
-      try {
-        outcome = runSchema(poisoned, { a: 'ok' })
-      } catch (error) {
-        outcome = error
-      }
-
-      expect(outcome).not.toBe(true)
+      expect(n.exclusiveMinimum).toBe(0)
+      expect(n.minimum).toBeUndefined()
+      expect(runSchema(built, { n: 1 })).toBe(true)
+      expect(runSchema(built, { n: 0 })).not.toBe(true)
     })
 
     it('strips the safe-integer bounds z.int() emits, at any depth', () => {
@@ -123,20 +116,30 @@ type JsonColumn = { path: string; jsonSchema: NonNullable<JSONField['jsonSchema'
 function collectJsonColumns(fields: Field[], path: string, into: JsonColumn[]) {
   for (const field of fields) {
     const name = 'name' in field && field.name ? `${path}.${field.name}` : path
-    if (field.type === 'json' && field.jsonSchema) into.push({ path: name, jsonSchema: field.jsonSchema })
+    if (field.type === 'json' && field.jsonSchema)
+      into.push({ path: name, jsonSchema: field.jsonSchema })
     if ('fields' in field && Array.isArray(field.fields))
       collectJsonColumns(field.fields, name, into)
-    if (field.type === 'tabs') for (const tab of field.tabs) collectJsonColumns(tab.fields, name, into)
+    if (field.type === 'tabs')
+      for (const tab of field.tabs) collectJsonColumns(tab.fields, name, into)
     if (field.type === 'blocks')
-      for (const block of field.blocks)
+      for (const block of field.blocks) {
+        // Payload 3 also allows a `blockReferences` slug string here.
+        if (typeof block !== 'object' || !Array.isArray(block.fields)) continue
         collectJsonColumns(block.fields, `${name}.${block.slug}`, into)
+      }
   }
 }
 
 describe('derived URIs across the config', () => {
   const columns: JsonColumn[] = []
-  for (const collection of collections) collectJsonColumns(collection.fields, collection.slug, columns)
+  for (const collection of collections)
+    collectJsonColumns(collection.fields, collection.slug, columns)
   for (const global of globals) collectJsonColumns(global.fields, global.slug, columns)
+  // A block registered in a Lexical editor hangs off the editor's config, not
+  // off any field's `blocks`, so walking the collections never reaches it —
+  // `TableOfContentsHeadings` would sit outside the invariant below.
+  collectJsonColumns(TableOfContentsBlock.fields, `block.${TableOfContentsBlock.slug}`, columns)
 
   it('finds the JSON columns, so the assertions below are not vacuous', () => {
     expect(columns.length).toBeGreaterThan(20)
@@ -148,7 +151,7 @@ describe('derived URIs across the config', () => {
     for (const { path, jsonSchema } of columns) {
       const title = jsonSchema.schema.title
       expect(typeof title, `${path} declares no title`).toBe('string')
-      expect(jsonSchema.uri, path).toBe(`urn:sahajcloud:schema:${kebabCase(title as string)}`)
+      expect(jsonSchema.uri, path).toBe(`urn:sahajcloud:schema:${toKebabCase(title as string)}`)
       expect(jsonSchema.fileMatch, path).toEqual([jsonSchema.uri])
       expect(jsonSchema.schema.$id, path).toBe(jsonSchema.uri)
     }

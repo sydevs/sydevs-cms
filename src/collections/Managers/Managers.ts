@@ -2,16 +2,17 @@ import type { CollectionConfig } from 'payload'
 
 import { json as jsonFieldValidation } from 'payload/shared'
 import { createElement } from 'react'
+import { z } from 'zod'
 
 import {
   buildDefaultNotificationPreferences,
   NOTIFICATION_TYPES,
-  notificationPreferencesFieldSchema,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
@@ -231,7 +232,37 @@ export const Managers: CollectionConfig = {
               name: 'notificationPreferences',
               type: 'json',
               defaultValue: buildDefaultNotificationPreferences(),
-              jsonSchema: notificationPreferencesFieldSchema,
+              // Open keys, typed value. Every key is a notification-type key, and
+              // retiring a type must not block a save: Payload validates this
+              // column on every save of a manager, and the field component
+              // spreads an unknown key back, so a closed shape would strand the
+              // row rather than let the admin clear it. Saying what the *value*
+              // holds is what makes the generated interface usable — an open
+              // value generates `[k: string]: unknown`, which is why every
+              // consumer reading `prefs[key]?.method` used to need a
+              // hand-written alias to cast to (#659).
+              //
+              // Deliberately no per-key `properties`: they validated exactly
+              // what this does, and TypeScript refuses the combination — an
+              // optional named property includes `undefined`, which is not
+              // assignable to an index signature that does not, so
+              // `payload-types.ts` itself fails `tsc` with TS2411. Requiring the
+              // four keys would fix that and strand every row missing one.
+              // `NOTIFICATION_TYPES` stays the source of truth for which keys
+              // the admin renders, and the frequency is checked as a string
+              // rather than against `frequencyOptions` — dropping an option
+              // would otherwise strand every manager still on it.
+              jsonSchema: jsonFieldSchema(
+                'NotificationPreferences',
+                z.record(
+                  z.string(),
+                  // The value stays open for the same reason the keys do.
+                  z.looseObject({
+                    frequency: z.string().optional(),
+                    method: z.string().optional(),
+                  }),
+                ),
+              ),
               // Composed, not replaced: supplying `validate` takes over from the
               // built-in one, which is what runs the schema above. The extra
               // rule — a method is required unless the frequency is "Never" —

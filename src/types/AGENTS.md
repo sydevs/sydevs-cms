@@ -106,7 +106,7 @@ Some things are **not** restatements — don't "fix" them:
 - **A deliberate narrowing at a boundary.** A writer that only ever
   produces a subset may declare the subset — the Atlas importer's
   `ScheduleInput.endingType` is `'until'` where the column is `'count' |
-  'until'`, because the importer writes no `count` endings.
+'until'`, because the importer writes no `count` endings.
 - **A shape a `localized` field cannot generate.** Payload generates the
   single-locale type for a localized field, so a value carrying every
   locale at once is not spellable from it. `TypedAuthUser.roles` is
@@ -213,11 +213,11 @@ export {} // Makes this a module file
 
 `export {}` is required — it is what makes `declare global` take effect.
 
-| Approach that does not work | Why |
-| ----------------------------------------------- | --------------------------------------- |
+| Approach that does not work                       | Why                                      |
+| ------------------------------------------------- | ---------------------------------------- |
 | Adding a root-level `.d.ts` to tsconfig `include` | The Next.js TypeScript plugin ignores it |
-| A triple-slash reference to a root file | Not resolved by the Next.js build |
-| `declare interface` outside `declare global {}` | Does not become global in a module file |
+| A triple-slash reference to a root file           | Not resolved by the Next.js build        |
+| `declare interface` outside `declare global {}`   | Does not become global in a module file  |
 
 Use this pattern to migrate away from deprecated `@types/*` packages, to
 declare third-party globals or build-time constants, or for any external

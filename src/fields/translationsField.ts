@@ -189,7 +189,8 @@ export function stringsJsonSchema({
 }): NonNullable<JSONField['jsonSchema']> {
   const title = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
 
-  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> = {}
+  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> =
+    {}
   for (const [key, prop] of stringProps) {
     const property = {
       type: 'string' as const,
@@ -203,9 +204,9 @@ export function stringsJsonSchema({
     }
   }
 
-  // Raw JSON Schema rather than Zod: `additionalProperties` is a per-group
-  // boolean rather than a fixed shape, and the properties are built from the
-  // group's own entries at config time.
+  // Raw JSON Schema rather than Zod: `properties` is assembled as data from the
+  // group's own entries, so building it in Zod only to convert it back would be
+  // a round trip.
   return jsonFieldSchema(title, {
     type: 'object',
     additionalProperties: allowAdditional,

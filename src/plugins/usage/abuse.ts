@@ -12,7 +12,6 @@ import { z } from 'zod'
 import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { ClientAbuseScore } from '@/payload-types'
 
-
 import { HIGH_USAGE_THRESHOLD } from './constants'
 
 /**

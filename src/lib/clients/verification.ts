@@ -1,20 +1,21 @@
-import type { JSONSchema4 } from 'json-schema'
-
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { ClientCanonicalVerification } from '@/payload-types'
-
-
-import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
 /**
  * The `canonical.verification` contract — what the CMS itself has confirmed
  * about the embed an operator nominated, and the ladder that takes a repeatedly
  * broken one out of service.
  *
- * Pure and side-effect free: the JSON Schema types + validates the column, and
- * {@link nextVerificationState} is the whole state machine. Nothing here loads a
- * page, reads a request, or touches Payload — so the three-strikes rule, the
- * `inconclusive` exemption and the backoff are unit-testable on their own.
+ * Pure and side-effect free: {@link nextVerificationState} is the whole state
+ * machine, and the column's JSON Schema — built from the const arrays below —
+ * sits at its field in `Clients.ts`. Nothing here loads a page, reads a request,
+ * or touches Payload, so the three-strikes rule, the `inconclusive` exemption
+ * and the backoff are unit-testable on their own.
+ *
+ * ⚠ **Keep this module free of heavy runtime imports.** `CanonicalEmbedPicker`
+ * is a `'use client'` component and value-imports {@link splitMountKey} from
+ * here, so a top-level import lands in an admin browser chunk. That is why the
+ * `jsonSchema` call moved to `Clients.ts` — declaring it here would ship `zod`
+ * to the browser to describe a shape only the server validates.
  *
  * **Why the server attests rather than the widget** (#633 follow-up): the report
  * endpoint is reachable by anyone holding a published key from an allowed
@@ -49,7 +50,7 @@ export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_R
  *
  * The chain is one-directional and worth stating, because it is easy to read the
  * wrong way round: the const arrays above are spliced into
- * {@link canonicalVerificationFieldSchema} below, Payload generates
+ * `canonicalVerificationFieldSchema` in `Clients.ts`, Payload generates
  * `ClientCanonicalVerification` from that schema's `title`, and these three
  * aliases derive from the generated type. So the arrays are the single source
  * and this file cannot drift from the column (#671).
@@ -77,68 +78,6 @@ export const VERIFY_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 /** Retry sooner when we learned nothing — the fault is likely ours and transient. */
 export const VERIFY_INCONCLUSIVE_RETRY_MS = 60 * 60 * 1000
-
-const domainSchema: JSONSchema4 = {
-  type: 'string',
-  pattern: CANONICAL_DOMAIN_PATTERN.source,
-  minLength: 1,
-}
-
-/**
- * JSON Schema for the column. Payload generates the TS type from this **and**
- * compiles it to a validator that runs on write.
- *
- * The `domain` pattern is the same bare-host rule the admin field used to
- * enforce with `canonicalDomainValidate`. It moved here because the host is now
- * job-written rather than typed — the guard belongs where the write happens.
- *
- * **Raw JSON Schema, not Zod — this is what the escape hatch is for.** Three
- * properties are bare `enum`s spliced from the const arrays above with no
- * `type` beside them, and `verified` is `['object', 'null']` rather than a
- * union. Zod cannot emit either form, and `ClientCanonicalVerification` plus
- * the three aliases below are generated from this shape (#671), so restating it
- * in Zod would move a type nothing asked to move. Named rather than inline for
- * the same reason: those const arrays live here.
- */
-export const canonicalVerificationFieldSchema = jsonFieldSchema('ClientCanonicalVerification', {
-  type: 'object',
-  additionalProperties: false,
-  required: ['verified', 'failureCount', 'attempts'],
-  properties: {
-    verified: {
-      type: ['object', 'null'],
-      additionalProperties: false,
-      required: ['domain', 'mount', 'routing', 'widgetVersion', 'at'],
-      properties: {
-        domain: domainSchema,
-        mount: { type: 'string' },
-        routing: { enum: [...ROUTING_MODES] },
-        widgetVersion: { type: 'number' },
-        at: { type: 'string' },
-      },
-    },
-    failureCount: { type: 'number', minimum: 0 },
-    attempts: {
-      type: 'array',
-      // Deliberately no `maxItems`: json-schema-to-typescript renders a bounded
-      // array as an exploded tuple union (one variant per length), which adds
-      // ~200 lines to payload-types.ts for no safety we don't already have.
-      // `nextVerificationState` is what trims the ring.
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['at', 'status'],
-        properties: {
-          at: { type: 'string' },
-          status: { enum: ['verified', 'failed', 'inconclusive'] },
-          reason: {
-            enum: [...VERIFICATION_FAILURE_REASONS, ...VERIFICATION_INCONCLUSIVE_REASONS],
-          },
-        },
-      },
-    },
-  },
-})
 
 /** What one verification run concluded. */
 export type VerificationResult =

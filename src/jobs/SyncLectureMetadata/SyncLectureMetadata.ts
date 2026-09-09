@@ -8,7 +8,6 @@ import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
-
 type SyncResult = {
   totalProcessed: number
   synced: number

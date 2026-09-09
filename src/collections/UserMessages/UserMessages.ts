@@ -46,8 +46,8 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
  * that was dropped deliberately (review of #653) — the size cap is not worth a
  * hand-written validator beside a schema.
  *
- * Raw JSON Schema rather than Zod, and named rather than inline: `maxProperties`
- * has no Zod equivalent, and the block above is the reasoning it carries.
+ * Raw JSON Schema rather than Zod, and named rather than inline: the block above
+ * is the reasoning this shape carries, and it belongs with it.
  */
 const contextJsonSchema: JSONSchema4 = {
   type: 'object',

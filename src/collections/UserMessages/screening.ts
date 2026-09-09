@@ -51,8 +51,8 @@ export type MessageVerdict = (typeof MESSAGE_VERDICTS)[number]
  * a newer client. `verdict` takes its enum from {@link MESSAGE_VERDICTS}, so the
  * runtime list and the stored contract cannot drift.
  *
- * Raw JSON Schema rather than Zod, and named rather than inline: `verdict` is a
- * bare `enum` spliced from that const array, which is where it belongs.
+ * Raw JSON Schema rather than Zod, and named rather than inline: `verdict` is
+ * spliced from that const array, so the shape is assembled as data.
  */
 export const screeningResultJsonSchema: JSONSchema4 = {
   type: 'object',

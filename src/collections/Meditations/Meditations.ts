@@ -27,21 +27,6 @@ import { invalidateMeditationNodeWeights } from './hooks/invalidateMeditationNod
 import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeWeights'
 
 /**
- * Factory for afterRead hooks that find UserChoices referencing this meditation
- * for a specific timing field. Returns an array of { id, title } objects.
- *
- * @deprecated Workaround for a PayloadCMS bug — replace with native join fields
- * when fixed. See https://github.com/sydevs/SahajCloud/issues/249
- *
- * PayloadCMS's `docWithFilenameExists` calls `db.findOne()` without passing
- * `locale`, which breaks join subqueries that target localized relationships
- * on upload collections. This factory emulates join fields using virtual JSON
- * fields with afterRead hooks.
- *
- * Each call maps 1:1 to this native join field config:
- *   { type: 'join', collection: 'user-choices', on: '<onField>' }
- */
-/**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
  * this meditation, reduced to what `TagAssignmentField` renders.
  *
@@ -63,6 +48,21 @@ const tagAssignmentsFieldSchema = jsonFieldSchema(
   ),
 )
 
+/**
+ * Factory for afterRead hooks that find UserChoices referencing this meditation
+ * for a specific timing field. Returns an array of { id, title } objects.
+ *
+ * @deprecated Workaround for a PayloadCMS bug — replace with native join fields
+ * when fixed. See https://github.com/sydevs/SahajCloud/issues/249
+ *
+ * PayloadCMS's `docWithFilenameExists` calls `db.findOne()` without passing
+ * `locale`, which breaks join subqueries that target localized relationships
+ * on upload collections. This factory emulates join fields using virtual JSON
+ * fields with afterRead hooks.
+ *
+ * Each call maps 1:1 to this native join field config:
+ *   { type: 'join', collection: 'user-choices', on: '<onField>' }
+ */
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
   // Virtual: written by the hook below, never stored. The schema exists for the
   // generated type. See `src/collections/AGENTS.md`.

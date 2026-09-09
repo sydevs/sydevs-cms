@@ -1,9 +1,14 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
-import { canonicalVerificationFieldSchema } from '@/lib/clients/verification'
+import {
+  VERIFICATION_FAILURE_REASONS,
+  VERIFICATION_INCONCLUSIVE_REASONS,
+} from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { abuseScoreFieldSchema, calculateAbuseScore } from '@/plugins/usage'
@@ -13,6 +18,68 @@ import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
+
+/**
+ * The bare-host rule the admin field used to enforce with
+ * `canonicalDomainValidate`. It lives on the schema because the host is now
+ * job-written rather than typed — the guard belongs where the write happens.
+ */
+const domainSchema: JSONSchema4 = {
+  type: 'string',
+  pattern: CANONICAL_DOMAIN_PATTERN.source,
+  minLength: 1,
+}
+
+/**
+ * What `canonical.verification` holds. Payload generates
+ * `ClientCanonicalVerification` from this **and** compiles it to a validator
+ * that runs on write; the three aliases in `@/lib/clients/verification` derive
+ * from the generated type, so this shape is their single source (#671).
+ *
+ * **Raw JSON Schema rather than Zod**, because the shape is assembled as data:
+ * three properties are `enum`s spliced from that module's exported const
+ * arrays. Round-tripping those through Zod only to convert them back buys
+ * nothing.
+ */
+const canonicalVerificationFieldSchema = jsonFieldSchema('ClientCanonicalVerification', {
+  type: 'object',
+  additionalProperties: false,
+  required: ['verified', 'failureCount', 'attempts'],
+  properties: {
+    verified: {
+      type: ['object', 'null'],
+      additionalProperties: false,
+      required: ['domain', 'mount', 'routing', 'widgetVersion', 'at'],
+      properties: {
+        domain: domainSchema,
+        mount: { type: 'string' },
+        routing: { enum: [...ROUTING_MODES] },
+        widgetVersion: { type: 'number' },
+        at: { type: 'string' },
+      },
+    },
+    failureCount: { type: 'number', minimum: 0 },
+    attempts: {
+      type: 'array',
+      // Deliberately no `maxItems`: json-schema-to-typescript renders a bounded
+      // array as an exploded tuple union (one variant per length), which adds
+      // ~200 lines to payload-types.ts for no safety we don't already have.
+      // `nextVerificationState` is what trims the ring.
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['at', 'status'],
+        properties: {
+          at: { type: 'string' },
+          status: { enum: ['verified', 'failed', 'inconclusive'] },
+          reason: {
+            enum: [...VERIFICATION_FAILURE_REASONS, ...VERIFICATION_INCONCLUSIVE_REASONS],
+          },
+        },
+      },
+    },
+  },
+})
 
 /**
  * Canonical ownership is one master switch: with it off the feature is off, and every field it

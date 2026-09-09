@@ -6,7 +6,6 @@ import type { LocaleCode } from '@/lib/locales'
 import { isValidLocale } from '@/lib/locales'
 import type { LectureMetadata } from '@/payload-types'
 
-
 // =============================================================================
 // Language Code Mapping
 // =============================================================================

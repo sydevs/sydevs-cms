@@ -32,7 +32,6 @@ import { z } from 'zod'
 import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { EventSchedule, ExclusionRange } from '@/types/schedule'
 
-
 /** Number of upcoming occurrences to compute */
 const UPCOMING_COUNT = 10
 
