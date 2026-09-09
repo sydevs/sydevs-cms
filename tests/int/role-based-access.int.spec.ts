@@ -2082,6 +2082,36 @@ describe('Role-Based Access Control', () => {
       const parentIds = versions.docs.map((row) => row.parent)
       expect(parentIds).not.toContain(theirs.id)
       expect(new Set(parentIds)).toEqual(new Set([mine.id]))
+
+      // The by-ID path, where the same collision is a live authorization bug.
+      // `findVersionByID` calls access with the VERSION ROW's id, and
+      // `collidingRow` is the row whose id equals `mine.id` while belonging to
+      // a page the editor does not manage. Forward that id to `update` and
+      // `userManagesDocument` loads page `mine.id`, which the editor DOES
+      // manage — granting them a row of someone else's page.
+      await expect(
+        payload.findVersionByID({
+          collection: 'pages',
+          id: collidingRow.docs[0]!.id,
+          depth: 0,
+          locale: 'en',
+          user: editor,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+
+      // Same row, admin: proves the denial above is about the editor, not a
+      // row that was unreadable anyway. Assert against the row's real parent,
+      // not a named fixture — which page owns the colliding id depends on how
+      // many versions earlier cases in this file wrote.
+      const asAdmin = await payload.findVersionByID({
+        collection: 'pages',
+        id: collidingRow.docs[0]!.id,
+        depth: 0,
+        user: versionAdmin,
+        overrideAccess: false,
+      })
+      expect(Number(asAdmin.parent)).toBe(Number(collidingRow.docs[0]!.parent))
     })
 
     it('applies the same rule to a global', async () => {

@@ -203,6 +203,16 @@ export function createAccessConfig(
  * version *rows* by their own primary key — a wrong answer that still returns
  * documents.
  *
+ * ⚠ **`args.id` is dropped, and must be.** `findVersionByID` calls access with
+ * the VERSION ROW's primary key, not the document's — two independent
+ * sequences. Forwarded to `update`, every id-sensitive branch reads it as a
+ * document id and answers about the wrong document: the self-access bypass
+ * grants a client row `N` of `_clients_v` because its own id is `N`, and
+ * `userManagesDocument` grants any row whose number happens to match a page the
+ * caller manages. Dropping it makes `update` answer at the list level, and
+ * `findVersionByID` then ANDs that `Where` with `{ id: { equals: <row> } }`
+ * itself — the same decision, reached correctly, with no extra query.
+ *
  * Live preview is unaffected: it reads drafts through `find`/`findByID` with
  * `draft: true`, which resolves against `read` (see the preview-secret branch
  * above), never through a versions operation.
@@ -215,7 +225,7 @@ export function withVersionHistoryAccess<T extends { readVersions?: Access; upda
 
   return {
     ...access,
-    readVersions: async (args) => {
+    readVersions: async ({ id: _versionRowId, ...args }) => {
       const result = await update(args)
       return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
     },
