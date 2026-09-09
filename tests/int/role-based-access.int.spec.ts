@@ -2114,6 +2114,116 @@ describe('Role-Based Access Control', () => {
       expect(Number(asAdmin.parent)).toBe(Number(collidingRow.docs[0]!.parent))
     })
 
+    it('translates a recursive `or` — an atlas-manager reads its subtree, not outside', async () => {
+      // Every other case here proves the translation for `{ id: { in } }`.
+      // `events` is the one collection whose `update` returns a `Where` keyed on
+      // something else: `scopeRegionSubtreeWrite` hands back
+      // `{ or: [{ region: { in } }, { manager: { equals } }] }`, so this is the
+      // only case exercising `appendVersionToQueryKey`'s recursion into `or` and
+      // two `version.` paths at once.
+      //
+      // Untranslated it does not return the wrong rows — `region` is not a path
+      // on `_events_v`, so the read throws `Cannot find field for path at
+      // region` and both assertions fail. Verified by deleting the translation.
+      //
+      // NOT the `excludeFinishedEvents` trap either: that hook filters list
+      // reads for `req.user.collection === 'clients'` only, so a manager's
+      // versions read reaches the access layer unmodified.
+      const filler = await testData.createManager(payload, {
+        name: 'Atlas Filler for Version History Test',
+        roles: [],
+      })
+      const atlasManager = await testData.createManager(payload, {
+        name: 'Atlas Manager for Version History Test',
+        roles: ['atlas-manager'],
+      })
+
+      const createRegion = (data: RegionFixture) =>
+        payload.create({
+          collection: 'regions',
+          data: createData<'regions'>({
+            level: 'country',
+            name: 'Region',
+            mapboxId: `place.${Math.random().toString(36).slice(2)}`,
+            managers: [filler.id],
+            ...data,
+          }),
+          depth: 0,
+          overrideAccess: true,
+        })
+
+      // Ownership sits on the country; the venue is reached through the
+      // nested-docs `breadcrumbs` trail, which is what puts more than one id in
+      // the `in` clause.
+      const owned = await createRegion({
+        level: 'country',
+        name: 'VersionHistory Country',
+        managers: [atlasManager.id],
+      })
+      const ownedCity = await createRegion({
+        level: 'city',
+        name: 'VersionHistory City',
+        parent: owned.id,
+      })
+      const ownedVenue = await createRegion({
+        level: 'venue',
+        name: 'VersionHistory Venue',
+        parent: ownedCity.id,
+      })
+      const otherCountry = await createRegion({
+        level: 'country',
+        name: 'VersionHistory Otherland',
+      })
+      const otherCity = await createRegion({
+        level: 'city',
+        name: 'VersionHistory Far City',
+        parent: otherCountry.id,
+      })
+      const otherVenue = await createRegion({
+        level: 'venue',
+        name: 'VersionHistory Far Venue',
+        parent: otherCity.id,
+      })
+
+      // `manager` is the filler on both, so the second half of the `or` matches
+      // neither event — the region clause has to carry the whole decision.
+      const createEvent = (data: FixtureOverrides<Event>) =>
+        payload.create({
+          collection: 'events',
+          draft: true,
+          data: createData<'events'>({
+            eventType: 'offline',
+            registrationMode: 'sahaj-atlas',
+            manager: filler.id,
+            ...data,
+          }),
+          depth: 0,
+          overrideAccess: true,
+        })
+
+      const mine = await createEvent({
+        region: ownedVenue.id,
+        address: { street: 'Version Inside' },
+      })
+      const theirs = await createEvent({
+        region: otherVenue.id,
+        address: { street: 'Version Outside' },
+      })
+
+      const versions = await payload.findVersions({
+        collection: 'events',
+        depth: 0,
+        pagination: false,
+        locale: 'en',
+        user: atlasManager,
+        overrideAccess: false,
+      })
+
+      const parentIds = versions.docs.map((row) => Number(row.parent))
+      expect(parentIds).toContain(mine.id)
+      expect(parentIds).not.toContain(theirs.id)
+    })
+
     it('applies the same rule to a global', async () => {
       // accessPlugin's globals branch spreads the same access config, so
       // `wm-web-translations` gets `readVersions` too. No role grants update on
