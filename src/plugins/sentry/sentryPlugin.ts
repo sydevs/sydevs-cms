@@ -25,6 +25,13 @@ interface SentryContext {
   user?: {
     id?: string
     email?: string
+    /**
+     * The client IP. Sentry's own field for it, on purpose — the project's
+     * "Prevent Storing of IP Addresses" setting and the SDK's PII scrubbers
+     * both act on `user.ip_address` and neither can see an `extra`. Setting it
+     * here keeps the org's kill switch working without a redeploy.
+     */
+    ip_address?: string
   }
   tags?: Record<string, string | undefined>
   extra?: Record<string, unknown>
@@ -133,6 +140,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
               const extra: Record<string, unknown> = { status, url: req.url }
               let level: SentryContext['level'] = status >= 500 ? 'error' : 'warning'
               let fingerprint: string[] | undefined
+              let clientIp: string | undefined
 
               // A presented-and-rejected credential is a broken integration, not
               // traffic — but only below 500. A server error's own level and
@@ -153,10 +161,23 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
               if (rejected?.outcome === 'rejected') {
                 // Cloudflare sets CF-Connecting-IP at the edge; a direct origin
                 // hit has none. Read the same way as `verifyTurnstileOrFail`.
+                //
+                // ⚠ **Trust it only as far as the edge.** A caller reaching the
+                // Railway origin directly can set this header to anything, so
+                // treat it as a lead, never as identification. The key
+                // fingerprint is the field that actually names an integration.
                 const userAgent = req.headers?.get?.('user-agent') ?? undefined
                 const ip = req.headers?.get?.('cf-connecting-ip') ?? undefined
 
                 level = 'error'
+                // The IP goes on Sentry's own `user.ip_address`, never into an
+                // `extra`: `sentry.server.config.ts` sets `sendDefaultPii:
+                // false`, and both that flag and the project's "Prevent Storing
+                // of IP Addresses" setting act on this field alone. In an
+                // `extra` it would be opaque free-form context — retained for
+                // the full window, past every scrubber, with no way to turn it
+                // off but a redeploy.
+                clientIp = ip
                 // `key_fingerprint` is deliberately a tag rather than an extra,
                 // despite its cardinality: naming WHICH integration is broken is
                 // the whole point, and only a tag is searchable.
@@ -166,7 +187,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                   auth_scheme: rejected.authScheme,
                   key_fingerprint: rejected.keyFingerprint,
                 })
-                Object.assign(extra, { userAgent, ip })
+                Object.assign(extra, { userAgent })
                 // Group by the collection, never the key fingerprint: a broken
                 // integration must not open one Sentry issue per key it presents.
                 // `classifyAuthAttempt` has already checked the slug against the
@@ -199,13 +220,20 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 })
               }
 
+              const user = req.user
+                ? {
+                    id: String(req.user.id),
+                    email: 'email' in req.user ? String(req.user.email) : undefined,
+                  }
+                : clientIp
+                  ? // No authenticated user, so `user` carries the IP alone. The
+                    // absent `id` is what still says nobody authenticated, and
+                    // the `auth_outcome` tag says it outright.
+                    {}
+                  : undefined
+
               const defaultContext: SentryContext = {
-                user: req.user
-                  ? {
-                      id: String(req.user.id),
-                      email: 'email' in req.user ? String(req.user.email) : undefined,
-                    }
-                  : undefined,
+                user: user && clientIp ? { ...user, ip_address: clientIp } : user,
                 tags,
                 extra,
                 level,

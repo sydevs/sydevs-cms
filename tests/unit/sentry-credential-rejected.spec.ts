@@ -123,14 +123,21 @@ describe('a 403 whose credential was rejected', () => {
     ])
   })
 
-  it('carries the user agent, the request IP, the collection and a key fingerprint', () => {
+  it('carries the user agent, the collection and a key fingerprint', () => {
     expect(tags()).toMatchObject({
       auth_outcome: 'rejected',
       auth_collection: 'clients',
       auth_scheme: 'API-Key',
       key_fingerprint: expect.stringMatching(/^[0-9a-f]{12}$/),
     })
-    expect(extras()).toMatchObject({ userAgent: USER_AGENT, ip: IP, url: URL })
+    expect(extras()).toMatchObject({ userAgent: USER_AGENT, url: URL })
+  })
+
+  it('reports the IP on Sentry`s own user field, where the PII scrubbers reach it', () => {
+    // In an `extra` it would be opaque context, past both `sendDefaultPii:
+    // false` and the project`s "Prevent Storing of IP Addresses" setting.
+    expect(sentry.scope.setUser).toHaveBeenCalledWith({ ip_address: IP })
+    expect(extras()).not.toHaveProperty('ip')
   })
 
   it('mirrors the denial to the application log at WARN, with the same fields', () => {
