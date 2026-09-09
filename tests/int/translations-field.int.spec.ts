@@ -129,7 +129,8 @@ describe('buildTranslationTabs', () => {
     })
 
     // Accessibility strings are long, rarely edited, and would push the visible
-    // copy off the screen.
+    // copy off the screen. The label is "Accessibility", not `toWords('a11y')`'s
+    // "A11y" — both come from SUBGROUP_PRESENTATION in `src/fields/translationsField.ts`.
     it('starts an a11y sub-group collapsed, and every other sub-group open', () => {
       const schema: TranslationsSchema = {
         type: 'object',
@@ -155,7 +156,7 @@ describe('buildTranslationTabs', () => {
       }
       expect(group.fields.map((f) => [f.label, f.admin?.initCollapsed])).toEqual([
         ['General', false],
-        ['A11y', true],
+        ['Accessibility', true],
       ])
     })
 
