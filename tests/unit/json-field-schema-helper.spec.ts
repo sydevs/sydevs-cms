@@ -13,8 +13,9 @@ import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlo
  * #726: one helper builds every `jsonSchema` in `src/`, deriving `uri`,
  * `fileMatch`, `$id` and `title` from a single title.
  *
- * The cases that matter are the two the helper exists to make impossible: a
- * `$schema` reaching Ajv, and two columns colliding on one derived URI.
+ * The cases that matter are the two with a failure mode nothing else catches:
+ * the emission target Ajv compiles under, and two columns colliding on one
+ * derived URI.
  */
 
 /** Payload's built-in validator, with the minimum context it reads. */
@@ -70,7 +71,14 @@ describe('jsonFieldSchema', () => {
   })
 
   describe('the Zod overload', () => {
-    it('emits no $schema, so Ajv can compile the result', () => {
+    it('strips the $schema Zod emits, so both overloads emit one shape', () => {
+      // Measured with the strip removed: both `runSchema` calls below still
+      // pass — Ajv 8 resolves the draft-07 meta-schema — and
+      // `payload-types.ts` regenerates byte-identically. So the strip is a
+      // consistency choice, and the first assertion is the only one that
+      // reddens: a raw-overload schema carries no `$schema`, so neither may a
+      // Zod one. Under a draft-04 target the strip was a necessity instead;
+      // `fromZod` carries that story.
       const built = jsonFieldSchema('ProbeShape', z.strictObject({ a: z.string() }))
 
       expect(built.schema.$schema).toBeUndefined()

@@ -77,12 +77,14 @@ function isZodType(shape: z.ZodType | JSONSchema4): shape is z.ZodType {
  * every JSON key is a string. `payload-types.ts` regenerates byte-identically
  * either way.
  *
- * `$schema` is deleted for tidiness, not necessity: Ajv 8 resolves the draft-07
- * one fine. It is metadata about the document, and what Payload stores here is a
- * field's shape, so `$id` and `title` are the only metadata that earn their
- * place. (Under a draft-04 target it *was* necessary — Ajv throws `no schema
- * with key or ref` on a meta-schema it does not carry — which is the trap that
- * made draft-04 look survivable.)
+ * `$schema` is deleted so both overloads emit one shape: a raw {@link JSONSchema4}
+ * never carries one, and what Payload stores here is a field's shape rather than
+ * a standalone document, so `$id` and `title` are the only metadata that earn
+ * their place. It is not a necessity — measured with the delete removed, Ajv 8
+ * compiles the schema and `payload-types.ts` regenerates byte-identically.
+ * (Under a draft-04 target it *was* necessary — Ajv throws `no schema with key
+ * or ref` on a meta-schema it does not carry — which is the trap that made
+ * draft-04 look survivable.)
  */
 function fromZod(shape: z.ZodType): JSONSchema4 {
   const emitted = z.toJSONSchema(shape, {
