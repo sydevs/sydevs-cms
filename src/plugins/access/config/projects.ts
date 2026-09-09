@@ -242,7 +242,7 @@ export function getProjectLabel(project: InternalProjectSlug | null): string {
  * Get project select options for Payload fields and UI selectors
  * @returns Array of project options with value and label
  */
-export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: string }> {
+export function getProjectOptions(): Array<{ value: ProjectSlug; label: string }> {
   return (
     Object.entries(PROJECTS) as [InternalProjectSlug, (typeof PROJECTS)[InternalProjectSlug]][]
   ).map(([value, config]) => ({

@@ -13,6 +13,8 @@
 import type { ContentSlug, PermissionLevel } from '../types'
 import type { CollectionSlug } from 'payload'
 
+import type { ProjectSlug } from '@/payload-types'
+
 import {
   getAllProjectCollections,
   isCollectionVisibleInProject,
@@ -232,7 +234,7 @@ export function isTranslatableCollection(collection: CollectionSlug): boolean {
  */
 export function getProjectsFromRoles(
   roles: InternalRoleSlug[] | Record<string, InternalRoleSlug[]> | undefined | null,
-): InternalProjectSlug[] {
+): ProjectSlug[] {
   if (!roles) return []
 
   // Flatten roles if localized (Record<locale, roles[]>)
