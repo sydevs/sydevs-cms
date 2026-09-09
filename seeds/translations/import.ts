@@ -3,11 +3,26 @@
  *
  * Seeds every translation global with English content:
  *   wm-app-translations  → real copy from seeds/wm-app-translations/data.en.json
- *   wm-web-translations  → example strings derived from the schema key names
+ *   wm-web-translations  → real copy from seeds/wm-web-translations/data.en.json
  *   sy-atlas-translations → example strings derived from the schema key names
  *
  * Idempotent — re-running overwrites the English locale value for every
  * field. Other locales are untouched.
+ *
+ * `wm-web-translations` is additionally **published in English** (#707), so
+ * the CMS's own answer to "is English published?" matches the copy it holds.
+ * Its `_status` is per-locale (`localizeStatus`, #705), so publishing `en`
+ * leaves every other locale a draft.
+ *
+ * ⚠ It is NOT what lets `wm-web-config.availableLocales` offer `en`. English
+ * is exempt from that field's publish gate by design — gating the one locale
+ * nobody can deselect would deadlock the save (`availableLocalesField.ts`).
+ * Nor does it change what a read returns: a global read comes back identical
+ * whether `draft` is true, false, or unset. The publish sets state, and state
+ * is what an operator and the admin go by.
+ *
+ * `wm-app-translations` has one status for all locales, so it keeps the plain
+ * update: publishing it here would claim 19 translated locales.
  *
  * Usage:
  *   pnpm seed:dev translations --dry-run
@@ -18,7 +33,7 @@ import * as path from 'path'
 
 import atlasSchema from '../../src/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
-import wmWebSchema from '../../src/globals/WeMeditateWebTranslations/translationsSchema.json' with { type: 'json' }
+import { pluralStorageKeys } from '../../src/lib/translations/pluralCategories'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
   buildWmAppGlobalData,
@@ -28,10 +43,10 @@ import {
 } from '../wm-app-translations/lexicalConverter'
 
 // ============================================================================
-// Example-data generator (for wm-web and sy-atlas)
+// Example-data generator (sy-atlas only, until #706)
 // ============================================================================
 
-type LeafProp = { type: 'string' | 'richText' }
+type LeafProp = { type: 'string' | 'richText'; plural?: boolean }
 type GroupNode = { type: 'object'; properties?: Record<string, LeafProp | GroupNode> }
 type SchemaRoot = { type: 'object'; properties?: Record<string, GroupNode> }
 
@@ -80,7 +95,14 @@ function generateExampleData(schema: SchemaRoot): Record<string, unknown> {
       if (isGroup(child)) {
         walkNode(child, [...segments, key])
       } else if (child.type === 'string') {
-        stringKeys[key] = toLabel(key)
+        // A `plural: true` key is STORED as its CLDR family, and since #705
+        // the column's JSON Schema declares those names and nothing else — so
+        // writing the declared key is writing a property the schema rejects.
+        // `sy-atlas-translations.emails.sessions_count` is the one such key
+        // today, and it made `pnpm seed translations` fail outright.
+        for (const storageKey of child.plural === true ? pluralStorageKeys(key) : [key]) {
+          stringKeys[storageKey] = toLabel(key)
+        }
       } else if (child.type === 'richText') {
         data[`${leafSlug}_${key}`] = makeLexical(toLabel(key))
       }
@@ -102,9 +124,23 @@ function generateExampleData(schema: SchemaRoot): Record<string, unknown> {
 // Seed definitions
 // ============================================================================
 
-const SEED_DATA_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
+const WM_APP_SEED_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
+const WM_WEB_SEED_LOCAL_PATH = 'seeds/wm-web-translations/data.en.json'
 
 const LOCALE = 'en' as const
+
+/**
+ * The wm-web seed file, minus its `_meta` header, IS the `updateGlobal` data:
+ * `<tab>.<sub-group>.<key>` for a nested tab, `<tab>.<key>` for a flat one.
+ * Nothing transforms it, which is the point — a key the schema does not
+ * declare is refused by name rather than silently dropped.
+ *
+ * That refusal reaches inside a leaf group only. Payload ignores an unknown
+ * TOP-LEVEL key on a global, so `_meta` would pass through unnoticed either
+ * way — it is stripped for the reader's sake, not the database's. The pin on
+ * the file's own contents is `tests/unit/wm-web-translations-seed.spec.ts`.
+ */
+type WmWebSeedFile = { _meta?: unknown } & Record<string, unknown>
 
 // ============================================================================
 // Importer
@@ -116,7 +152,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
 
   protected async import(): Promise<void> {
     await this.seedWmApp()
-    await this.seedFromSchema('wm-web-translations', wmWebSchema as SchemaRoot)
+    await this.seedWmWeb()
     await this.seedFromSchema('sy-atlas-translations', atlasSchema as SchemaRoot)
   }
 
@@ -129,8 +165,8 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
 
     const { loadJsonData } = await import('../lib/dataLoader')
     const seed = await loadJsonData<SeedFile>({
-      localPath: SEED_DATA_LOCAL_PATH,
-      inlineContent: this.options.inlineData?.[SEED_DATA_LOCAL_PATH],
+      localPath: WM_APP_SEED_LOCAL_PATH,
+      inlineContent: this.options.inlineData?.[WM_APP_SEED_LOCAL_PATH],
     })
 
     let data: Record<string, unknown>
@@ -150,7 +186,25 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // --------------------------------------------------------------------------
-  // wm-web-translations / sy-atlas-translations: generated example content
+  // wm-web-translations: real English copy from data.en.json
+  // --------------------------------------------------------------------------
+
+  private async seedWmWeb(): Promise<void> {
+    const { loadJsonData } = await import('../lib/dataLoader')
+    const seed = await loadJsonData<WmWebSeedFile>({
+      localPath: WM_WEB_SEED_LOCAL_PATH,
+      inlineContent: this.options.inlineData?.[WM_WEB_SEED_LOCAL_PATH],
+    })
+
+    const { _meta: _ignored, ...data } = seed
+    await this.writeGlobal('wm-web-translations', data, true)
+  }
+
+  // --------------------------------------------------------------------------
+  // sy-atlas-translations: generated example content
+  //
+  // Delete `generateExampleData` along with this method when #706 replaces the
+  // atlas schema with real copy — it is then the last caller.
   // --------------------------------------------------------------------------
 
   private async seedFromSchema(slug: string, schema: SchemaRoot): Promise<void> {
@@ -162,12 +216,32 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
   // Shared write helper
   // --------------------------------------------------------------------------
 
-  private async writeGlobal(slug: string, data: Record<string, unknown>): Promise<void> {
+  /**
+   * `publish` publishes the English locale and nothing else.
+   *
+   * Under `localizeStatus` (#705) `_status` is itself a localized column, so
+   * writing `'published'` at `locale: 'en'` fills only English's cell.
+   * `draft: false` keeps Payload out of its save-a-draft branch, and
+   * `publishSpecificLocale` names the locale being published in the version
+   * snapshot. Every other locale stays a draft, which is what
+   * `availableLocales` reads to refuse an untranslated language.
+   *
+   * Only a global whose `_status` is localized may be published here. On one
+   * with a single `_status`, this would mark every locale published at once —
+   * see the header. `tests/int/wm-web-translations-seed.int.spec.ts` holds
+   * that line by asserting `wm-app-translations` comes back unpublished.
+   */
+  private async writeGlobal(
+    slug: string,
+    data: Record<string, unknown>,
+    publish = false,
+  ): Promise<void> {
     const fieldNames = Object.keys(data)
 
     if (this.options.dryRun) {
       await this.logger.info(
-        `[dry-run] Would write ${fieldNames.length} field(s) to global "${slug}"`,
+        `[dry-run] Would write ${fieldNames.length} field(s) to global "${slug}"` +
+          (publish ? ` and publish locale "${LOCALE}"` : ''),
       )
       for (const name of fieldNames) {
         this.report.incrementCreated()
@@ -183,14 +257,17 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
       throw new Error('Payload instance not initialised (BaseImporter contract violation)')
     }
 
+    const payloadData = publish ? { ...data, _status: 'published' } : data
+
     try {
       await this.payload.updateGlobal({
         slug: slug as Parameters<typeof this.payload.updateGlobal>[0]['slug'],
-        data: data as Parameters<typeof this.payload.updateGlobal>[0]['data'],
+        data: payloadData as Parameters<typeof this.payload.updateGlobal>[0]['data'],
         locale: LOCALE,
+        ...(publish ? { draft: false as const, publishSpecificLocale: LOCALE } : {}),
       })
       await this.logger.success(
-        `Updated global "${slug}" with ${fieldNames.length} field(s) (locale=${LOCALE})`,
+        `${publish ? 'Published' : 'Updated'} global "${slug}" with ${fieldNames.length} field(s) (locale=${LOCALE})`,
       )
       for (const name of fieldNames) {
         this.report.incrementUpdated()
