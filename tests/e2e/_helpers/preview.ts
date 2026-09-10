@@ -78,8 +78,3 @@ export async function ensureAdmin(request: APIRequestContext): Promise<string> {
 export function authHeaders(token: string): Record<string, string> {
   return { Authorization: `JWT ${token}` }
 }
-
-/** The same headers, for a request whose body is JSON rather than multipart. */
-export function jsonHeaders(headers: Record<string, string>): Record<string, string> {
-  return { ...headers, 'content-type': 'application/json' }
-}

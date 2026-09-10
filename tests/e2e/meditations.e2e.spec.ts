@@ -9,7 +9,6 @@ import {
   createNarrator,
   expectOk,
 } from './_helpers/fixtures'
-import { jsonHeaders } from './_helpers/preview'
 import { runId } from './_helpers/runId'
 import { expect, test } from './_helpers/smokeTest'
 
@@ -64,7 +63,7 @@ test('create, update, and delete a Meditation against preview', async ({
 
   const newLabel = `${label}-updated`
   const updateRes = await request.patch(`/api/meditations/${id}`, {
-    headers: jsonHeaders(headers),
+    headers,
     data: { label: newLabel },
   })
   await expectOk(updateRes, 'meditation update')

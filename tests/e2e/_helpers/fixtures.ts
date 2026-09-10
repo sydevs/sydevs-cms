@@ -4,8 +4,6 @@ import { readFileSync } from 'node:fs'
 
 import type { Frame, Image, Narrator } from '@/payload-types'
 
-import { jsonHeaders } from './preview'
-
 /**
  * The dependencies a smoke spec creates for itself, and the bin that removes
  * them again.
@@ -73,14 +71,21 @@ async function createdDoc(res: APIResponse, collection: string): Promise<SmokeDo
   return body.doc
 }
 
-/** POST a JSON document to a collection. */
+/**
+ * POST a JSON document to a collection.
+ *
+ * `data` needs no `content-type` header of its own: an object goes over the
+ * wire as `jsonData`, and Playwright then sets `content-type: application/json`
+ * unless the caller already named one
+ * (`playwright-core/lib/server/fetch.js`, `serializePostData`).
+ */
 async function postJson(
   request: APIRequestContext,
   headers: Record<string, string>,
   collection: string,
   data: unknown,
 ): Promise<SmokeDoc> {
-  const res = await request.post(`/api/${collection}`, { headers: jsonHeaders(headers), data })
+  const res = await request.post(`/api/${collection}`, { headers, data })
   return createdDoc(res, collection)
 }
 

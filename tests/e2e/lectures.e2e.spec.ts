@@ -1,7 +1,6 @@
 import type { Id, SmokeDoc } from './_helpers/fixtures'
 
 import { expectOk } from './_helpers/fixtures'
-import { jsonHeaders } from './_helpers/preview'
 import { runId } from './_helpers/runId'
 import { expect, test } from './_helpers/smokeTest'
 
@@ -98,7 +97,7 @@ test('create, update, and delete a Lecture clip against preview', async ({
   // the URL (creating it when missing, which is where NV is called) and nulls
   // the URL on the clip.
   const createRes = await request.post('/api/lectures', {
-    headers: jsonHeaders(headers),
+    headers,
     data: {
       type: 'clip',
       nirmalVidyaVimeoUrl: LECTURE_VIMEO_URL,
@@ -127,7 +126,7 @@ test('create, update, and delete a Lecture clip against preview', async ({
   const id = trash.track('lectures', created.doc.id)
 
   const updateRes = await request.patch(`/api/lectures/${id}`, {
-    headers: jsonHeaders(headers),
+    headers,
     data: { startTime: 5 },
   })
   await expectOk(updateRes, 'lecture clip update')

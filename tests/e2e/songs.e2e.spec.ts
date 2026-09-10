@@ -3,7 +3,6 @@ import type { SmokeDoc } from './_helpers/fixtures'
 import { readFileSync } from 'node:fs'
 
 import { createAlbum, createImage, expectOk } from './_helpers/fixtures'
-import { jsonHeaders } from './_helpers/preview'
 import { runId } from './_helpers/runId'
 import { expect, test } from './_helpers/smokeTest'
 
@@ -47,7 +46,7 @@ test('create, update, and delete a Song against preview', async ({
 
   const newTitle = `${title}-updated`
   const updateRes = await request.patch(`/api/songs/${id}`, {
-    headers: jsonHeaders(headers),
+    headers,
     data: { title: newTitle },
   })
   await expectOk(updateRes, 'song update')
