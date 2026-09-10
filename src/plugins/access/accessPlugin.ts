@@ -14,9 +14,7 @@
 import type { BypassPermissionFunction, ContentSlug } from './types'
 import type { CollectionSlug, Config } from 'payload'
 
-import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
-
-import { createAccessConfig } from './accessConfigs'
+import { createAccessConfig, withVersionHistoryAccess } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
@@ -83,29 +81,15 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         // re-read at every locale during authentication, or the per-locale model
         // below is evaluating a flat, default-locale array (#665).
         const collection = withLocalizedRoleAuth(original)
-        // Apply role-based access control (preserve existing overrides)
-        const access = {
-          ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
-          ...collection.access,
-        }
-        // Version history is EDIT authority (#719). Derived from the MERGED
-        // `update` above, so an override carries into history too. See "Version
-        // history is edit authority" in `docs/rules/access.md`.
-        const update = access.update
-        if (update && !access.readVersions) {
-          // ⚠ Drop the id — `findVersionByID` passes the VERSION ROW's key, not
-          // the document's, so an id-sensitive branch would answer about the
-          // wrong document.
-          access.readVersions = async ({ id: _versionRowId, ...args }) => {
-            const result = await update(args)
-            // ⚠ Translate the `Where` — `update` queries DOCUMENTS, this one
-            // queries VERSIONS, where fields sit under `version.`.
-            return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
-          }
-        }
         return {
           ...collection,
-          access,
+          // Apply role-based access control (preserve existing overrides).
+          // `readVersions` is derived from the MERGED `update`, so an override
+          // carries into version history too — see accessConfigs.ts (#719).
+          access: withVersionHistoryAccess({
+            ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
+            ...collection.access,
+          }),
           admin: {
             ...collection.admin,
             // Respect existing hidden config, otherwise apply project-based visibility
@@ -140,23 +124,16 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
       // Apply to globals
       globals: config.globals?.map((global) => {
         const slug = global.slug as ContentSlug
-        // Apply role-based access control (preserve existing overrides)
-        const access = {
-          ...createAccessConfig(slug, ['read', 'update'], bypassPermissions),
-          ...global.access,
-        }
-        // Same derivation as collections above — the three translations globals
-        // carry drafts, and their history is edit authority too (#719).
-        const update = access.update
-        if (update && !access.readVersions) {
-          access.readVersions = async ({ id: _versionRowId, ...args }) => {
-            const result = await update(args)
-            return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
-          }
-        }
         return {
           ...global,
-          access,
+          // Apply role-based access control (preserve existing overrides).
+          // Globals get `readVersions` the same way: the three translations
+          // globals carry drafts, and their version history is edit authority
+          // like every collection's (#719, see accessConfigs.ts).
+          access: withVersionHistoryAccess({
+            ...createAccessConfig(slug, ['read', 'update'], bypassPermissions),
+            ...global.access,
+          }),
           admin: {
             ...global.admin,
             // Apply project-based visibility
