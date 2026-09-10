@@ -2,8 +2,13 @@ import type { APIRequestContext, APIResponse } from '@playwright/test'
 
 import { readFileSync } from 'node:fs'
 
+import type { Frame, Image, Narrator } from '@/payload-types'
+
+import { jsonHeaders } from './preview'
+
 /**
- * Fixtures a smoke spec builds for itself, and the bin that removes them again.
+ * The dependencies a smoke spec creates for itself, and the bin that removes
+ * them again.
  *
  * **A per-PR preview carries no content.** Railway forks service configuration
  * and variables, not volume data, so a PR environment boots with migrations
@@ -12,38 +17,96 @@ import { readFileSync } from 'node:fs'
  *
  * That is why a spec must not read a list and skip when it comes back empty —
  * the condition holds on every run, so the spec never asserts anything while
- * the job stays green. Each spec creates its own dependencies instead.
+ * the job stays green. Each spec creates its own dependencies instead, and
+ * `smokeTest.ts` empties the bin in a fixture teardown.
  *
- * Records are prefixed with `runId()` by their callers so two runs against the
- * same preview cannot collide on a name or an upload filename.
+ * Field values are typed against `@/payload-types` rather than written as bare
+ * literals, so `pnpm typecheck:tests` catches a renamed field or a dropped enum
+ * value in seconds, instead of five minutes into a preview run.
  */
-
-const image = readFileSync('tests/files/image-1050x700.png')
-
-type Doc = { id: number | string }
-type DocResponse = { doc: Doc }
 
 export type Id = number | string
 
+/** What a create returns. `filename` exists only on the upload collections. */
+export type SmokeDoc = { id: Id; filename?: string }
+
 /**
- * Reads the body once and reports it. A create failure here is a broken
- * deployment, not a reason to skip, so it must say what the API answered.
+ * Sample uploads, read on first use. `webp` is the default because three
+ * fixtures upload one per run, through Cloudflare Images, and CI retries twice:
+ * it is 50 KB against the PNG's 512 KB, at the same dimensions.
  */
-async function created(res: APIResponse, what: string): Promise<Id> {
-  if (!res.ok()) {
-    throw new Error(
-      `smoke fixture: creating the ${what} failed: ${res.status()} ${await res.text()}`,
-    )
-  }
-  const body = (await res.json()) as DocResponse
-  if (body.doc?.id === undefined) {
-    throw new Error(`smoke fixture: creating the ${what} returned no id: ${JSON.stringify(body)}`)
-  }
-  return body.doc.id
+const SAMPLE_IMAGES = {
+  webp: { path: 'tests/files/image-1050x700.webp', mimeType: 'image/webp' },
+  png: { path: 'tests/files/image-1050x700.png', mimeType: 'image/png' },
+} as const
+
+export type ImageFormat = keyof typeof SAMPLE_IMAGES
+
+const buffers = new Map<ImageFormat, Buffer>()
+
+function sampleImage(format: ImageFormat): Buffer {
+  const cached = buffers.get(format)
+  if (cached) return cached
+  const buffer = readFileSync(SAMPLE_IMAGES[format].path)
+  buffers.set(format, buffer)
+  return buffer
 }
 
 /**
- * A bin of records to delete, emptied newest-first in a spec's `finally`.
+ * Throw with the status and body when a request failed.
+ *
+ * The body is read only on the failure path. `expect(res.ok(), message)` builds
+ * its message first, so it fetches the body on every passing assertion too.
+ */
+export async function expectOk(res: APIResponse, what: string): Promise<void> {
+  if (!res.ok()) {
+    throw new Error(`${what} failed: ${res.status()} ${await res.text()}`)
+  }
+}
+
+async function createdDoc(res: APIResponse, collection: string): Promise<SmokeDoc> {
+  await expectOk(res, `smoke fixture: creating the ${collection} record`)
+  const body = (await res.json()) as { doc?: SmokeDoc }
+  if (body.doc?.id === undefined) {
+    throw new Error(`smoke fixture: ${collection} create returned no id: ${JSON.stringify(body)}`)
+  }
+  return body.doc
+}
+
+/** POST a JSON document to a collection. */
+async function postJson(
+  request: APIRequestContext,
+  headers: Record<string, string>,
+  collection: string,
+  data: unknown,
+): Promise<SmokeDoc> {
+  const res = await request.post(`/api/${collection}`, { headers: jsonHeaders(headers), data })
+  return createdDoc(res, collection)
+}
+
+/**
+ * POST a file to an upload collection. Payload's REST convention puts the JSON
+ * document in `_payload` and the binary in `file`.
+ * https://payloadcms.com/docs/rest-api/overview#uploads
+ */
+async function postUpload(
+  request: APIRequestContext,
+  headers: Record<string, string>,
+  collection: string,
+  data: unknown,
+  file: { name: string; mimeType: string; buffer: Buffer },
+): Promise<SmokeDoc> {
+  const res = await request.post(`/api/${collection}`, {
+    headers,
+    multipart: { _payload: JSON.stringify(data), file },
+  })
+  return createdDoc(res, collection)
+}
+
+export type Trash = ReturnType<typeof createTrash>
+
+/**
+ * A bin of records to delete, emptied newest-first.
  *
  * Deletes are best-effort: a record the spec already removed answers 404, and a
  * cascade (Albums deletes its Songs) may have taken one out from under us.
@@ -52,6 +115,7 @@ async function created(res: APIResponse, what: string): Promise<Id> {
 export function createTrash(request: APIRequestContext, headers: Record<string, string>) {
   const refs: Array<{ collection: string; id: Id }> = []
   return {
+    /** Track a record for deletion, and return its id for the call site. */
     track(collection: string, id: Id): Id {
       refs.push({ collection, id })
       return id
@@ -65,74 +129,65 @@ export function createTrash(request: APIRequestContext, headers: Record<string, 
           // assertions, and a leaked record is namespaced by SMOKE_RUN_ID.
         }
       }
+      refs.length = 0
     },
   }
 }
 
 /**
- * Upload an Image. `tags` matters for a Meditation thumbnail: `mediaField`
- * builds `filterOptions: { tags: { contains: tagName } }` for a tagged field
- * (`src/fields/mediaField.ts`), and the Meditations thumbnail is tagged
- * `meditation`.
+ * The tag a Meditation thumbnail must carry: `mediaField` turns `tagName` into
+ * `filterOptions: { tags: { contains: tagName } }` (`src/fields/mediaField.ts`).
  */
-export async function createImage(
+export const MEDITATION_IMAGE_TAG: NonNullable<Image['tags']>[number] = 'meditation'
+
+/** Upload an Image. */
+export function createImage(
   request: APIRequestContext,
   headers: Record<string, string>,
   name: string,
-  tags: string[] = [],
-): Promise<Id> {
-  const res = await request.post('/api/images', {
-    headers,
-    multipart: {
-      _payload: JSON.stringify({ alt: name, ...(tags.length > 0 ? { tags } : {}) }),
-      file: { name: `${name}.png`, mimeType: 'image/png', buffer: image },
-    },
+  { tags = [], format = 'webp' }: { tags?: Image['tags']; format?: ImageFormat } = {},
+): Promise<SmokeDoc> {
+  const data: Pick<Image, 'alt' | 'tags'> = { alt: name, tags }
+  return postUpload(request, headers, 'images', data, {
+    name: `${name}.${format}`,
+    mimeType: SAMPLE_IMAGES[format].mimeType,
+    buffer: sampleImage(format),
   })
-  return created(res, 'image')
 }
 
 /** Create an Album. `artwork`, `title` and `artist` are all required. */
-export async function createAlbum(
+export function createAlbum(
   request: APIRequestContext,
   headers: Record<string, string>,
   { title, artist, artwork }: { title: string; artist: string; artwork: Id },
-): Promise<Id> {
-  const res = await request.post('/api/albums', {
-    headers: { ...headers, 'content-type': 'application/json' },
-    data: { title, artist, artwork },
-  })
-  return created(res, 'album')
+): Promise<SmokeDoc> {
+  return postJson(request, headers, 'albums', { title, artist, artwork })
 }
 
 /** Create a Narrator. `name` and `gender` are the whole collection. */
-export async function createNarrator(
+export function createNarrator(
   request: APIRequestContext,
   headers: Record<string, string>,
   name: string,
-): Promise<Id> {
-  const res = await request.post('/api/narrators', {
-    headers: { ...headers, 'content-type': 'application/json' },
-    data: { name, gender: 'female' },
-  })
-  return created(res, 'narrator')
+): Promise<SmokeDoc> {
+  const data: Pick<Narrator, 'name' | 'gender'> = { name, gender: 'female' }
+  return postJson(request, headers, 'narrators', data)
 }
 
 /**
- * Upload a Frame. Frames is an upload collection that accepts `image/png`, and
- * requires `imageSet` plus `label` — `label` stays required even though the
- * admin only shows it for a frame with no `subtleSystemNode`.
+ * Upload a Frame. `imageSet` is required, and so is `label` — the admin shows
+ * the latter only for a frame with no `subtleSystemNode`, but the field is
+ * required either way.
  */
-export async function createFrame(
+export function createFrame(
   request: APIRequestContext,
   headers: Record<string, string>,
   label: string,
-): Promise<Id> {
-  const res = await request.post('/api/frames', {
-    headers,
-    multipart: {
-      _payload: JSON.stringify({ imageSet: 'female', label }),
-      file: { name: `${label}.png`, mimeType: 'image/png', buffer: image },
-    },
+): Promise<SmokeDoc> {
+  const data: Pick<Frame, 'imageSet' | 'label'> = { imageSet: 'female', label }
+  return postUpload(request, headers, 'frames', data, {
+    name: `${label}.webp`,
+    mimeType: SAMPLE_IMAGES.webp.mimeType,
+    buffer: sampleImage('webp'),
   })
-  return created(res, 'frame')
 }
