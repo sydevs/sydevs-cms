@@ -40,3 +40,24 @@ export const railwayEnvironmentName = (): string | undefined =>
  */
 export const deploymentEnvironment = (): string | undefined =>
   railwayEnvironmentName() ?? process.env.NODE_ENV
+
+/**
+ * The same name, for code that runs in the **browser**.
+ *
+ * ⚠ **A browser bundle reads no environment at runtime.** `RAILWAY_*` never
+ * reaches it, so `deploymentEnvironment()` would answer `undefined` there and
+ * Sentry would apply its `production` default — #733's defect again (#737).
+ * `next.config.mjs`'s `env` block inlines the deployment name under
+ * `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` at build time, and this reads it back.
+ *
+ * ⚠ **Both reads must stay literal `process.env.<KEY>` member expressions.**
+ * Next's DefinePlugin substitutes those, and nothing else: bare `process.env`
+ * is an empty object in the browser (`next/dist/compiled/process`), which is
+ * why this cannot go through `clientEnv` or any destructuring.
+ *
+ * Off-Railway the config falls through to `NODE_ENV`, so a local run still
+ * reports `development`. The `?? process.env.NODE_ENV` here is the second
+ * belt: it covers a bundle built before the config entry existed.
+ */
+export const clientDeploymentEnvironment = (): string | undefined =>
+  process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT ?? process.env.NODE_ENV

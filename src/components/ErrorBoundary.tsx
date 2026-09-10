@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
 import { clientEnv } from '@/lib/env/client'
+import { clientDeploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -28,7 +29,7 @@ function initializeSentry() {
     if (dsn) {
       Sentry.init({
         dsn,
-        environment: process.env.NODE_ENV,
+        environment: clientDeploymentEnvironment(),
 
         // Integrations for React error boundaries and browser tracking
         integrations: [
