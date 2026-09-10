@@ -98,24 +98,6 @@ const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
 const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
 
 // =============================================================================
-// Internal Type (module-private — the boundary speaks `ProjectSlug`)
-// =============================================================================
-
-/**
- * Derived from `PROJECTS`, and the cast target where `Object.keys` and
- * `Object.entries` widen a key back to `string`. The `satisfies` clause above
- * pins this name and the generated `ProjectSlug` to one set, so `ProjectSlug`
- * type-checks at every position here — but spelling it at those casts puts
- * `as ProjectSlug` back into `src/`, which #713 deleted. Not exported
- * (`src/types/AGENTS.md`): a *return* uses `ProjectSlug`, while a parameter
- * keeps this name and still accepts one.
- *
- * `getProjectSlugs` is the one return that keeps it: `accessPlugin.ts` builds
- * the `ProjectSlug` jsonSchema from its output.
- */
-type InternalProjectSlug = keyof typeof PROJECTS
-
-// =============================================================================
 // Computed Lookup Tables (internal only, computed at module load)
 // =============================================================================
 
@@ -123,25 +105,27 @@ type InternalProjectSlug = keyof typeof PROJECTS
  * Project to collections mapping (includes globals)
  * Computed once at module load from PROJECTS configuration
  */
-const PROJECT_TO_COLLECTIONS: Record<InternalProjectSlug, ContentSlug[]> = Object.entries(
+const PROJECT_TO_COLLECTIONS: Record<ProjectSlug, ContentSlug[]> = Object.entries(
   PROJECTS,
 ).reduce(
   (acc, [projectSlug, projectConfig]) => {
-    acc[projectSlug as InternalProjectSlug] = [
+    // `Object.entries` widens the key to `string`. The `satisfies` clause on
+    // `PROJECTS` is what makes the assertion back to `ProjectSlug` safe.
+    acc[projectSlug as ProjectSlug] = [
       ...projectConfig.collections,
       ...projectConfig.globals,
     ] as ContentSlug[]
     return acc
   },
-  {} as Record<InternalProjectSlug, ContentSlug[]>,
+  {} as Record<ProjectSlug, ContentSlug[]>,
 )
 
 /**
  * Reverse lookup: collection -> projects that include it
  * Computed from PROJECT_TO_COLLECTIONS
  */
-const COLLECTION_TO_PROJECTS: Record<ContentSlug, InternalProjectSlug[]> = (
-  Object.entries(PROJECT_TO_COLLECTIONS) as [InternalProjectSlug, CollectionSlug[]][]
+const COLLECTION_TO_PROJECTS: Record<ContentSlug, ProjectSlug[]> = (
+  Object.entries(PROJECT_TO_COLLECTIONS) as [ProjectSlug, CollectionSlug[]][]
 ).reduce(
   (acc, [project, collections]) => {
     collections.forEach((collection) => {
@@ -150,7 +134,7 @@ const COLLECTION_TO_PROJECTS: Record<ContentSlug, InternalProjectSlug[]> = (
     })
     return acc
   },
-  {} as Record<ContentSlug, InternalProjectSlug[]>,
+  {} as Record<ContentSlug, ProjectSlug[]>,
 )
 
 /**
@@ -204,10 +188,17 @@ export function isRestrictedCollection(collection: ContentSlug): boolean {
 
 /**
  * Get array of project slugs for TypeScript type generation
+ *
+ * `accessPlugin.ts` builds the generated `ProjectSlug` jsonSchema from this
+ * output, so the annotation names the type it produces. That is sound, not
+ * circular: the `satisfies` clause on `PROJECTS` fails the type-check if
+ * `payload-types.ts` is ever stale against these keys.
+ *
  * @returns Array of project slugs
  */
-export function getProjectSlugs(): InternalProjectSlug[] {
-  return Object.keys(PROJECTS) as InternalProjectSlug[]
+export function getProjectSlugs(): ProjectSlug[] {
+  // `Object.keys` widens each key to `string`.
+  return Object.keys(PROJECTS) as ProjectSlug[]
 }
 
 // =============================================================================
@@ -219,7 +210,7 @@ export function getProjectSlugs(): InternalProjectSlug[] {
  * @param project - Project slug or null for admin view
  * @returns Icon file path
  */
-export function getProjectIcon(project: InternalProjectSlug | null): string {
+export function getProjectIcon(project: ProjectSlug | null): string {
   if (!project) return ADMIN_VIEW_ICON
   const projectConfig = PROJECTS[project]
   return projectConfig?.icon || ADMIN_VIEW_ICON
@@ -232,7 +223,7 @@ export function getProjectIcon(project: InternalProjectSlug | null): string {
  * @param project - Project slug or null for admin view
  * @returns PNG icon file path
  */
-export function getProjectEmailIcon(project: InternalProjectSlug | null): string {
+export function getProjectEmailIcon(project: ProjectSlug | null): string {
   if (!project) return ADMIN_VIEW_EMAIL_ICON
   const projectConfig = PROJECTS[project]
   return projectConfig?.emailIcon || ADMIN_VIEW_EMAIL_ICON
@@ -243,7 +234,7 @@ export function getProjectEmailIcon(project: InternalProjectSlug | null): string
  * @param project - Project slug or null for admin view
  * @returns Human-readable project label
  */
-export function getProjectLabel(project: InternalProjectSlug | null): string {
+export function getProjectLabel(project: ProjectSlug | null): string {
   if (!project) return ADMIN_VIEW_LABEL
   const projectConfig = PROJECTS[project]
   return projectConfig?.label || project
@@ -255,7 +246,7 @@ export function getProjectLabel(project: InternalProjectSlug | null): string {
  */
 export function getProjectOptions(): Array<{ value: ProjectSlug; label: string }> {
   return (
-    Object.entries(PROJECTS) as [InternalProjectSlug, (typeof PROJECTS)[InternalProjectSlug]][]
+    Object.entries(PROJECTS) as [ProjectSlug, (typeof PROJECTS)[ProjectSlug]][]
   ).map(([value, config]) => ({
     value,
     label: config.label,
@@ -271,12 +262,10 @@ export function getProjectOptions(): Array<{ value: ProjectSlug; label: string }
  * the handler's `try` — so the caller got a 500 where the schema promises a
  * 400 (#671).
  *
- * Narrows to the **generated** `ProjectSlug`, not the internal
- * `keyof typeof PROJECTS`, so a caller holding the result can hand it
- * straight to Payload without a cast, and no second name for one shape
- * reaches the call sites (`src/types/AGENTS.md`). The `satisfies` clause on
- * `PROJECTS` pins the two together, so a stale `payload-types.ts` is a failing
- * type-check rather than a silent widening here.
+ * Narrows to the generated `ProjectSlug`, so a caller holding the result hands
+ * it to Payload without a cast. The `satisfies` clause on `PROJECTS` pins that
+ * type to these keys, so a stale `payload-types.ts` is a failing type-check
+ * rather than a silent widening here.
  *
  * @param value - Value to validate
  * @returns True if value is a valid project slug or null
@@ -294,7 +283,7 @@ export function isValidProject(value: string | null): value is ProjectSlug | nul
  * @param project - Project slug
  * @returns Array of collection/global slugs
  */
-export function getProjectCollections(project: InternalProjectSlug): ContentSlug[] {
+export function getProjectCollections(project: ProjectSlug): ContentSlug[] {
   return PROJECT_TO_COLLECTIONS[project] || []
 }
 
@@ -321,7 +310,7 @@ export function getAllProjectCollections(): ContentSlug[] {
  */
 export function isCollectionVisibleInProject(
   collection: ContentSlug,
-  currentProject: InternalProjectSlug | null,
+  currentProject: ProjectSlug | null,
 ) {
   const allowedProjects = COLLECTION_TO_PROJECTS[collection]
 
