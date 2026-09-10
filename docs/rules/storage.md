@@ -22,7 +22,7 @@ R2 uses the S3-compatible API (`@aws-sdk/client-s3`) with `R2_BUCKET`, `R2_ACCES
 
 Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so **every deployment — production, Railway PR previews, staging, dev — reads and writes the same namespaces.** Without a guard, a preview deploy could upload into the prod namespace, or worse, **delete a production asset** (#432).
 
-⚠ **This section used to say a preview database is a sanitized clone of production, referencing real prod asset IDs. It is not, and this is the one statement of that fact** (#704). Railway forks service configuration and variables, never volume data: a PR environment boots with migrations applied and no content rows at all. Nothing else changes — a preview reaches a production asset ID by any route other than its own database (a key typed, pasted, restored from a dump, or a future seed), and the guard is what makes that harmless rather than merely unlikely. Cite this paragraph rather than restating it; the claim was wrong in five files at once because it had been copied into all of them.
+⚠ **A preview database holds no production rows, and this paragraph is the one statement of that fact** (#704). Railway forks service configuration and variables, never volume data: a PR environment boots with migrations applied and no content rows at all. The guard still matters — a preview reaches a production asset ID by any route other than its own database (a key typed, pasted, restored from a dump, or a future seed), and the guard makes that harmless rather than merely unlikely. Cite this paragraph rather than restating it, so the claim lives in one place.
 
 `previewIsolation.ts` fixes this by namespacing within the single account, and is a **no-op in production**:
 
@@ -57,7 +57,7 @@ The script exits 1 with any of the required three missing — deliberately, sinc
 
 ### Manual safety verification (one-time, per #432 AC)
 
-⚠ **The original recipe no longer runs.** It began "in the preview admin, find an image whose `filename` has no `preview-` prefix (cloned from prod)", and a preview holds no such row (#704). Create one instead:
+A preview holds no unmarked row for this recipe to find, so make one (#704):
 
 1. On a preview, upload an image, then edit its `filename` in the preview's Postgres to drop the `preview-` prefix — that is what a production-owned row looks like to the guard.
 2. Delete it from the preview admin.
