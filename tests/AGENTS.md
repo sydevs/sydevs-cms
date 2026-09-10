@@ -447,7 +447,11 @@ lecture cannot exist without `populateFromNirmalaVidya` fetching
 with `nirmalVidyaVimeoUrl` so one create covers `resolveClipParent` too,
 and reports an NV failure as an NV failure rather than as a Lectures
 regression. Point it at another lecture with `SMOKE_LECTURE_VIMEO_URL`
-when the one it names stops being served.
+when the one it names stops being served — and take that ID from a
+production full lecture, never from `seeds/wemeditate/data.json`, whose
+`vimeo_id` values are embedded page videos that NV mostly 404s. The spec's
+own comment carries the two unkeyed checks that tell a dropped video apart
+from a dropped route.
 
 **A skipped smoke lane is not a passing one.** When
 `get-railway-preview-url.ts` finds no preview, it exits cleanly and both

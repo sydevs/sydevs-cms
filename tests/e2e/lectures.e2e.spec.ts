@@ -14,18 +14,35 @@ type LectureDoc = SmokeDoc & {
 /**
  * The lecture this spec builds its parent from.
  *
- * ⚠ **Its one assumption is that NV still serves this video**, and that is the
- * one thing no local check can settle: `mapi.nirmalavidya.org` answers 401 to
- * an unkeyed request, so a valid ID and an invalid one look identical from
- * outside the deployment. The ID comes from the vimeo blocks in
- * `seeds/wemeditate/data.json` — the set `seeds/wemeditate/import.ts` turns
- * into Lectures through this same hook — and a preview CI run is what confirms
- * it.
+ * **Take the ID from production, never from `seeds/wemeditate/data.json`.**
+ * The seed file's `vimeo_id` values are the videos WeMeditate embedded in page
+ * content, and NV's catalogue is Shri Mataji's lectures — the two overlap only
+ * by accident. `importLectures` says so itself, isolating a per-video NV 404 so
+ * one absent video cannot kill the batch. A seed ID picked as if it were a
+ * lecture is what made this spec's first CI run red: NV answered 404 for
+ * `354365984`, a domain-restricted video Vimeo will not even describe over
+ * oEmbed.
+ *
+ * Every full lecture in production was created through this same hook, so its
+ * URL is one NV served. `393387855` is the most recent (id 162, synced
+ * 2026-05-29), and Vimeo's own oEmbed returns the title and duration
+ * production stored, so the video is public and unchanged.
+ *
+ * Two unkeyed checks are worth running before you blame the service, since
+ * `mapi.nirmalavidya.org` answers 401 to every keyed-route request:
+ *
+ * - `GET /api/v2/videos/vimeo/<id>/hls` returning **401** proves the route
+ *   still exists — auth runs after routing there, and a route NV has dropped
+ *   returns 404 unkeyed. A 404 reaching the hook is therefore about the video,
+ *   not the API version.
+ * - `GET https://vimeo.com/api/oembed.json?url=<url>` returning a title and
+ *   duration proves the video is public. A `domain_status_code` instead means
+ *   it is restricted, which is what an NV lecture never is.
  *
  * Override with `SMOKE_LECTURE_VIMEO_URL` when NV stops serving this one. Any
  * lecture NV still knows will do: nothing else in the spec depends on which.
  */
-const LECTURE_VIMEO_URL = process.env.SMOKE_LECTURE_VIMEO_URL ?? 'https://vimeo.com/354365984'
+const LECTURE_VIMEO_URL = process.env.SMOKE_LECTURE_VIMEO_URL ?? 'https://vimeo.com/393387855'
 
 /**
  * Why a clip create can fail for a reason that is not this repo's.
@@ -51,7 +68,8 @@ function explainCreateFailure(status: number, body: string): string {
     'lecture could not be created. This is an upstream failure, not a Lectures regression.',
     '',
     'Check, in order: mapi.nirmalavidya.org is up; NIRMALA_VIDYA_API_KEY is set on the preview',
-    'service; NV still serves this video. Point the spec at another lecture with',
+    'service; NV still serves this video. The two unkeyed probes above LECTURE_VIMEO_URL tell',
+    'those three apart. Point the spec at another production lecture with',
     'SMOKE_LECTURE_VIMEO_URL if the last one is what changed.',
     '',
     `Response: ${status} ${body}`,
