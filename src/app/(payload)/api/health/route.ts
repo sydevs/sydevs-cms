@@ -9,10 +9,8 @@ export async function GET() {
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      // The deployment name, not NODE_ENV — a Railway preview also builds
-      // with NODE_ENV=production, so this field named every preview
-      // `production` (#733, #737). Nothing reads it today, so this is a
-      // consistency fix, not a behaviour one.
+      // The deployment name, not NODE_ENV (#733). Nothing reads this field
+      // today, so this is a consistency fix, not a behaviour one.
       environment: deploymentEnvironment(),
       version: process.env.npm_package_version || 'unknown',
     }

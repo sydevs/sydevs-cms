@@ -93,4 +93,36 @@ describe('next.config.mjs publishes the deployment name', () => {
     expect(config.env?.[KEY]).toBe('pr-42')
     expect(config.env?.[KEY]).toBe(deploymentEnvironment())
   })
+
+  // Off-Railway, so a local build still tags a browser error `development`.
+  it('falls through to NODE_ENV off-Railway, like the server helper', async () => {
+    set('RAILWAY_ENVIRONMENT_NAME', undefined)
+    set('RAILWAY_ENVIRONMENT', undefined)
+    vi.stubEnv('NODE_ENV', 'development')
+
+    vi.resetModules()
+    const { default: config } = await import('../../next.config.mjs')
+
+    expect(config.env?.[KEY]).toBe('development')
+    expect(config.env?.[KEY]).toBe(deploymentEnvironment())
+  })
+
+  /**
+   * ⚠ The case above cannot see a fourth link. A config chain ending
+   * `?? 'development'` returns `development` there too, whatever the code
+   * does — the `read() ?? fallback` trap. Only an unset `NODE_ENV` separates
+   * them, and parity with the server helper is the whole point: both answer
+   * `undefined`, which `deploymentEnvironment()`'s own ⚠ explains.
+   */
+  it('adds no fourth link the server helper lacks', async () => {
+    set('RAILWAY_ENVIRONMENT_NAME', undefined)
+    set('RAILWAY_ENVIRONMENT', undefined)
+    vi.stubEnv('NODE_ENV', undefined)
+
+    vi.resetModules()
+    const { default: config } = await import('../../next.config.mjs')
+
+    expect(config.env?.[KEY]).toBeUndefined()
+    expect(config.env?.[KEY]).toBe(deploymentEnvironment())
+  })
 })

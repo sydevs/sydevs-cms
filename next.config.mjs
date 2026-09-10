@@ -88,31 +88,22 @@ const nextConfig = {
     // Next.js runs image optimization on the Node server, using sharp.
     // Cloudflare caches the optimized output at the edge.
   },
-  // Publish the deployment name to the browser bundle.
+  // Publish the deployment name to the browser bundle, which reads no
+  // environment at runtime. Next inlines every `env` key here as
+  // `process.env.<KEY>`. Why this needs no dashboard variable, and why a
+  // build-time value is the right shape:
+  // `docs/environment.md` → NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT.
   //
-  // A browser never reads `process.env` at runtime, so the two client-side
-  // Sentry call sites (`src/instrumentation-client.ts`,
-  // `src/components/ErrorBoundary.tsx`) can only learn which deployment they
-  // are from a value inlined at build time. Next inlines every `env` key here
-  // as `process.env.<KEY>`, in both bundles.
-  //
-  // This needs no dashboard variable: Railway exposes every service variable
-  // to the build (`headers()` above already relies on that, and
-  // `scripts/postinstall.cjs` reads `RAILWAY_*` there too), and each Railway
-  // environment builds separately — so a preview's own build sees
-  // `RAILWAY_ENVIRONMENT_NAME=pr-<number>`. A bundle only ever serves the
-  // deployment that built it, so a build-time value is the right shape.
-  //
-  // ⚠ This chain deliberately repeats `deploymentEnvironment()`
-  // (`src/lib/env/deploymentEnvironment.ts`), which a `.mjs` config cannot
-  // import. `tests/unit/client-deployment-environment.spec.ts` imports this
-  // file and asserts the two agree, so the copies cannot drift. See #737.
+  // ⚠ This chain repeats `deploymentEnvironment()`
+  // (`src/lib/env/deploymentEnvironment.ts`) verbatim, because a `.mjs`
+  // config cannot import it. Keep the two identical:
+  // `tests/unit/client-deployment-environment.spec.ts` imports this file and
+  // asserts they agree. See #737.
   env: {
     NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT:
       process.env.RAILWAY_ENVIRONMENT_NAME ??
       process.env.RAILWAY_ENVIRONMENT ??
-      process.env.NODE_ENV ??
-      'development',
+      process.env.NODE_ENV,
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],

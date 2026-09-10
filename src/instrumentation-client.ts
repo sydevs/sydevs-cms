@@ -18,8 +18,7 @@ import { clientDeploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 //
 // ⚠ This branch is unreachable in a browser today: `clientEnv` parses a bare
 // `process.env`, which is an empty object there, so the DSN is always
-// undefined and Sentry never initializes client-side (#760). The environment
-// tag below is correct for when that is fixed.
+// undefined and Sentry never initializes client-side (#760).
 if (clientEnv.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: clientEnv.NEXT_PUBLIC_SENTRY_DSN,

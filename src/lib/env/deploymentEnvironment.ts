@@ -56,8 +56,9 @@ export const deploymentEnvironment = (): string | undefined =>
  * why this cannot go through `clientEnv` or any destructuring.
  *
  * Off-Railway the config falls through to `NODE_ENV`, so a local run still
- * reports `development`. The `?? process.env.NODE_ENV` here is the second
- * belt: it covers a bundle built before the config entry existed.
+ * reports `development`. The `?? process.env.NODE_ENV` here is what keeps this
+ * honest outside a Next build — the unit lane, and any consumer Next did not
+ * compile — where nothing inlines the key at all.
  */
 export const clientDeploymentEnvironment = (): string | undefined =>
   process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT ?? process.env.NODE_ENV
