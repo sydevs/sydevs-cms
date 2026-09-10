@@ -66,6 +66,18 @@ Production is detected by Railway's environment name, never `NODE_ENV`. Previews
 
 `PREVIEW_ADMIN_EMAIL` overrides the account address, defaulting to `contact@sydevelopers.com`. Environments forked before 2026-08-27 never got the variable, and keep whatever admin an early smoke run seeded.
 
+### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
+
+Error reports name the deployment they came from, so a PR preview's noise never reads as a production incident (#733). Server-side that is `deploymentEnvironment()` (`@/lib/env/deploymentEnvironment`), which reads `RAILWAY_ENVIRONMENT_NAME` at runtime.
+
+**A browser reads no environment at runtime**, so the client needs the name inlined at build time. `next.config.mjs`'s `env` block derives `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` from the same Railway variables and Next inlines it into the bundle; `clientDeploymentEnvironment()` reads it back (#737).
+
+Three consequences worth knowing:
+
+- **Do not set this variable in the Railway dashboard.** The `env` block overrides a same-named process variable, and each Railway environment builds separately, so every environment — including a preview created next month — publishes its own name with no setup.
+- **A bundle is fixed at build time.** That is correct here: a bundle only ever serves the deployment that built it.
+- **It cannot be read through `clientEnv`.** Next substitutes literal `process.env.<KEY>` expressions only, and a browser's bare `process.env` is an empty object — so `clientDeploymentEnvironment()` reads the key directly.
+
 ### Local Development
 
 ```env
