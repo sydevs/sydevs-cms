@@ -42,7 +42,9 @@ test('upload + delete an Image against preview, namespaced for isolation', async
   }
 
   // The preview may delete its OWN (preview-marked) upload. The guard only
-  // blocks deletes of unmarked, cloned-from-prod assets.
+  // blocks deletes of unmarked assets — production's. A preview reaches one
+  // by an ID or key that arrived some way other than its own database, which
+  // holds no production rows (#704).
   const deleteRes = await request.delete(`/api/images/${id}`, { headers })
   expect(deleteRes.ok()).toBe(true)
 

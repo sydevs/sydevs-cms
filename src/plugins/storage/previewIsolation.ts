@@ -3,10 +3,17 @@
  *
  * Images, Stream, and R2 are account/bucket-scoped resources shared by EVERY
  * deployment of this app: production, Railway per-PR previews, staging, and
- * local dev all talk to the same Cloudflare account + R2 bucket. Cloned preview
- * databases reference real production asset IDs, so without isolation a preview
- * deploy could upload into — or, far worse, DELETE from — the production
- * namespace (issue #432).
+ * local dev all talk to the same Cloudflare account + R2 bucket. So without
+ * isolation a preview deploy could upload into — or, far worse, DELETE from —
+ * the production namespace (issue #432).
+ *
+ * ⚠ This used to say a cloned preview database references real production
+ * asset IDs. It does not: Railway forks service configuration and variables,
+ * never volume data, so a PR environment starts with empty content tables
+ * (#704). The guard stays exactly as valuable — one object key or Images ID
+ * typed, pasted or restored by hand is all it takes to aim a preview's delete
+ * at a production asset, and the guard is what makes that impossible rather
+ * than unlikely.
  *
  * Strategy ("Option B" — namespacing within the single account):
  *  - Non-production uploads carry a `preview-` marker: an object-ID/key prefix
