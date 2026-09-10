@@ -1,5 +1,8 @@
-import type { CollectionSlug, JSONField, TaskConfig, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
 
+import { z } from 'zod'
+
+import { jsonField } from '@/fields/jsonField'
 import type { ImageTag } from '@/types/tags'
 
 import {
@@ -44,39 +47,21 @@ type CleanupResult = {
  * or field knowledge required. Adding new collections with file/image references
  * requires no changes to this job.
  */
-const TEST_DATE_RANGE_SCHEMA_URI = 'urn:sahajcloud:schema:cleanup-test-date-range'
-
-const testDateRangeJsonSchema: NonNullable<JSONField['jsonSchema']> = {
-  uri: TEST_DATE_RANGE_SCHEMA_URI,
-  fileMatch: [TEST_DATE_RANGE_SCHEMA_URI],
-  schema: {
-    $id: TEST_DATE_RANGE_SCHEMA_URI,
-    title: 'CleanupTestDateRange',
-    type: 'object',
-    additionalProperties: false,
-    required: ['rangeStart', 'rangeEnd'],
-    properties: {
-      rangeStart: { type: 'string' },
-      rangeEnd: { type: 'string' },
-    },
-  },
-}
-
 export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   retries: 2,
   label: 'Cleanup Orphaned Media',
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
-    {
+    jsonField({
       // Test-only injection point. The schema is what generates the input's
       // type — nothing validates it at runtime, since Payload feeds
       // `inputSchema` only to `generateJobsJSONSchemas`. It replaces a
       // hand-written `TestDateRangeInput` and the cast that applied it.
       name: 'testDateRange',
-      type: 'json',
       required: false,
-      jsonSchema: testDateRangeJsonSchema,
-    },
+      title: 'CleanupTestDateRange',
+      schema: z.strictObject({ rangeStart: z.string(), rangeEnd: z.string() }),
+    }),
     {
       name: 'maxOperations',
       type: 'number',
