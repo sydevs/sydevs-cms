@@ -13,11 +13,9 @@
 import type { ContentSlug, PermissionLevel } from '../types'
 import type { CollectionSlug } from 'payload'
 
-import {
-  getAllProjectCollections,
-  isCollectionVisibleInProject,
-  type InternalProjectSlug,
-} from './projects'
+import type { ProjectSlug } from '@/payload-types'
+
+import { getAllProjectCollections, isCollectionVisibleInProject } from './projects'
 
 // =============================================================================
 // Internal Configuration (NOT exported - use helper functions)
@@ -186,7 +184,7 @@ export function getRoleSlugs(): InternalRoleSlug[] {
  * @param role - Role slug
  * @returns Project slug or undefined
  */
-export function getRoleProject(role: InternalRoleSlug): InternalProjectSlug | undefined {
+export function getRoleProject(role: InternalRoleSlug): ProjectSlug | undefined {
   const roleConfig = ROLES[role]
   return roleConfig?.project
 }
@@ -243,7 +241,7 @@ export function isTranslatableCollection(collection: CollectionSlug): boolean {
  */
 export function getProjectsFromRoles(
   roles: InternalRoleSlug[] | Record<string, InternalRoleSlug[]> | undefined | null,
-): InternalProjectSlug[] {
+): ProjectSlug[] {
   if (!roles) return []
 
   // Flatten roles if localized (Record<locale, roles[]>)
@@ -252,7 +250,7 @@ export function getProjectsFromRoles(
     : (Object.values(roles).flat() as InternalRoleSlug[])
 
   // Map to projects and deduplicate
-  const projects = new Set<InternalProjectSlug>()
+  const projects = new Set<ProjectSlug>()
   for (const role of allRoles) {
     const project = getRoleProject(role)
     if (project) projects.add(project)
