@@ -1,3 +1,4 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
 
 /**
@@ -107,6 +108,78 @@ export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean
   return log.some((entry) => entry.type === type && entry.key === key)
 }
 
+export const ACTIVITY_LOG_SCHEMA_URI = 'urn:sahajcloud:schema:activity-log'
+
+/**
+ * One cell, as JSON Schema. Mirrors {@link LogCell}.
+ */
+const logCellJsonSchema: JSONSchema4 = {
+  oneOf: [
+    { type: 'string' },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['text'],
+      properties: {
+        label: { type: 'string', description: 'Muted, inline before the text.' },
+        text: { type: 'string' },
+        sub: { type: 'string', description: 'Muted line beneath the text.' },
+      },
+    },
+  ],
+}
+
+/**
+ * The shape every activity log holds. Mirrors {@link LogEntry}.
+ *
+ * **Every property optional, and no `required` list**, even though
+ * `appendLogEntry` has always written all three of `at`, `type` and `cells`.
+ * Payload runs this validator on **every save of the document**, including one
+ * that never touches the log — so a `required` key makes any row holding an
+ * older entry permanently unsaveable, and this column predates the factory: it
+ * was Registrations' `reminderLog`, whose entries were reminders with no
+ * `cells` at all. Type checks on the properties that *are* present still
+ * apply, which is the half worth having; demanding presence is the half that
+ * strands a row. (Payload's type generation ignores `required` here anyway, so
+ * nothing is lost downstream.)
+ *
+ * `additionalProperties: true` is the machine data the doc comment describes:
+ * a reminder's stage and recipient, a verification's ten fields. It is
+ * genuinely open — each writer owns its own keys — so there is nothing to
+ * describe, and the generated `[k: string]: unknown` is the honest type.
+ */
+export const activityLogJsonSchema: JSONSchema4 = {
+  $id: ACTIVITY_LOG_SCHEMA_URI,
+  title: 'ActivityLog',
+  type: 'array',
+  // `appendLogEntry` trims to `DEFAULT_LOG_LIMIT` on every append, but that is
+  // the writers' discipline, not the column's. The bound belongs here too, or a
+  // single write that bypasses the helper stores an unbounded array. Generous
+  // enough that no legitimate log approaches it.
+  maxItems: 500,
+  items: {
+    type: 'object',
+    additionalProperties: true,
+    properties: {
+      at: { type: 'string', description: 'ISO 8601. The first column, and the sort key.' },
+      type: { type: 'string', description: 'Stable slug — matched by jobs, never shown.' },
+      key: { type: 'string', description: 'Exactly-once key, scoped to `type`.' },
+      cells: {
+        type: 'object',
+        additionalProperties: logCellJsonSchema,
+        description: 'What the columns read. Everything outside this is machine data.',
+      },
+    },
+  },
+}
+
+/** The field-level wrapper Payload wants. Shared by every `logField` column. */
+export const activityLogFieldSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: ACTIVITY_LOG_SCHEMA_URI,
+  fileMatch: [ACTIVITY_LOG_SCHEMA_URI],
+  schema: activityLogJsonSchema,
+}
+
 export interface LogFieldOptions {
   /** Defaults to `activityLog`; override only when a document needs two logs. */
   name?: string
@@ -136,14 +209,31 @@ export function logField({
   columns,
   admin = {},
 }: LogFieldOptions): JSONField {
-  // No schema here yet, deliberately. #695 promotes `activityLog` to every
-  // submission type, on a path a client's action reaches, so it decides what
-  // this factory declares. Adding one now would give the column two definitions
-  // to reconcile at that merge. See #659's group B.
   return {
     name,
     type: 'json',
     label,
+    // Declared here, once, so every consumer of the factory inherits it —
+    // `user-submissions.activityLog` included (#695 group B / #659).
+    jsonSchema: activityLogFieldSchema,
+    // ⚠ `admin.readOnly` is the admin UI only, and the docblock's promise that
+    // this is "never writable through the API" was until now just that — a
+    // promise. It did not matter while `activityLog` sat on collections no API
+    // client could write; `user-submissions` accepts public creates, so a
+    // client could have posted a forged delivery history that the admin table
+    // renders as system-written fact.
+    //
+    // **Clients, not everyone.** `systemMetaField`'s flat `update: () => false`
+    // is wrong here: the admin verify action deliberately writes the log with
+    // `overrideAccess: false`, so that the manager's own permissions on the
+    // event are what gate it (`Events/lifecycle/verify.ts`). Denying every
+    // caller silently drops the entry from that write — the entry being the
+    // record of who verified the listing. Jobs and hooks pass `overrideAccess`
+    // and skip this either way.
+    access: {
+      create: ({ req }) => req.user?.collection !== 'clients',
+      update: ({ req }) => req.user?.collection !== 'clients',
+    },
     admin: {
       ...admin,
       readOnly: true,

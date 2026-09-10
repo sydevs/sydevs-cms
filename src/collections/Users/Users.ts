@@ -34,21 +34,19 @@ export const Users: CollectionConfig = {
       unique: true,
     },
     {
-      name: 'registrations',
+      // Everything this person has ever sent us, of any kind — a contact
+      // message, a subscription, a registration, an event proposal — in one
+      // place. It replaces the `registrations` and `submittedEvents` joins,
+      // which between them could only answer two of those four questions and
+      // made a sender's history look like two unrelated histories (#723).
+      //
+      // A join can only target a relationship column, which is why
+      // `user-submissions.user` is a real column on every type rather than a
+      // key inside `submissionData`.
+      name: 'submissions',
       type: 'join',
-      collection: 'registrations',
+      collection: 'user-submissions',
       on: 'user',
-      admin: {
-        condition: hideUntilCreated,
-      },
-    },
-    {
-      // Events this registrant sent in through the public submission flow
-      // (`events.submitter` is record-keeping only — no access implications).
-      name: 'submittedEvents',
-      type: 'join',
-      collection: 'events',
-      on: 'submitter',
       admin: {
         condition: hideUntilCreated,
       },
