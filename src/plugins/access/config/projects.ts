@@ -102,10 +102,13 @@ const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
 // =============================================================================
 
 /**
- * Derived from `PROJECTS`, for indexing it and the tables below. Not exported
- * (`src/types/AGENTS.md`) — it names the same set as the generated
- * `ProjectSlug`, which the `satisfies` clause above holds. So a *return* uses
- * `ProjectSlug`, while a parameter keeps this name and still accepts one.
+ * Derived from `PROJECTS`, and the cast target where `Object.keys` and
+ * `Object.entries` widen a key back to `string`. The `satisfies` clause above
+ * pins this name and the generated `ProjectSlug` to one set, so `ProjectSlug`
+ * type-checks at every position here — but spelling it at those casts puts
+ * `as ProjectSlug` back into `src/`, which #713 deleted. Not exported
+ * (`src/types/AGENTS.md`): a *return* uses `ProjectSlug`, while a parameter
+ * keeps this name and still accepts one.
  *
  * `getProjectSlugs` is the one return that keeps it: `accessPlugin.ts` builds
  * the `ProjectSlug` jsonSchema from its output.
