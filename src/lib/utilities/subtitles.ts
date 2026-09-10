@@ -1,12 +1,10 @@
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
-
 /**
  * Parser for subtitle payloads arriving from **outside** the CMS — the
  * Storyblok importer reads them off a third-party response before anything is
  * written. Payload validates the stored column itself (see
- * `subtitlesFieldSchema` below), so this is not a second gate on writes.
+ * `subtitlesSchema` below), so this is not a second gate on writes.
  *
  * It is the same cue shape the column declares below — one literal, read in two
  * modes. `tests/unit/subtitles.spec.ts` pins the pair against one fixture set in
@@ -26,8 +24,9 @@ export const subtitlesZodSchema = z.array(z.object(subtitleCue))
 export type Subtitles = z.infer<typeof subtitlesZodSchema>
 
 /**
- * Wired onto every `subtitles` column as the field's `jsonSchema`, which makes
- * Payload BOTH generate the TypeScript type AND validate on write with Ajv.
+ * The shape every `subtitles` column declares, passed to `jsonField` as
+ * `Subtitles` at each of its three fields. Declaring it makes Payload BOTH
+ * generate the TypeScript type AND validate on write with Ajv.
  *
  * It replaces a hand-rolled `validate` that ran the Zod mirror instead. That
  * function existed because Ajv compiles through `new Function()`, which the
@@ -42,7 +41,4 @@ export type Subtitles = z.infer<typeof subtitlesZodSchema>
  * under an earlier one fail every later save of its document, including one
  * that never touched the subtitles.
  */
-export const subtitlesFieldSchema = jsonFieldSchema(
-  'Subtitles',
-  z.array(z.looseObject(subtitleCue)),
-)
+export const subtitlesSchema = z.array(z.looseObject(subtitleCue))

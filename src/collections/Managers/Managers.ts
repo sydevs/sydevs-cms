@@ -12,7 +12,7 @@ import {
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
@@ -228,9 +228,8 @@ export const Managers: CollectionConfig = {
                 },
               ],
             },
-            {
+            jsonField({
               name: 'notificationPreferences',
-              type: 'json',
               defaultValue: buildDefaultNotificationPreferences(),
               // Open keys, typed value. `NOTIFICATION_TYPES` stays the source
               // of truth for which keys the admin renders, and the frequency is
@@ -239,16 +238,14 @@ export const Managers: CollectionConfig = {
               // on it. Why there are no per-key `properties`, and why the value
               // is typed at all, are in `src/collections/AGENTS.md` under "A
               // JSON column declares its shape".
-              jsonSchema: jsonFieldSchema(
-                'NotificationPreferences',
-                z.record(
-                  z.string(),
-                  // The value stays open for the same reason the keys do.
-                  z.looseObject({
-                    frequency: z.string().optional(),
-                    method: z.string().optional(),
-                  }),
-                ),
+              title: 'NotificationPreferences',
+              schema: z.record(
+                z.string(),
+                // The value stays open for the same reason the keys do.
+                z.looseObject({
+                  frequency: z.string().optional(),
+                  method: z.string().optional(),
+                }),
               ),
               // Composed, not replaced: supplying `validate` takes over from the
               // built-in one, which is what runs the schema above. The extra
@@ -264,7 +261,7 @@ export const Managers: CollectionConfig = {
                 custom: { notificationTypes: NOTIFICATION_TYPES },
                 components: { Field: '@/components/admin/NotificationPreferences' },
               },
-            },
+            }),
             {
               // Watermark for the registration digest run: the start of the last
               // digest sent to this manager. The digest job covers registrations

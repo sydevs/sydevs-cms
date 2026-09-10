@@ -2,7 +2,7 @@ import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payloa
 
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 import type { ImageTag } from '@/types/tags'
 
 import {
@@ -52,19 +52,16 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   label: 'Cleanup Orphaned Media',
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
-    {
+    jsonField({
       // Test-only injection point. The schema is what generates the input's
       // type — nothing validates it at runtime, since Payload feeds
       // `inputSchema` only to `generateJobsJSONSchemas`. It replaces a
       // hand-written `TestDateRangeInput` and the cast that applied it.
       name: 'testDateRange',
-      type: 'json',
       required: false,
-      jsonSchema: jsonFieldSchema(
-        'CleanupTestDateRange',
-        z.strictObject({ rangeStart: z.string(), rangeEnd: z.string() }),
-      ),
-    },
+      title: 'CleanupTestDateRange',
+      schema: z.strictObject({ rangeStart: z.string(), rangeEnd: z.string() }),
+    }),
     {
       name: 'maxOperations',
       type: 'number',

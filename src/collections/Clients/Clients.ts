@@ -2,7 +2,7 @@ import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import {
@@ -11,7 +11,7 @@ import {
 } from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
-import { abuseScoreFieldSchema, calculateAbuseScore } from '@/plugins/usage'
+import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
@@ -41,7 +41,7 @@ const domainSchema: JSONSchema4 = {
  * arrays. Round-tripping those through Zod only to convert them back buys
  * nothing.
  */
-const canonicalVerificationFieldSchema = jsonFieldSchema('ClientCanonicalVerification', {
+const canonicalVerificationSchema: JSONSchema4 = {
   type: 'object',
   additionalProperties: false,
   required: ['verified', 'failureCount', 'attempts'],
@@ -79,7 +79,7 @@ const canonicalVerificationFieldSchema = jsonFieldSchema('ClientCanonicalVerific
       },
     },
   },
-})
+}
 
 /**
  * Canonical ownership is one master switch: with it off the feature is off, and every field it
@@ -246,21 +246,21 @@ export const Clients: CollectionConfig = {
                       'Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.',
                   },
                 },
-                {
+                jsonField({
                   name: 'verification',
-                  type: 'json',
                   label: 'Verification',
                   // Written only by the VerifyEmbeds job (and verify-on-demand) from
                   // what was observed on the live page — never by a client report, so
                   // a forged report can nominate a mount but never reshape a public URL.
-                  jsonSchema: canonicalVerificationFieldSchema,
+                  title: 'ClientCanonicalVerification',
+                  schema: canonicalVerificationSchema,
                   admin: {
                     readOnly: true,
                     condition: canonicalEnabled,
                     description:
                       'What the CMS last confirmed by loading the page itself. Only a verified embed ever yields a canonical URL.',
                   },
-                },
+                }),
                 {
                   name: 'nextVerifyAt',
                   type: 'date',
@@ -279,20 +279,20 @@ export const Clients: CollectionConfig = {
               label: 'Reported Embeds',
               admin: { initCollapsed: true },
               fields: [
-                {
+                jsonField({
                   // Observed data, not configuration — written only by
                   // `POST /api/clients/report`, hence read-only here. One record per
                   // mount, keyed by origin + pathname; see ./embedMetadata.ts.
                   name: 'embedMetadata',
-                  type: 'json',
                   label: 'Discovered Embeds',
-                  jsonSchema: jsonFieldSchema('ClientEmbedMetadata', embedMetadataJsonSchema),
+                  title: 'ClientEmbedMetadata',
+                  schema: embedMetadataJsonSchema,
                   admin: {
                     readOnly: true,
                     description:
                       'What the widget reported about each page it is installed on. Reported, never configured — the legacy hand-maintained embed type was wrong in the field.',
                   },
-                },
+                }),
               ],
             },
           ],
@@ -385,13 +385,13 @@ export const Clients: CollectionConfig = {
         position: 'sidebar',
       },
       fields: [
-        {
+        jsonField({
           // Virtual: written by the hook below, never stored. The schema generates
           // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
           name: 'abuseScore',
-          type: 'json',
           virtual: true,
-          jsonSchema: abuseScoreFieldSchema,
+          title: 'ClientAbuseScore',
+          schema: abuseScoreSchema,
           hooks: {
             afterRead: [
               ({ siblingData }) => {
@@ -407,7 +407,7 @@ export const Clients: CollectionConfig = {
               Cell: '@/components/admin/AbuseScore/AbuseScoreCell',
             },
           },
-        },
+        }),
         {
           name: 'dailyRequests',
           type: 'number',

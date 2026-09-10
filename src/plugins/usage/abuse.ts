@@ -9,7 +9,6 @@
 
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { ClientAbuseScore } from '@/payload-types'
 
 import { HIGH_USAGE_THRESHOLD } from './constants'
@@ -21,20 +20,17 @@ import { HIGH_USAGE_THRESHOLD } from './constants'
  * nothing stores it, so the shape can be closed — no row exists under an
  * earlier one. `json-field-schemas.spec.ts` pins the generated type to it.
  */
-export const abuseScoreFieldSchema = jsonFieldSchema(
-  'ClientAbuseScore',
-  z.strictObject({
-    score: z.number().describe('Abuse score from 0-100.'),
-    level: z
-      .enum(['normal', 'elevated', 'high', 'critical'])
-      .describe('Severity band the score falls in.'),
-    breakdown: z.strictObject({
-      frequency: z.number().describe('Frequency contribution (0-40).'),
-      recency: z.number().describe('Recency contribution (0-30).'),
-      current: z.number().describe('Current-spike contribution (0-30).'),
-    }),
+export const abuseScoreSchema = z.strictObject({
+  score: z.number().describe('Abuse score from 0-100.'),
+  level: z
+    .enum(['normal', 'elevated', 'high', 'critical'])
+    .describe('Severity band the score falls in.'),
+  breakdown: z.strictObject({
+    frequency: z.number().describe('Frequency contribution (0-40).'),
+    recency: z.number().describe('Recency contribution (0-30).'),
+    current: z.number().describe('Current-spike contribution (0-30).'),
   }),
-)
+})
 
 // ============================================================================
 // ABUSE SCORE CALCULATION

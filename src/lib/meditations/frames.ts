@@ -20,7 +20,6 @@ import type { Payload, PayloadRequest } from 'payload'
 import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { KeyframeDefinition } from '@/types/frames'
 
 /**
@@ -40,14 +39,11 @@ import type { KeyframeDefinition } from '@/types/frames'
  * posts that enriched array straight back. Nothing but the hook stands between
  * that and the column today.
  */
-export const meditationFramesFieldSchema = jsonFieldSchema(
-  'MeditationFrames',
-  z.array(
-    z.looseObject({
-      id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
-      timestamp: z.number().describe('Seconds into the meditation.'),
-    }),
-  ),
+export const meditationFramesSchema = z.array(
+  z.looseObject({
+    id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
+    timestamp: z.number().describe('Seconds into the meditation.'),
+  }),
 )
 
 /**
@@ -61,10 +57,7 @@ export const meditationFramesFieldSchema = jsonFieldSchema(
  * so the generated type has to carry it. Payload's built-in validator skips
  * `null` before Ajv, so this changes no save.
  */
-export const meditationNodeWeightsFieldSchema = jsonFieldSchema(
-  'MeditationNodeWeights',
-  z.record(z.string(), z.number()).nullable(),
-)
+export const meditationNodeWeightsSchema = z.record(z.string(), z.number()).nullable()
 
 export type FrameNormalizationIssue =
   | 'invalid-id'

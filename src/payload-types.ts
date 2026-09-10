@@ -1113,7 +1113,7 @@ export interface Video {
   title: string;
   subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
-  fileMetadata?: FileMetadata1;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1125,13 +1125,6 @@ export interface Video {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-export interface FileMetadata1 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2555,7 +2548,7 @@ export interface Song {
    * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
   includeForMeditations?: boolean | null;
-  fileMetadata?: FileMetadata2;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2593,13 +2586,6 @@ export interface Album {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-}
-export interface FileMetadata2 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3498,7 +3484,7 @@ export interface Frame {
       )[]
     | null;
   duration?: number | null;
-  fileMetadata?: FileMetadata3;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3510,13 +3496,6 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-export interface FileMetadata3 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

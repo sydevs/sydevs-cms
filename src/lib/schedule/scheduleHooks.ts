@@ -29,7 +29,6 @@ import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { EventSchedule, ExclusionRange } from '@/types/schedule'
 
 /** Number of upcoming occurrences to compute */
@@ -263,9 +262,8 @@ export const computeIcalRule: FieldHook = ({ siblingData }) => {
  * instants, ascending. Closed because that hook is the only writer and the
  * column is virtual — nothing stores it, so no row holds an earlier shape.
  */
-export const upcomingDatesFieldSchema = jsonFieldSchema(
-  'ScheduleUpcomingDates',
-  z.array(z.string().describe('ISO 8601 UTC instant of one occurrence.')),
+export const upcomingDatesSchema = z.array(
+  z.string().describe('ISO 8601 UTC instant of one occurrence.'),
 )
 
 export const computeUpcomingDates: FieldHook = ({ siblingData }) => {

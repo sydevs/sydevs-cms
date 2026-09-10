@@ -21,10 +21,10 @@ export type {
 // File metadata - the shared sidebar column on the four upload collections
 export { fileMetadataField } from './fileMetadataField'
 
-// jsonFieldSchema is deliberately NOT re-exported here. Importing it via this
+// jsonField is deliberately NOT re-exported here. Importing it via this
 // barrel would drag translationsField (and the lexical editor with it) into
 // every light module that declares a JSON column. Use the deep path
-// `@/fields/jsonFieldSchema`, as all its call sites do.
+// `@/fields/jsonField`, as all its call sites do.
 
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'

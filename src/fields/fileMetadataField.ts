@@ -2,7 +2,7 @@ import type { JSONField } from 'payload'
 
 import { z } from 'zod'
 
-import { jsonFieldSchema } from './jsonFieldSchema'
+import { jsonField } from './jsonField'
 
 /**
  * The sidebar `fileMetadata` column shared by the four upload collections
@@ -19,23 +19,20 @@ import { jsonFieldSchema } from './jsonFieldSchema'
  * type, which is what `BaseImporter` and `MediaUploader` read.
  */
 export function fileMetadataField(options: { description?: string } = {}): JSONField {
-  return {
+  return jsonField({
     name: 'fileMetadata',
-    type: 'json',
+    title: 'FileMetadata',
+    schema: z.looseObject({
+      originalFilename: z
+        .string()
+        .optional()
+        .describe('The filename as uploaded, before the adapter replaced it with a provider id.'),
+    }),
     defaultValue: {},
-    jsonSchema: jsonFieldSchema(
-      'FileMetadata',
-      z.looseObject({
-        originalFilename: z
-          .string()
-          .optional()
-          .describe('The filename as uploaded, before the adapter replaced it with a provider id.'),
-      }),
-    ),
     admin: {
       position: 'sidebar',
       readOnly: true,
       ...(options.description ? { description: options.description } : {}),
     },
-  }
+  })
 }

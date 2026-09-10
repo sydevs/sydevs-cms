@@ -56,9 +56,9 @@ hand-written interface next to that schema is the same restatement, one
 level down — import the generated one instead, as `nirmalaVidya.ts` and
 `lectureShape.ts` do.
 
-**Declare that shape with `jsonFieldSchema` (`src/fields/jsonFieldSchema.ts`),
-in Zod, inline at the field it belongs to** — the one way to declare a JSON
-column's shape, and the reason no `*_SCHEMA_URI` constant exists to import.
+**Declare the column with `jsonField` (`src/fields/jsonField.ts`), its shape
+in Zod, inline at the field** — the one way to declare a JSON column, and the
+reason no `*_SCHEMA_URI` constant exists to import.
 It derives the schema's `uri`, `fileMatch` and `$id` from the title, so the
 title is the only name in play, and it is what the generated interface is
 called. Rules and Zod idioms: `src/collections/AGENTS.md`, "A JSON column

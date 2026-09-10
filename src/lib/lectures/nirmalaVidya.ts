@@ -1,6 +1,5 @@
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
 import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import type { LocaleCode } from '@/lib/locales'
 import { isValidLocale } from '@/lib/locales'
@@ -51,30 +50,27 @@ export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
  * make a row written under an earlier shape unsaveable.
  *
  */
-export const lectureMetadataFieldSchema = jsonFieldSchema(
-  'LectureMetadata',
-  z.strictObject({
-    title: z.string().optional(),
-    thumbnailUrl: z.string().nullable().optional(),
-    hlsUrl: z.string().optional(),
-    subtitles: z
-      // Keyed by CMS locale code, but left open on the key: the locale set
-      // moves, and retiring one must not strand every lecture still holding a
-      // track for it. `apiLanguageToLocale` is what keeps the keys valid on
-      // write — it returns null for anything `LOCALES` does not name.
-      .record(z.string(), z.string())
-      .optional()
-      .describe('Subtitle track URL per CMS locale, from the NV API language codes.'),
-    duration: z.number().nullable().optional(),
-    lastSyncedAt: z.string().optional(),
-  }),
-)
+export const lectureMetadataSchema = z.strictObject({
+  title: z.string().optional(),
+  thumbnailUrl: z.string().nullable().optional(),
+  hlsUrl: z.string().optional(),
+  subtitles: z
+    // Keyed by CMS locale code, but left open on the key: the locale set
+    // moves, and retiring one must not strand every lecture still holding a
+    // track for it. `apiLanguageToLocale` is what keeps the keys valid on
+    // write — it returns null for anything `LOCALES` does not name.
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Subtitle track URL per CMS locale, from the NV API language codes.'),
+  duration: z.number().nullable().optional(),
+  lastSyncedAt: z.string().optional(),
+})
 
 /**
  * Build a LectureMetadata object from an NV API response. Used by both the
  * create-time beforeChange hook and the monthly SyncLectureMetadata task.
  *
- * `LectureMetadata` is the interface `lectureMetadataFieldSchema` above
+ * `LectureMetadata` is the interface `lectureMetadataSchema` above
  * generates — imported from `@/payload-types`, not restated here.
  */
 export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureMetadata {

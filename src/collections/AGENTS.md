@@ -304,20 +304,22 @@ validator for writes **and** substitutes the schema into
 `payload-types.ts`, so the column's consumers stop restating its shape by
 hand.
 
-**`jsonFieldSchema` (`src/fields/jsonFieldSchema.ts`) is the one way to
-declare one.** It takes a title and a shape, and derives `uri`,
-`fileMatch`, `$id` and `title` from that title — nothing else may build a
-`jsonSchema` literal, and no `*_SCHEMA_URI` constant exists to import.
+**`jsonField` (`src/fields/jsonField.ts`) is the one way to declare a JSON
+column.** It takes a title, a shape, and the rest of the field, and derives
+`type`, `uri`, `fileMatch`, `$id` and `title` from the first two — nothing
+else may build a `jsonSchema` literal, and no `*_SCHEMA_URI` constant exists
+to import. It is the module's only export, so there is no bare `jsonSchema`
+to attach to a field that skipped it.
 
 ```typescript
-{
+jsonField({
   name: 'frames',
-  type: 'json',
-  jsonSchema: jsonFieldSchema('MeditationFrames', z.array(z.looseObject({
+  title: 'MeditationFrames',
+  schema: z.array(z.looseObject({
     id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
     timestamp: z.number().describe('Seconds into the meditation.'),
-  }))),
-}
+  })),
+})
 ```
 
 - **Declare the shape in Zod, inline at the field**, so a reader sees the
@@ -336,8 +338,8 @@ declare one.** It takes a title and a shape, and derives `uri`,
   property. `z.int()` also emits the safe-integer bounds; the helper
   strips them, because Ajv enforces them and a column that accepts `1e21`
   today must keep doing so.
-- **The raw `JSONSchema4` overload is for a shape assembled as data** — a
-  `properties` map built by `Object.fromEntries` (`stringsJsonSchema`), or
+- **A raw `JSONSchema4` `schema` is for a shape assembled as data** — a
+  `properties` map built by `Object.fromEntries` (`stringsSchema`), or
   `enum`s spliced from an exported const array
   (`Clients.canonical.verification`, `UserMessages.screeningResult`,
   `Clients.embedMetadata`). Round-tripping such a shape through Zod only
@@ -345,7 +347,7 @@ declare one.** It takes a title and a shape, and derives `uri`,
   cannot express: Zod reaches `maxProperties` through `.meta()`, and its
   `enum`/`.nullable()` forms generate the same TypeScript as the bare
   ones. Assembly, not expressiveness, is the test.
-- **Name a schema at module level only when it is too big to read beside
+- **Name a `schema` at module level only when it is too big to read beside
   the field** — `ReadinessReport` and `EventQualityReport` — or when it
   splices const arrays from elsewhere. Say which, in one line, above it.
 - **A schema belongs at its field, not in a module a client component
@@ -355,10 +357,13 @@ declare one.** It takes a title and a shape, and derives `uri`,
   the server validates. `Clients.canonical.verification` and
   `Managers.notificationPreferences` sit at their fields for that reason.
 - **A `title` names the generated interface**, and it is the only thing a
-  URI change cannot move. Reuse one schema across several columns and
-  Payload emits `FileMetadata`, `FileMetadata1`, … — one per usage, same
-  shape. Two _different_ shapes sharing a title silently merge into one;
-  `tests/unit/json-field-schema-helper.spec.ts` fails when they do.
+  URI change cannot move. Payload names an interface off the schema
+  **object**, not the title, so equal-but-separate objects would emit
+  `FileMetadata`, `FileMetadata1`, … — the same body under several names.
+  `jsonField` interns one object per distinct shape, so declaring a column
+  at its field costs nothing a shared constant used to buy. Two _different_
+  shapes sharing a title still silently merge into one;
+  `tests/unit/json-field-helper.spec.ts` fails when they do.
 - **Every property optional, unless nothing can hold the old shape.**
   Payload validates the column on _every_ save of the document, including
   one that never touched it, so a `required` key or

@@ -4,7 +4,7 @@ import pMap from 'p-map'
 import pRetry from 'p-retry'
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
@@ -36,15 +36,15 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   label: 'Sync Lecture Metadata',
   retries: 2,
   inputSchema: [
-    {
+    jsonField({
       // Optional narrowing for a manual run. The schema generates the input's
       // type, replacing a hand-written `SyncLectureMetadataInput` — it is not a
       // runtime check, so the handler still tests `Array.isArray` below.
       name: 'lectureIds',
-      type: 'json',
       required: false,
-      jsonSchema: jsonFieldSchema('SyncLectureMetadataIds', z.array(z.int())),
-    },
+      title: 'SyncLectureMetadataIds',
+      schema: z.array(z.int()),
+    }),
   ],
   outputSchema: [
     { name: 'totalProcessed', type: 'number', required: true },

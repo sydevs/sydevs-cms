@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
 
-import { jsonFieldSchema } from './jsonFieldSchema'
+import { jsonField } from './jsonField'
 
 /**
  * A `systemMeta` JSON field: the namespaced home for system-managed,
@@ -36,22 +36,22 @@ export function systemMetaField(options: {
   /** Extra admin config merged over the defaults (e.g. `condition`). */
   admin?: JSONField['admin']
 }): JSONField {
-  return {
+  // The general helper's special case, not a parallel implementation: the
+  // namespaces are the only thing that varies, so the wrapper is derived the
+  // same way every other JSON column's is.
+  return jsonField({
     name: 'systemMeta',
-    type: 'json',
-    // The general helper's special case, not a parallel implementation: the
-    // namespaces are the only thing that varies, so the wrapper is derived the
-    // same way every other JSON column's is.
-    jsonSchema: jsonFieldSchema(options.title, {
+    title: options.title,
+    schema: {
       type: 'object',
       additionalProperties: false,
       properties: options.namespaces,
-    }),
+    },
     access: { update: () => false },
     admin: {
       readOnly: true,
       description: 'System-managed metadata. Written by hooks, never by hand.',
       ...options.admin,
     },
-  }
+  })
 }

@@ -6,8 +6,10 @@ import {
   computeLastDate,
   computeUpcomingDates,
   getLocalTimeHHMM,
-  upcomingDatesFieldSchema,
+  upcomingDatesSchema,
 } from '@/lib/schedule/scheduleHooks'
+
+import { jsonField } from './jsonField'
 
 /**
  * Field factory options
@@ -514,18 +516,18 @@ function buildVirtualFields(): Field[] {
         afterRead: [computeIcalRule],
       },
     },
-    {
+    jsonField({
       // Virtual: written by `computeUpcomingDates` below, never stored. The
       // schema exists for the generated type. See `src/collections/AGENTS.md`.
       name: 'upcomingDates',
-      type: 'json',
       virtual: true,
-      jsonSchema: upcomingDatesFieldSchema,
+      title: 'ScheduleUpcomingDates',
+      schema: upcomingDatesSchema,
       admin: { hidden: true },
       hooks: {
         afterRead: [computeUpcomingDates],
       },
-    },
+    }),
   ]
 }
 

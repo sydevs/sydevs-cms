@@ -5,7 +5,8 @@ import { toKebabCase } from 'payload/shared'
 import { z } from 'zod'
 
 /**
- * Builds the `jsonSchema` a Payload JSON column wants, from **one** title.
+ * Declares a Payload JSON column: its shape, and the four pieces of metadata
+ * that shape implies.
  *
  * Payload's `jsonSchema` is `{ uri, fileMatch, schema }`, and every hand-written
  * site repeated the same string three or four times — an exported
@@ -28,6 +29,13 @@ import { z } from 'zod'
  * built by `Object.fromEntries`, or `enum`s spliced from an exported const
  * array — since round-tripping such a shape through Zod only to convert it back
  * buys nothing.
+ *
+ * **The whole field, not just its schema, is what this returns.** The two are
+ * one decision: a JSON column's `type`, `uri`, `fileMatch`, `$id` and `title`
+ * are all fixed the moment its shape is written down, so building the field
+ * elsewhere leaves five lines a caller can only get wrong. `jsonField` is
+ * therefore the only export here — there is no way to obtain a bare
+ * `jsonSchema`, and so no way to attach one to a field that skipped this.
  */
 
 /** Namespace every derived `$id` shares. Nothing dereferences it. */
@@ -98,22 +106,59 @@ function fromZod(shape: z.ZodType): JSONSchema4 {
   return emitted as JSONSchema4
 }
 
-/** Declare a JSON column's shape, in Zod or as a raw JSON Schema. */
-export function jsonFieldSchema(
-  title: string,
-  shape: JSONSchema4 | z.ZodType,
-): NonNullable<JSONField['jsonSchema']> {
+export type JsonFieldOptions = Omit<JSONField, 'jsonSchema' | 'type'> & {
+  /**
+   * The column's shape: a Zod type, or a raw {@link JSONSchema4} where the shape
+   * is assembled as data.
+   */
+  schema: JSONSchema4 | z.ZodType
+  /**
+   * Names the generated interface in `payload-types.ts`, and derives the
+   * schema's `uri`, `fileMatch` and `$id`. PascalCase.
+   */
+  title: string
+}
+
+/** Declare a JSON column — its shape, and everything that shape implies. */
+export function jsonField({ schema, title, ...field }: JsonFieldOptions): JSONField {
   const slug = toKebabCase(title)
-  if (!slug) throw new Error(`jsonFieldSchema: a title is required, got ${JSON.stringify(title)}`)
+  if (!slug) throw new Error(`jsonField: a title is required, got ${JSON.stringify(title)}`)
 
   const uri = `${SCHEMA_URI_PREFIX}${slug}`
-  const schema = isZodType(shape) ? fromZod(shape) : shape
+  const body = isZodType(schema) ? fromZod(schema) : schema
 
-  return {
-    uri,
-    fileMatch: [uri],
-    // `$id` and `title` last: a raw schema carrying either of its own is being
-    // migrated, and the derived pair is what the rest of this object agrees with.
-    schema: { ...schema, $id: uri, title },
-  }
+  return { ...field, type: 'json', jsonSchema: shared(uri, title, body) }
+}
+
+/**
+ * One object per distinct shape, reused by every field that declares it.
+ *
+ * **Payload names its generated interfaces off object identity, not off the
+ * `title`.** Two columns handed equal-but-separate `jsonSchema` objects get
+ * `Subtitles` and `Subtitles1` — the same body under two names, and a rename
+ * for anyone importing the second. Interning here is what keeps a shape's
+ * generated name a function of the shape, so declaring a column at its field
+ * costs nothing that a shared module-level constant used to buy.
+ *
+ * Keyed by body as well as URI, so two *different* shapes on one URI stay two
+ * objects and `tests/unit/json-field-helper.spec.ts` still catches them.
+ */
+const interned = new Map<string, NonNullable<JSONField['jsonSchema']>>()
+
+function shared(
+  uri: string,
+  title: string,
+  body: JSONSchema4,
+): NonNullable<JSONField['jsonSchema']> {
+  // `$id` and `title` last: a raw schema carrying either of its own is being
+  // migrated, and the derived pair is what the rest of this object agrees with.
+  const schema = { ...body, $id: uri, title }
+  const key = JSON.stringify(schema)
+
+  const already = interned.get(key)
+  if (already) return already
+
+  const built = { uri, fileMatch: [uri], schema }
+  interned.set(key, built)
+  return built
 }

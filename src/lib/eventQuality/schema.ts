@@ -14,15 +14,13 @@
  */
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
-
 /**
  * Two shapes, discriminated by `skipped`. Written as a union of two objects
  * rather than one object with optional keys so the generated type keeps the
  * discriminator — a reader that has narrowed on `skipped === false` gets
  * `checks` non-null.
  */
-const eventQualityReportZodSchema = z.union([
+export const eventQualityReportZodSchema = z.union([
   z.strictObject({
     skipped: z.literal(true),
     reason: z
@@ -44,9 +42,3 @@ const eventQualityReportZodSchema = z.union([
     openCount: z.number().describe('Failed items — what `qualityOpenCount` stores.'),
   }),
 ])
-
-/** The field-level wrapper Payload wants — see `Events.qualityReport`. */
-export const eventQualityReportFieldSchema = jsonFieldSchema(
-  'EventQualityReport',
-  eventQualityReportZodSchema,
-)

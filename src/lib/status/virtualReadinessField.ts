@@ -3,7 +3,7 @@ import type { JSONField } from 'payload'
 
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 
 /** `{ total, passing }`, the shape every summary in the report uses. */
 const summarySchema = z.strictObject({ total: z.number(), passing: z.number() })
@@ -73,17 +73,6 @@ const readinessReportZodSchema = z.strictObject({
   progress: z.strictObject({ passing: z.number(), total: z.number() }),
 })
 
-/**
- * The field-level wrapper Payload wants — see `virtualReadinessField`.
- *
- * **Named here rather than inline at the field**: a three-branch group union
- * nested in a report is past what a reader can take in beside a field's config.
- */
-export const readinessReportFieldSchema = jsonFieldSchema(
-  'ReadinessReport',
-  readinessReportZodSchema,
-)
-
 export interface ReadinessFieldAdminCustom {
   sectionMetadata: {
     key: string
@@ -136,13 +125,15 @@ export function virtualReadinessField<TConfig>(
   extractConfig: (data: unknown) => TConfig,
   adminCustom: ReadinessFieldAdminCustom,
 ): JSONField {
-  return {
+  return jsonField({
     // Virtual: written by the hook below, never stored. The schema mirrors
     // `ReadinessReport` in `./types`. See `src/collections/AGENTS.md`.
     name,
-    type: 'json',
     virtual: true,
-    jsonSchema: readinessReportFieldSchema,
+    // Named above rather than written out here: a three-branch group union
+    // nested in a report is past what a reader can take in beside a field.
+    title: 'ReadinessReport',
+    schema: readinessReportZodSchema,
     localized: true,
     // The custom component renders the section header inline. Hiding the
     // default field label keeps Payload from rendering a duplicate title
@@ -166,5 +157,5 @@ export function virtualReadinessField<TConfig>(
         },
       ],
     },
-  }
+  })
 }

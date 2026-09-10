@@ -2,7 +2,7 @@ import type { Block } from 'payload'
 
 import { z } from 'zod'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 
 export const TableOfContentsBlock: Block = {
   slug: 'table-of-contents',
@@ -25,24 +25,21 @@ export const TableOfContentsBlock: Block = {
         description: 'Optional heading displayed above the list (e.g. "In this article")',
       },
     },
-    {
+    jsonField({
       name: 'headings',
-      type: 'json',
       // Written only by `TableOfContentsField`, which stores the subset of the
       // document's detected headings an author ticked. The schema mirrors that
       // component's `DetectedHeading`, which cannot be imported here — it lives
       // in a `'use client'` module, and this block config is server-side.
       // Entries stay open so a heading gaining a field does not make every
       // existing page unsaveable.
-      jsonSchema: jsonFieldSchema(
-        'TableOfContentsHeadings',
-        z.array(
-          z.looseObject({
-            slug: z.string(),
-            text: z.string(),
-            level: z.int(),
-          }),
-        ),
+      title: 'TableOfContentsHeadings',
+      schema: z.array(
+        z.looseObject({
+          slug: z.string(),
+          text: z.string(),
+          level: z.int(),
+        }),
       ),
       admin: {
         description: 'Select headings above to include in the table of contents',
@@ -50,6 +47,6 @@ export const TableOfContentsBlock: Block = {
           Field: '@/components/admin/TableOfContentsField',
         },
       },
-    },
+    }),
   ],
 }

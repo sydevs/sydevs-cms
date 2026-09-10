@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, FieldAccess } from 'payload'
 
-import { jsonFieldSchema } from '@/fields/jsonFieldSchema'
+import { jsonField } from '@/fields/jsonField'
 
 import { enqueueUserMessageScreening } from './hooks/enqueueUserMessageScreening'
 import { prepareUserMessage } from './hooks/prepareUserMessage'
@@ -125,12 +125,11 @@ export const UserMessages: CollectionConfig = {
     afterChange: [enqueueUserMessageScreening],
   },
   fields: [
-    {
+    jsonField({
       // Status banner + screening verdict. Mounted on the data it renders
       // rather than on a `ui` field, so the component reads its own value
       // instead of reaching across form state. First field ⇒ renders on top.
       name: 'screeningResult',
-      type: 'json',
       // The banner IS this message's status, so the field is labelled for what
       // a reader reads rather than for the column it happens to store.
       label: 'Status',
@@ -138,13 +137,14 @@ export const UserMessages: CollectionConfig = {
       // an unknown key or a bad verdict is a bug in the job rather than an older
       // server meeting a newer client. Generates the type the job and the admin
       // banner both read.
-      jsonSchema: jsonFieldSchema('UserMessageScreeningResult', screeningResultJsonSchema),
+      title: 'UserMessageScreeningResult',
+      schema: screeningResultJsonSchema,
       access: systemFieldAccess,
       admin: {
         readOnly: true,
         components: { Field: '@/components/admin/UserMessages/UserMessageStatus' },
       },
-    },
+    }),
     {
       // The caller's own label for the channel, e.g. "Issue report" (Atlas).
       // This and `context` are what keep the intake reusable: WeMeditateWeb
@@ -179,15 +179,15 @@ export const UserMessages: CollectionConfig = {
         description: 'Optional. Becomes the Reply-To of the message we email out.',
       },
     },
-    {
+    jsonField({
       // Whatever the caller wants recorded alongside the message — the page
       // path, the host URL, a crash stack. Rendered into the email's details
       // block, each row omitted when its value is absent.
       name: 'context',
-      type: 'json',
-      jsonSchema: jsonFieldSchema('UserMessageContext', contextJsonSchema),
+      title: 'UserMessageContext',
+      schema: contextJsonSchema,
       admin: { readOnly: true },
-    },
+    }),
     {
       // Which app relayed this. Taken from the authenticated key by
       // `prepareUserMessage`, never from the body — it names the message in the
