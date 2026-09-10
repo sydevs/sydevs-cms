@@ -1864,8 +1864,8 @@ describe('Role-Based Access Control', () => {
   })
 
   /**
-   * Version history is EDIT authority (#719) — see `withVersionHistoryAccess`
-   * in `src/plugins/access/accessConfigs.ts` for what the rule is and why.
+   * Version history is EDIT authority (#719) — see the `readVersions`
+   * derivation in `src/plugins/access/accessPlugin.ts` for the rule and why.
    *
    * Fixture assumptions, each checked against the real config rather than
    * assumed: `pages` and `app-cards` both enable `versions.drafts`

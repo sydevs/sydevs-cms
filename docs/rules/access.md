@@ -23,7 +23,7 @@ The `accessPlugin` gives every collection access control automatically. A collec
 | `bypassPermissions.ts` | Shared bypass function |
 | `accessPlugin.ts` | Main orchestration |
 | `permissions.ts` | `hasPermission`, `hasAnyPermission` |
-| `accessConfigs.ts` | Access configuration factories, plus `withVersionHistoryAccess` |
+| `accessConfigs.ts` | Access configuration factories |
 | `fieldAccess.ts` | Field-level access for translatable collections |
 | `visibility.ts` | Admin UI visibility (`createHidden`) |
 | `filterAvailableLocales.ts` | Admin locale-selector filtering |
@@ -142,9 +142,9 @@ Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, event
 
 ### Version history is edit authority (#719)
 
-`withVersionHistoryAccess` derives **`readVersions`** from the collection's own `update` function, on every collection and global the plugin touches. Anyone who may edit a collection reads its version history. Nobody else.
+`accessPlugin.ts` derives **`readVersions`** from the collection's own `update` function, on every collection and global the plugin touches. Anyone who may edit a collection reads its version history. Nobody else.
 
-It wraps the **merged** access config in `accessPlugin.ts`, after `...collection.access` / `...global.access` — not inside `createAccessConfig`. An entity that overrides `update` gets that override in its version history too, and one that sets its own `readVersions` keeps it. Deriving it a step earlier would bind `readVersions` to an `update` the override had already replaced, which is the drift the delegation exists to prevent.
+It derives from the **merged** access config, after `...collection.access` / `...global.access` — not inside `createAccessConfig`. An entity that overrides `update` gets that override in its version history too, and one that sets its own `readVersions` keeps it. Deriving it a step earlier would bind `readVersions` to an `update` the override had already replaced, which is the drift the delegation exists to prevent.
 
 This is not Payload's default, and the default is the permissive one. `findVersions`, `findVersionByID` and `countVersions` consult `access.readVersions` alone — the published-only constraint in the `read` branch never runs for them. With `readVersions` unset, `executeAccess` falls back to "is anyone logged in", which an API key satisfies, so every draft on `pages`, `meditations`, `app-cards`, `events`, `clients` and the three translations globals was readable by any published client key — including one that cannot read the collection at all.
 
