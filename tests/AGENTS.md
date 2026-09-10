@@ -408,6 +408,7 @@ which needs no Railway API token) and runs `pnpm test:smoke`. Locally it falls b
 | `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (a login — the deploy provisions the admin) + auth headers |
 | `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so two runs against one preview don't collide              |
 | `tests/e2e/_helpers/fixtures.ts` | The dependencies a spec creates for itself (image, album, narrator, frame) + the bin that deletes them |
+| `tests/e2e/_helpers/smokeTest.ts` | `test` extended with `headers` and `trash` — import it in any spec that creates records |
 | `tests/e2e/_helpers/failOnSkipReporter.ts` | Reporter that fails the run when a spec skipped while `PREVIEW_URL` was set |
 | `tests/files/`                  | Sample audio/image files used by upload specs                                    |
 
@@ -423,7 +424,15 @@ So a spec must **never** read a list and skip when it comes back empty.
 That condition holds on every run, so the spec asserts nothing while the
 job stays green — `lectures`, `songs` and `meditations` did exactly that
 for their whole lives. Each of the three now creates its dependencies
-through `tests/e2e/_helpers/fixtures.ts` and deletes them in a `finally`.
+through `tests/e2e/_helpers/fixtures.ts`.
+
+**Import `test` from `_helpers/smokeTest.ts` in any spec that creates a
+record.** Its `trash` fixture empties in fixture teardown, which Playwright
+runs even when the 60 s timeout abandons the test body — a spec cleaning up
+in its own `finally` would leak rows, and Cloudflare Images uploads, on
+exactly the runs that went wrong. Fixture bodies are typed against
+`@/payload-types`, so `pnpm typecheck:tests` catches schema drift in seconds
+rather than five minutes into a preview run.
 
 **A skip is a failure, not a pass** (`failOnSkipReporter.ts`). With
 `PREVIEW_URL` set a deployed environment answered, so nothing is
