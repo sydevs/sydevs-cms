@@ -11,13 +11,18 @@
 import * as Sentry from '@sentry/nextjs'
 
 import { clientEnv } from '@/lib/env/client'
+import { clientDeploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
 // Initialize Sentry for client-side errors only
 // Server-side errors are handled by the Sentry plugin
+//
+// ⚠ This branch is unreachable in a browser today: `clientEnv` parses a bare
+// `process.env`, which is an empty object there, so the DSN is always
+// undefined and Sentry never initializes client-side (#760).
 if (clientEnv.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: clientEnv.NEXT_PUBLIC_SENTRY_DSN,
-    environment: process.env.NODE_ENV,
+    environment: clientDeploymentEnvironment(),
     // Disable performance tracing, only capture errors
     tracesSampleRate: 0,
   })
